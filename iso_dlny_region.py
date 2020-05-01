@@ -7,27 +7,6 @@ import unittest
 # output: iso-dlny region
 
 
-def gen_hinge(triang, edge_data1, edge_data2):
-    t_lab1, t_lab2 = edge_data1[0], edge_data2[0]
-    e_lab1, e_lab2 = edge_data1[1], edge_data2[1]
-    tri1, tri2 = triang.triangle(t_lab1), triang.triangle(t_lab2)
-    # edges are vectors
-    e1, e2 = tri1.edge(e_lab1), tri2.edge(e_lab2)
-
-    if e1 != -e2:
-        raise ValueError(
-            "Edges are either nonparallel or oriented incorrectly")
-
-    v2 = e2
-    v1 = tri2.edge((e_lab2 + 1) % 3)
-    v3 = tri1.edge((e_lab1 - 1) % 3)
-
-    #want p1 -> p2, p2 -> p3 to be an oriented basis
-    if matrix([v_2 - v_1, v3 - v2]).determinant() < 0:
-        v1, v3 = v3, v1
-
-    return (v1, v2, v3)
-
 def gen_edge_ineq(hinge):
     # want det of matrix w/ row [xi + uyi, vyi, (xi + uyi)^2 + (vyi)^2 ]
     # expand out 3rd column, , remove v from second column, use multilinearity
@@ -41,6 +20,7 @@ def gen_edge_ineq(hinge):
 
     # return an inequality a(u^2 + v^2) + bu + c >= 0
     return (a, b, c)
+
 
 def get_geod_intersection(g1, g2):
     # check whether g1 and g2 are the same
@@ -90,10 +70,20 @@ def get_geod_intersection(g1, g2):
     # TODO: if u and v are not both real:
     return (u, v)
 
+
+def is_non_degenerate(triang):
+    return all(not matrix([[v[0], v[1], v[0]**2 + v[1]**2] for v in hinge]).determinant() for hinge in triang.hinges())
+
 def gen_IDR(triang):
-    
+    return None
 
 class IsoDlnyTests(unittest.TestCase):
+
+    def testIsNonDegenerate(self):
+        # triangulation from a regular torus
+        
+
+
 
     def testEdgeIneq(self):
         return None
