@@ -12,21 +12,32 @@ class Triangle:
         else:
             self.edges = edges
 
-    def edge(self, n):
-        return self.edges[n]
-
     def __repr__(self):
         return f'Triangle{self.edge(0), self.edge(1), self.edge(2)}'
 
+    def __eq__(self, other):
+        if isinstance(other, Triangle):
+            return self.edges == other.edges
+        return NotImplemented
+
+    def edge(self, n):
+        return self.edges[n]
+
+    def apply_matrix(self, M):
+        return Triangle([M*edge for edge in self.edges])
 
 class Triangulation:
-
     def __init__(self, triangles, gluings):
         self.triangles = triangles
         self.gluings = gluings
 
     def __repr__(self):
         return f'Triangulation(edges={self.triangles}, gluings={self.gluings})'
+
+    def __eq__(self, other):
+        if isinstance(other, Triangulation):
+            return self.triangles == other.triangles and self.gluings == other.gluings
+        return NotImplemented
 
     def triangle(self, n):
         return self.triangles[n]
@@ -44,11 +55,11 @@ class Triangulation:
 
         return edge_reps
 
-    def hinge(self, edge):
-        e1, e2 = edge, self.opposite_edge(edge)
+    def hinge(self, edge_data):
+        opp_edge_data = self.opposite_edge(edge_data)
 
-        t_lab1, t_lab2 = e1[0], e2[0]
-        e_lab1, e_lab2 = e1[1], e2[1]
+        t_lab1, t_lab2 = edge_data[0], opp_edge_data[0]
+        e_lab1, e_lab2 = edge_data[1], opp_edge_data[1]
         tri1, tri2 = self.triangle(t_lab1), self.triangle(t_lab2)
         # edges are vectors
         e1, e2 = tri1.edge(e_lab1), tri2.edge(e_lab2)
@@ -57,18 +68,23 @@ class Triangulation:
             raise ValueError(
                 "Edges are either nonparallel or oriented incorrectly")
 
-        v2 = e2
+        # the hinge is "centered" at e1, meaning that e1 is the central vector
         v1 = tri2.edge((e_lab2 + 1) % 3)
-        v3 = tri1.edge((e_lab1 - 1) % 3)
+        v2 = e1
+        v3 = -tri1.edge((e_lab1 - 1) % 3)
 
         # want p1 -> p2, p2 -> p3 to be an oriented basis
-        if matrix([v_2 - v_1, v3 - v2]).determinant() < 0:
+        if matrix([v2 - v1, v3 - v2]).determinant() < 0:
             v1, v3 = v3, v1
 
         return (v1, v2, v3)
 
     def hinges(self):
-        return {self.hinge(self, edge) for edge in self.edge_reps()}
+        return [self.hinge(edge) for edge in self.edge_reps()]
+
+    def apply_matrix(self, M):
+        sheared_triangles = [triangle.apply_matrix(M) for triangle in self.triangles]
+        return Triangulation(sheared_triangles, self.gluings)
 
     @classmethod
     def from_flatsurf(cls, X):
@@ -83,18 +99,56 @@ class Triangulation:
 
         return Triangulation(triangles, gluings)
 
+    @classmethod
+    def square_torus(cls):
+        return cls.from_flatsurf(fs.translation_surfaces.square_torus())
+
+    @classmethod
+    def regular_octagon(cls):
+        return cls.from_flatsurf(fs.translation_surfaces.regular_octagon())
+
+    @classmethod
+    def arnoux_yoccoz(cls, g):
+        if g < 3:
+            raise ValueError("g must be >= 3")
+        return cls.from_flatsurf(fs.translation_surfaces.arnoux_yoccoz(g))
+
+    @classmethod
+    def octagon_and_squares(cls):
+        return cls.from_flatsurf(fs.translation_surfaces.octagon_and_squares())
+
+
+class TriangleTests(unittest.TestCase):
+    def testApplyMatrix(self):
+        sq_t = Triangulation.square_torus()
+        tri0 = sq_t.triangle(0)
+        M = matrix([[2, 1], [1, 1]])
+        sheared_triangle = Triangle([vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
+        self.assertEqual(tri0.apply_matrix(M), sheared_triangle)
 
 class TriangulationTests(unittest.TestCase):
-
     def testEdgeReps(self):
-        T1 = Triangulation.from_flatsurf(fs.translation_surfaces.square_torus())
+        T1 = Triangulation.square_torus()
         self.assertEqual(T1.edge_reps(), {(0, 0), (0, 1), (0, 2)})
 
-        T2 = Triangulation.from_flatsurf(
-            fs.translation_surfaces.regular_octagon())
-        print(T2)
-        self.assertEqual(T2.edge_reps(), {(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)})
+        T2 = Triangulation.regular_octagon()
+        self.assertEqual(T2.edge_reps(), {
+                         (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)})
 
+    def testHinge(self):
+        T1 = Triangulation.octagon_and_squares()
+        self.assertEqual(T1.hinge((1, 0)), (vector([-2, 0]), vector([-2, -2]), vector([0, -2])))
+        # TODO: write another test case
+
+    def testApplyMatrix(self):
+        sq_t = Triangulation.square_torus()
+
+        sheared_triangle0 = Triangle([vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
+        sheared_triangle1 = Triangle([vector([-3, -2]), vector([2, 1]), vector([1, 1])]) 
+        sheared_triangulation = Triangulation([sheared_triangle0, sheared_triangle1], sq_t.gluings)
+        
+        M = matrix([[2, 1], [1, 1]])
+        self.assertEqual(sq_t.apply_matrix(M), sheared_triangulation)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
