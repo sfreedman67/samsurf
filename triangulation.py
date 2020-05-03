@@ -7,7 +7,7 @@ import unittest
 class Triangle:
 
     def __init__(self, edges):
-        if edges[0] + edges[1] != -edges[2]:
+        if sum(edges) != vector([0, 0]):
             raise ValueError("sides are oriented incorrectly")
         else:
             self.edges = edges
@@ -24,12 +24,17 @@ class Triangle:
         return self.edges[n]
 
     def apply_matrix(self, M):
-        return Triangle([M*edge for edge in self.edges])
+        transformed_edges = [M * edge for edge in self.edges]
+        return Triangle(transformed_edges)
+
 
 class Triangulation:
-    def __init__(self, triangles, gluings):
+
+    def __init__(self, triangles, gluings, generator=None):
         self.triangles = triangles
         self.gluings = gluings
+        if gen is not None:
+            self.gen = generator
 
     def __repr__(self):
         return f'Triangulation(edges={self.triangles}, gluings={self.gluings})'
@@ -79,11 +84,35 @@ class Triangulation:
 
         return (v1, v2, v3)
 
+    @staticmethod
+    def edge_inequality(hinge):
+        if matrix([hinge[1] - hinge[0], hinge[2] - hinge[1]]).determinant() < 0:
+            raise ValueError("hinge is not oriented correctly")
+
+        # want det of matrix w/ row [xi + uyi, vyi, (xi + uyi)^2 + (vyi)^2 ]
+        # expand out 3rd column, remove v from second column, use
+        # multilinearity
+
+        a = matrix([[v[0], v[1], v[1]**2] for v in hinge]).determinant()
+        b = 2 * matrix([[v[0], v[1], v[0] * v[1]]
+                        for v in hinge]).determinant()
+        c = matrix([[v[0], v[1], v[0]**2] for v in hinge]).determinant()
+
+        # return an inequality a(u^2 + v^2) + bu + c >= 0
+        return (a, b, c)
+
+    def edge_inequalities(self):
+        return [Triangulation.edge_inequality(hinge) for hinge in self.hinges()]
+
     def hinges(self):
         return [self.hinge(edge) for edge in self.edge_reps()]
 
+    def is_non_degenerate(self):
+        return all(matrix([[v[0], v[1], v[0]**2 + v[1]**2] for v in hinge]).determinant() != 0 for hinge in self.hinges())
+
     def apply_matrix(self, M):
-        sheared_triangles = [triangle.apply_matrix(M) for triangle in self.triangles]
+        sheared_triangles = [triangle.apply_matrix(
+            M) for triangle in self.triangles]
         return Triangulation(sheared_triangles, self.gluings)
 
     @classmethod
@@ -97,7 +126,9 @@ class Triangulation:
 
         gluings = {edge[0]: edge[1] for edge in DT.edge_iterator(gluings=True)}
 
-        return Triangulation(triangles, gluings)
+        gen = DT.base_ring().gen()
+
+        return Triangulation(triangles, gluings, gen)
 
     @classmethod
     def square_torus(cls):
@@ -118,37 +149,95 @@ class Triangulation:
         return cls.from_flatsurf(fs.translation_surfaces.octagon_and_squares())
 
 
-class TriangleTests(unittest.TestCase):
-    def testApplyMatrix(self):
+class TestApplyMatrixToTriangle(unittest.TestCase):
+
+    def setUp(self):
+        self.torus = Triangulation.square_torus()
+        self.octagon = Triangulation.regular_octagon()
+        self.a = self.octagon.gen
+        self.A2 = matrix([[1, 2 * (self.a + 1)], [0, 1]])
+
+    def test_shear_triangle0_in_torus(self):
         sq_t = Triangulation.square_torus()
         tri0 = sq_t.triangle(0)
         M = matrix([[2, 1], [1, 1]])
-        sheared_triangle = Triangle([vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
+        sheared_triangle = Triangle(
+            [vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
         self.assertEqual(tri0.apply_matrix(M), sheared_triangle)
 
-class TriangulationTests(unittest.TestCase):
-    def testEdgeReps(self):
+    def test_shear_triangle5_in_octagon(self):
+        tri5 = self.octagon.triangle(5)
+        w1 = vector([1 / 2 * (-8 - 5 * self.a), 1 / 2 * (-2 - self.a)])
+        w2 = vector([6 + 4 * self.a, 1 + self.a])
+        w3 = vector([1 / 2 * (-4 - 3 * self.a), -1 / self.a])
+        sheared_tri5 = Triangle([w1, w2, w3])
+        self.assertEqual(tri5.apply_matrix(self.A2), sheared_tri5)
+
+
+class TestEdgeReps(unittest.TestCase):
+
+    def test_regular_polygons(self):
         T1 = Triangulation.square_torus()
+
         self.assertEqual(T1.edge_reps(), {(0, 0), (0, 1), (0, 2)})
 
         T2 = Triangulation.regular_octagon()
         self.assertEqual(T2.edge_reps(), {
                          (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)})
 
-    def testHinge(self):
+
+class TestHinge(unittest.TestCase):
+
+    def test_octagon_squares(self):
         T1 = Triangulation.octagon_and_squares()
-        self.assertEqual(T1.hinge((1, 0)), (vector([-2, 0]), vector([-2, -2]), vector([0, -2])))
+        self.assertEqual(T1.hinge((1, 0)), (vector(
+            [-2, 0]), vector([-2, -2]), vector([0, -2])))
         # TODO: write another test case
 
-    def testApplyMatrix(self):
+
+class TestEdgeInequality(unittest.TestCase):
+
+    def test_incorrectly_oriented_hinge(self):
+        h = (vector([0, 1]), vector([1, 1]), vector([1, 0]))
+        self.assertRaises(ValueError, Triangulation.edge_inequality, h)
+
+    def test_normal_hinge(self):
+        h = (vector([2, 2]), vector([2, 4]), vector([1, 4]))
+        self.assertEqual(Triangulation.edge_inequality(h), (-16, -32, -4))
+
+
+class TestApplyMatrixToTriangulation(unittest.TestCase):
+
+    def test_shear_torus(self):
         sq_t = Triangulation.square_torus()
 
-        sheared_triangle0 = Triangle([vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
-        sheared_triangle1 = Triangle([vector([-3, -2]), vector([2, 1]), vector([1, 1])]) 
-        sheared_triangulation = Triangulation([sheared_triangle0, sheared_triangle1], sq_t.gluings)
-        
+        sheared_triangle0 = Triangle(
+            [vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
+        sheared_triangle1 = Triangle(
+            [vector([-3, -2]), vector([2, 1]), vector([1, 1])])
+        sheared_triangulation = Triangulation(
+            [sheared_triangle0, sheared_triangle1], sq_t.gluings)
+
         M = matrix([[2, 1], [1, 1]])
         self.assertEqual(sq_t.apply_matrix(M), sheared_triangulation)
 
+
+class TestIsNonDegenerate(unittest.TestCase):
+
+    def test_regular_polygons(self):
+        # triangulation from a regular torus
+        self.assertFalse(Triangulation.square_torus().is_non_degenerate())
+        self.assertFalse(Triangulation.regular_octagon().is_non_degenerate())
+        self.assertFalse(
+            Triangulation.octagon_and_squares().is_non_degenerate())
+
+    def test_arnoux_yoccoz(self):
+        self.assertTrue(Triangulation.arnoux_yoccoz(3).is_non_degenerate())
+
+    def test_shear(self):
+        M = matrix([[2, 1], [1, 1]])
+        sheared_torus = Triangulation.square_torus().apply_matrix(M)
+        self.assertTrue(sheared_torus.is_non_degenerate())
+
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    unittest.main(verbosity=2, failfast=True)
