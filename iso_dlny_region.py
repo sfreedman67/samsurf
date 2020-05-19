@@ -18,6 +18,7 @@ class TestIntersectPlanes(unittest.TestCase):
         self.geodesic = HyperbolicPlane().UHP().get_geodesic
         A2 = matrix([[1, 2*(1 + Triangulation.regular_octagon().gen)], [0, 1]])
         self.sheared_octagon = Triangulation.regular_octagon().apply_matrix(A2)
+        print(self.sheared_octagon.is_non_degenerate())
 
     def test_bad_input(self):
         for sample_input in [[], [self.geodesic(2, 3)], [self.geodesic(2, 3), self.geodesic(3, 4)]]:
