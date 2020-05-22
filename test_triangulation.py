@@ -1,5 +1,7 @@
 import triangulation
-from triangulation import Triangle, Triangulation
+from triangulation import Triangle, Hinge, Triangulation
+
+from halfplane import inequality_to_geodesic
 import unittest
 
 import sage.all
@@ -12,6 +14,7 @@ class TestShearedOctagon(unittest.TestCase):
         self.sheared_octagon = Triangulation.regular_octagon(
         ).apply_matrix(matrix(([1, 1], [0, 1])))
         self.a = Triangulation.regular_octagon().gen
+        self.g = HyperbolicPlane().UHP().get_geodesic
 
     def test_can_generate_IDR(self):
         # Checks if DLNY triangulation is non-degenerate
@@ -22,23 +25,33 @@ class TestShearedOctagon(unittest.TestCase):
                          (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)])
 
         # From edges, generates the hinges
-        hinge1, hinge2, hinge3 = self.sheared_octagon.hinge(0, 0), self.sheared_octagon.hinge(0, 1), self.sheared_octagon.hinge(0, 2)
-        self.assertEqual(hinge1, (vector(
-            [self.a + 1, self.a + 1]), vector([1, 1 / 2 * self.a + 1]), vector([0, 1 / 2 * self.a])))
+        hinge1, hinge2, hinge3 = self.sheared_octagon.hinge(
+            0, 0), self.sheared_octagon.hinge(0, 1), self.sheared_octagon.hinge(0, 2)
+        self.assertEqual(hinge1, Hinge(vector(
+            [self.a + 1, self.a + 1]), vector([1, 1 / 2 * self.a + 1]), vector([0, QQ(1 / 2) * self.a])))
 
-        self.assertEqual(hinge2, (vector(
-            [-1, -1 / 2 * self.a - 1]), vector([-1, -1]), vector([-self.a - 2, -1 / 2 * self.a - 1])))
+        self.assertEqual(hinge2, Hinge(vector(
+            [-1, QQ(-1 / 2) * self.a - 1]), vector([-1, -1]), vector([-self.a - 2, QQ(-1 / 2) * self.a - 1])))
 
-        self.assertEqual(hinge3, (vector(
-            [-self.a - 2, -self.a - 1]), vector([0, -1 / 2 * self.a]), vector([1, 1])))
+        self.assertEqual(hinge3, Hinge(vector(
+            [-self.a - 2, -self.a - 1]), vector([0, QQ(-1 / 2) * self.a]), vector([1, 1])))
 
         # "From hinges, generates the edge inequalities"
-        self.assertEqual(Triangulation.edge_inequality(hinge1), (0, self.a + 1, self.a + 1))
-        self.assertEqual(Triangulation.edge_inequality(hinge2), None)
-        self.assertEqual(Triangulation.edge_inequality(hinge3), (5/2 * self.a + 7/2, 0, 0))
+        self.assertEqual(hinge1.edge_inequality(), (0, self.a + 1, self.a + 1))
+        self.assertEqual(hinge2.edge_inequality(),
+                         (-self.a - 3 / 2, -2 * self.a - 3, -2 * self.a - 3))
+        self.assertEqual(hinge3.edge_inequality(),
+                         (QQ(5 / 2) * self.a + QQ(7 / 2), 6 * self.a + 8, 4 * self.a + 5))
 
         # From edge inequalities, generates the geodesic halfplanes
-        print(self.sheared_octagon.edge_inequalities())
+        self.assertEqual(inequality_to_geodesic(
+            0, self.a + 1, self.a + 1), self.g(oo, -1))
+        self.assertEqual(inequality_to_geodesic(
+            QQ(1 / 2) * self.a + QQ(1 / 2), self.a + 1, 0), self.g(-2, 0))
+        self.assertEqual(inequality_to_geodesic(QQ(1 / 2) * self.a + QQ(1 / 2), -self.a - 2, -
+                                                2 * self.a - 3), self.g(self.a - sqrt(2 * self.a + 4), self.a + sqrt(2 * self.a + 4)))
+        self.assertEqual(inequality_to_geodesic(-self.a - QQ(3 / 2), -4 *
+                                                self.a - 6, -2 * self.a - 3), self.g(-2 - self.a, self.a - 2))
 
         # Intersects the halfplanes and forms the IDR
 
@@ -82,26 +95,11 @@ class TestEdgeReps(unittest.TestCase):
                          (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)])
 
 
-class TestHinge(unittest.TestCase):
-
-    def setUp(self):
-        self.octagon_and_squares = Triangulation.octagon_and_squares()
-
-    def test_is_independent_of_edge_in_pair(self):
-        for edge, opposite_edge in self.octagon_and_squares.edges(gluings=True):
-            self.assertEqual(self.octagon_and_squares.hinge(
-                *edge), self.octagon_and_squares.hinge(*opposite_edge))
-
-
 class TestEdgeInequality(unittest.TestCase):
 
-    def test_incorrectly_oriented_hinge(self):
-        h = (vector([0, 1]), vector([1, 1]), vector([1, 0]))
-        self.assertRaises(ValueError, Triangulation.edge_inequality, h)
-
     def test_normal_hinge(self):
-        h = (vector([2, 2]), vector([2, 4]), vector([1, 4]))
-        self.assertEqual(Triangulation.edge_inequality(h), (-16, -32, -4))
+        h = Hinge(vector([2, 2]), vector([2, 4]), vector([1, 4]))
+        self.assertEqual(h.edge_inequality(), (-16, -32, -4))
 
 
 class TestInequaltyToGeodesic(unittest.TestCase):
@@ -111,10 +109,7 @@ class TestInequaltyToGeodesic(unittest.TestCase):
 
     def test_square_torus(self):
         square_torus = Triangulation.square_torus()
-        # print(square_torus.edge_inequalities())
-        # [(2, 2, 0), (0, -2, 0), (0, 2, 2)]
-
-        self.assertEqual([Triangulation.inequality_to_geodesic(ineq) for ineq in square_torus.edge_inequalities()],
+        self.assertEqual([inequality_to_geodesic(*ineq) for ineq in square_torus.edge_inequalities()],
                          [self.geodesic(0, oo), self.geodesic(-1, 0), self.geodesic(oo, -1)])
 
 
