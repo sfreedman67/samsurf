@@ -4,6 +4,7 @@ from sage.all import *
 import flatsurf as fs
 
 import itertools
+import operator
 
 import halfplane
 
@@ -36,8 +37,6 @@ class Triangle:
 class Hinge:
 
     def __init__(self, v0, v1, v2):
-        if matrix([v1 - v0, v2 - v1]).determinant() < 0:
-            raise ValueError("Hinge is oriented incorrectly")
         self.vectors = [v0, v1, v2]
 
     def __repr__(self):
@@ -59,9 +58,6 @@ class Hinge:
         v1 = triangle2.edges[(label_e2 + 1) % 3]
         v2 = edge1
         v3 = -triangle1.edges[(label_e1 - 1) % 3]
-
-        if matrix([v2 - v1, v3 - v2]).determinant() < 0:
-            v1, v3 = v3, v1
 
         return Hinge(v1, v2, v3)
 
@@ -167,19 +163,18 @@ class Triangulation:
     def hinges(self):
         return [self.hinge(*edge) for edge in self.edges()]
 
+    # TODO: make edge inequalites and edge_geodesics into one object, a halfplane
+
     def edge_inequalities(self):
-        return [hinge.edge_inequality() for hinge in self.hinges()
-                if not halfplane.is_trivial(hinge.edge_inequality())]
+        return list(set(hinge.edge_inequality() for hinge in self.hinges()
+                        if not halfplane.is_trivial(hinge.edge_inequality())))
 
-    # TODO: combine the below two into one
-    def is_non_degenerate(self):
-        return all(bool(hinge.incircle_test() > 0) for hinge in self.hinges())
-
-    def is_delaunay(self):
-        return all(bool(hinge.incircle_test() >= 0) for hinge in self.hinges())
+    def is_delaunay(self, strict=False):
+        compare = operator.ge if not strict else operator.gt
+        return all(bool(compare(hinge.incircle_test(), 0)) for hinge in self.hinges())
 
     def edge_geodesics(self):
         return [halfplane.inequality_to_geodesic(*ineq) for ineq in self.edge_inequalities()]
 
-    def plot_edge_geodesics(self):
-        return sum(halfplane.plot(geodesic) for geodesic in self.edge_geodesics())
+    def plot_geodesics(self, count=None):
+        return sum(itertools.islice(map(halfplane.plot, self.edge_geodesics()), count))

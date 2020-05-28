@@ -1,6 +1,7 @@
 import triangulation
 from triangulation import Triangle, Hinge, Triangulation
 
+import halfplane
 from halfplane import inequality_to_geodesic
 import unittest
 
@@ -12,13 +13,13 @@ class TestShearedOctagon(unittest.TestCase):
 
     def setUp(self):
         self.sheared_octagon = Triangulation.regular_octagon(
-        ).apply_matrix(matrix(([1, 1], [0, 1])))
+        ).apply_matrix(matrix(([1, QQ(1 / 2)], [0, 1])))
         self.a = Triangulation.regular_octagon().gen
         self.g = HyperbolicPlane().UHP().get_geodesic
 
     def test_can_generate_IDR(self):
-        # Checks if DLNY triangulation is non-degenerate
-        self.assertTrue(self.sheared_octagon.is_non_degenerate())
+        # Checks if triangulation is non-degenerate DLNY
+        self.assertTrue(self.sheared_octagon.is_delaunay(strict=True))
 
         # Generates the edge representatives
         self.assertEqual(self.sheared_octagon.edges(), [
@@ -110,8 +111,7 @@ class TestInequaltyToGeodesic(unittest.TestCase):
     def test_square_torus(self):
         square_torus = Triangulation.square_torus()
         self.assertEqual([inequality_to_geodesic(*ineq) for ineq in square_torus.edge_inequalities()],
-                         [self.geodesic(0, oo), self.geodesic(-1, 0), self.geodesic(oo, -1)])
-
+                         [self.geodesic(oo, -1), self.geodesic(0, oo), self.geodesic(-1, 0)])
 
 class TestApplyMatrixToTriangulation(unittest.TestCase):
 
@@ -133,18 +133,27 @@ class TestIsNonDegenerate(unittest.TestCase):
 
     def test_regular_polygons(self):
         # triangulation from a regular torus
-        self.assertFalse(Triangulation.square_torus().is_non_degenerate())
-        self.assertFalse(Triangulation.regular_octagon().is_non_degenerate())
+        self.assertFalse(Triangulation.square_torus().is_delaunay(strict=True))
         self.assertFalse(
-            Triangulation.octagon_and_squares().is_non_degenerate())
+            Triangulation.regular_octagon().is_delaunay(strict=True))
+        self.assertFalse(
+            Triangulation.octagon_and_squares().is_delaunay(strict=True))
 
     def test_arnoux_yoccoz(self):
-        self.assertTrue(Triangulation.arnoux_yoccoz(3).is_non_degenerate())
+        self.assertTrue(Triangulation.arnoux_yoccoz(
+            3).is_delaunay(strict=True))
 
-    def test_shear(self):
-        M = matrix([[2, 1], [1, 1]])
-        sheared_torus = Triangulation.square_torus().apply_matrix(M)
-        self.assertTrue(sheared_torus.is_non_degenerate())
+
+class TestIsDelaunay(unittest.TestCase):
+
+    def test_flatsurf_examples(self):
+        for X in [Triangulation.square_torus(),
+                  Triangulation.regular_octagon(),
+                  Triangulation.octagon_and_squares(),
+                  Triangulation.arnoux_yoccoz(3),
+                  Triangulation.arnoux_yoccoz(5)]:
+            self.assertTrue(X.is_delaunay())
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2, failfast=True)
+    unittest.main(verbosity=2)
+    
