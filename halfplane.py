@@ -3,77 +3,95 @@ from sage.all import *
 import itertools
 from itertools import combinations
 
-class Halfplane():
 
-    def __init__(self, coeffs):
-        self.coeffs = coeffs
+class HalfPlane():
 
+    def __init__(self, a, b, c):
+        self.coefficients = (a, b, c)
+        self.boundary = self._boundary()
 
-def inequality_to_geodesic(a, b, c):
-    g = HyperbolicPlane().UHP().get_geodesic
+    def __repr__(self):
+        return f"HalfPlane([{self.coefficients[0]}](u^2 + v^2) + [{self.coefficients[1]}]u + {self.coefficients[2]} >= 0)"
 
-    if a == 0:
-        if b == 0:
-            raise ValueError("invalid inequality with a == b == 0")
-        else:
-            if b < 0:
-                return g(-c / b, oo)
-            else:
-                return g(oo, -c / b)
-    else:
+    def __eq__(self, other):
+        if isinstance(other, HalfPlane):
+            return self.coefficients == other.coefficients
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.coefficients)
+
+    def _boundary(self):
+        a, b, c = self.coefficients
+
         discriminant = b**2 - 4 * a * c
+
+        g = HyperbolicPlane().UHP().get_geodesic
+
         if bool(discriminant <= 0):
-            raise ValueError("discriminant was non-positive")
+            return None
+        elif a == 0:
+            return g(-c / b, oo) if b < 0 else g(oo, -c / b)
         else:
-            center = (-b) / (2 * a)
-            radius2 = discriminant / (4 * a**2)
+            center = (-b) / (QQ(2) * a)
+            radius2 = discriminant / (QQ(4) * a**2)
 
-            radius = AA(radius2).sqrt()
+            radius = QQbar(radius2).sqrt()
 
-            left_root = center - radius
-            right_root = center + radius
+            left = center - radius
+            right = center + radius
 
-            if a * (center**2) + b * center + c > 0:
-                return g(right_root, left_root)
+            oriented_right = bool(a * (center**2) + b * center + c > 0)
+
+            return g(right, left) if oriented_right else g(left, right)
+
+    def is_interior(self, p):
+        px, py = p.coordinates()
+        return bool(self.coefficients[0] * (px**2 + py**2)
+                    + self.coefficients[1] * px
+                    + self.coefficients[2] >= 0)
+
+    def plot(self):
+        start, end = self.boundary.endpoints()
+        orientation = ""
+
+        if start != oo and end != oo:
+            orientation = "orange" if start < end else "blue"
+
+        else:
+            orientation = "blue" if end == oo else "orange"
+
+        return plot(self.boundary, axes=True, color=orientation)
+
+    def intersection(self, h):
+        g0, g1 = self.boundary, h.boundary
+        if g0.is_ultra_parallel(g1):
+            return None
+        elif g0.is_asymptotically_parallel(g1):
+            # TODO: the type of the endpts is algebraic number...
+            if g0.start() in g1.endpoints():
+                return (g0.start().coordinates(), 0)
             else:
-                return g(left_root, right_root)
-
-
-def is_trivial(ineq):
-    return bool(ineq[1]**2 - 4 * ineq[0] * ineq[2] <= 0)
-
-
-def is_interior(halfplanes, idx):
-    assert False, "TODO: write"
-
-
-def plot(geodesic):
-    start = geodesic.start()
-    end = geodesic.end()
-    if not (start == oo or end == oo):
-        if start < end:
-            return geodesic.plot(axes=True, color="blue")
+                return (g0.end().coordinates(), 0)
         else:
-            return geodesic.plot(axes=True, color="red")
-    elif start == oo:
-        return geodesic.plot(axes=True, color="red")
-    else:
-        return geodesic.plot(axes=True, color="blue")
+            a, b, c = self.coefficients
+            d, e, f = h.coefficients
+
+            A = matrix([[a, b, c], [d, e, f]])
+            gen_kernel = A.right_kernel().basis()[0]
+            w = (1/gen_kernel[2]) * gen_kernel
+
+            u = w[1]
+            v2 = w[0] - u**2
+            v = sqrt(v2)
+
+            return (u, v)
 
 
-def intersection_pairwise(h1, h2):
-    if h1.is_ultra_parallel(h2):
-        return None
-    elif h1.is_asymptotically_parallel(h2):
-        return h1.start() if h1.start() in h2.ideal_endpoints() else h1.end()
-    else:
-        return h1.intersection(h2)
-
-
-def intersection_halfplanes(halfplanes):
-    if len(halfplanes) < 3:
-        raise ValueError("Must be intersecting at least three planes")
-    intersection_points = [intersection_pairwise(
-        h1, h2) for h1, h2 in itertools.combinations(halfplanes, 2)]
-
-    return intersection_points
+def intersect_halfplanes(R):
+    if not R:
+        return []
+    elif len(R) == 1:
+        h0 = R[0]
+        return [h0.boundary.start(), h0.boundary.end()]
+    pass

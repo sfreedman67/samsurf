@@ -2,7 +2,7 @@ import triangulation
 from triangulation import Triangle, Hinge, Triangulation
 
 import halfplane
-from halfplane import inequality_to_geodesic
+
 import unittest
 
 import sage.all
@@ -14,7 +14,7 @@ class TestShearedOctagon(unittest.TestCase):
     def setUp(self):
         self.sheared_octagon = Triangulation.regular_octagon(
         ).apply_matrix(matrix(([1, QQ(1 / 2)], [0, 1])))
-        self.a = Triangulation.regular_octagon().gen
+        self.a = Triangulation.regular_octagon().base_ring.gen()
         self.g = HyperbolicPlane().UHP().get_geodesic
 
     def test_can_generate_IDR(self):
@@ -49,10 +49,14 @@ class TestShearedOctagon(unittest.TestCase):
             0, self.a + 1, self.a + 1), self.g(oo, -1))
         self.assertEqual(inequality_to_geodesic(
             QQ(1 / 2) * self.a + QQ(1 / 2), self.a + 1, 0), self.g(-2, 0))
-        self.assertEqual(inequality_to_geodesic(QQ(1 / 2) * self.a + QQ(1 / 2), -self.a - 2, -
-                                                2 * self.a - 3), self.g(self.a - sqrt(2 * self.a + 4), self.a + sqrt(2 * self.a + 4)))
-        self.assertEqual(inequality_to_geodesic(-self.a - QQ(3 / 2), -4 *
-                                                self.a - 6, -2 * self.a - 3), self.g(-2 - self.a, self.a - 2))
+        self.assertEqual(inequality_to_geodesic(QQ(1 / 2) * self.a + QQ(1 / 2),                                     -self.a - 2,
+                                                (-2) * self.a - 3),
+                         self.g(self.a - sqrt(2 * self.a + 4),
+                                self.a + sqrt(2 * self.a + 4)))
+        self.assertEqual(inequality_to_geodesic(-self.a - QQ(3 / 2),
+                                                -4 * self.a - 6,
+                                                -2 * self.a - 3),
+                         self.g(-2 - self.a, self.a - 2))
 
         # Intersects the halfplanes and forms the IDR
 
@@ -64,7 +68,7 @@ class TestApplyMatrixToTriangle(unittest.TestCase):
     def setUp(self):
         self.torus = Triangulation.square_torus()
         self.octagon = Triangulation.regular_octagon()
-        self.a = self.octagon.gen
+        self.a = self.octagon.base_ring.gen()
         self.A2 = matrix([[1, 2 * (self.a + 1)], [0, 1]])
 
     def test_shear_triangle0_in_torus(self):
@@ -100,7 +104,7 @@ class TestEdgeInequality(unittest.TestCase):
 
     def test_normal_hinge(self):
         h = Hinge(vector([2, 2]), vector([2, 4]), vector([1, 4]))
-        self.assertEqual(h.edge_inequality(), (-16, -32, -4))
+        self.assertEqual(h.halfplane().coefficients, (-16, -32, -4))
 
 
 class TestInequaltyToGeodesic(unittest.TestCase):
@@ -110,8 +114,9 @@ class TestInequaltyToGeodesic(unittest.TestCase):
 
     def test_square_torus(self):
         square_torus = Triangulation.square_torus()
-        self.assertEqual([inequality_to_geodesic(*ineq) for ineq in square_torus.edge_inequalities()],
-                         [self.geodesic(oo, -1), self.geodesic(0, oo), self.geodesic(-1, 0)])
+        self.assertEqual([hinge.halfplane().boundary for hinge in square_torus.hinges()],
+                         [self.geodesic(0, oo), self.geodesic(-1, 0), self.geodesic(oo, -1)])
+
 
 class TestApplyMatrixToTriangulation(unittest.TestCase):
 
@@ -123,7 +128,7 @@ class TestApplyMatrixToTriangulation(unittest.TestCase):
         sheared_triangle1 = Triangle(
             [vector([-3, -2]), vector([2, 1]), vector([1, 1])])
         sheared_triangulation = Triangulation(
-            [sheared_triangle0, sheared_triangle1], sq_t.gluings)
+            [sheared_triangle0, sheared_triangle1], sq_t.gluings, sq_t.base_ring)
 
         M = matrix([[2, 1], [1, 1]])
         self.assertEqual(sq_t.apply_matrix(M), sheared_triangulation)
@@ -156,4 +161,3 @@ class TestIsDelaunay(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-    
