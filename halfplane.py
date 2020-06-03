@@ -36,7 +36,7 @@ class HalfPlane():
             center = (-b) / (QQ(2) * a)
             radius2 = discriminant / (QQ(4) * a**2)
 
-            radius = QQbar(radius2).sqrt()
+            radius = AA(radius2).sqrt()
 
             left = center - radius
             right = center + radius
@@ -59,39 +59,49 @@ class HalfPlane():
             orientation = "orange" if start < end else "blue"
 
         else:
-            orientation = "blue" if end == oo else "orange"
+            orientation = "orange" if end == oo else "blue"
 
         return plot(self.boundary, axes=True, color=orientation)
 
-    def intersection(self, h):
-        g0, g1 = self.boundary, h.boundary
-        if g0.is_ultra_parallel(g1):
+    def intersect_boundaries(self, h):
+        if self.boundary.is_ultraparallel(h.boundary):
             return None
-        elif g0.is_asymptotically_parallel(g1):
-            # TODO: the type of the endpts is algebraic number...
-            if g0.start() in g1.endpoints():
-                return (g0.start().coordinates(), 0)
+        elif self.boundary.is_asympototically_parallel(h.boundary):
+            if self.boundary.start() in h.boundary.endpoints():
+                return self.boundary.start()
             else:
-                return (g0.end().coordinates(), 0)
+                return self.boundary.end()
         else:
-            a, b, c = self.coefficients
-            d, e, f = h.coefficients
+            return self.boundary.intersection(h.boundary)[0]
 
-            A = matrix([[a, b, c], [d, e, f]])
-            gen_kernel = A.right_kernel().basis()[0]
-            w = (1/gen_kernel[2]) * gen_kernel
+    def intersection(self, h):
+        ''' return *the* point of intersection of boundary of self and h'''
+        if self == h:
+            return None
 
-            u = w[1]
-            v2 = w[0] - u**2
-            v = sqrt(v2)
+        a, b, c = self.coefficients
+        d, e, f = h.coefficients
 
-            return (u, v)
+        A = matrix([[a, b, c], [d, e, f]])
+        gen_ker = A.right_kernel().basis()[0]
+
+        if gen_ker[2] == 0:
+            return None
+        else:
+            gen_ker_normalized = (1 / gen_ker[2]) * gen_ker
+            u = AA(gen_ker_normalized[1])
+            v2 = gen_ker_normalized[0] - u**2
+            if v2 < 0:
+                return None
+            
+            else:
+                v = AA(v2).sqrt()
+
+                return (u, v)
 
 
 def intersect_halfplanes(R):
     if not R:
         return []
-    elif len(R) == 1:
-        h0 = R[0]
-        return [h0.boundary.start(), h0.boundary.end()]
-    pass
+    
+    return [h0.boundary.intersection(h1.boundary) for h0, h1 in itertools.combinations(R, 2)]

@@ -17,31 +17,45 @@ class TestIntersectHalfPlanes(unittest.TestCase):
     def test_intersect_asymptotically_parallel_halfplanes(self):
         unit_circle_exterior = HalfPlane(1, 0, -1)
         line_1_infty = HalfPlane(0, -1, 1)
-        self.assertEqual(unit_circle_exterior.intersection(line_1_infty), (1, 0))
+        self.assertEqual(
+            unit_circle_exterior.intersection(line_1_infty), (1, 0))
+
+    def test_intersect_ultraparallel_halfplanes(self):
+        self.assertEqual(
+            HalfPlane(1, 0, -1).intersection(HalfPlane(1, 0, -4)), None)
+
+    def test_intersect_sage_examples(self):
+        examples = [(HalfPlane(1, -8, 15), HalfPlane(1, -11, 28)),
+                    (HalfPlane(1, -9, 20), HalfPlane(1, -12, 35)),
+                    (HalfPlane(1, 0, -1), HalfPlane(1, 0, -1))]
+        answers = [(QQ(13 / 3), 2 / 3 * sqrt(2)), (5, 0), None]
+
+        for example, answer in zip(examples, answers):
+            self.assertEqual(example[0].intersection(example[1]), answer)
 
     def test_intersect_AY_initial_two_halfplanes(self):
         X = Triangulation.arnoux_yoccoz(3)
         alpha = X.base_ring.gen()
         h0, h1, *rest = X.halfplanes()
 
-        v = QQ(1/2)*alpha + QQ(1/2)
+        v = QQ(1 / 2) * alpha + QQ(1 / 2)
 
         self.assertEqual(h0.intersection(h1), (0, v))
-
-    def test_intersect_three_planes(self):
-        test_cases = [([(oo, 2), (2, 3), (3, oo)], [3, oo, 2]),
-                      ([(3, 6), (5, oo), (oo, 4)], [oo, sqrt(-2) + 4, sqrt(-2) + 5])]
-        for (test_case, ans) in test_cases:
-            self.assertEqual(intersect_halfplanes([self.geodesic(
-                endpoint1, endpoint2) for endpoint1, endpoint2 in test_case]), [self.point(p) for p in ans])
 
     def test_input_order_doesnt_matter(self):
         assert False, "TODO: Implement me"
 
     def test_intersect_AY3(self):
+        print("start")
+
         X = Triangulation.arnoux_yoccoz(3)
+        alpha = X.base_ring.gen()
         H = X.halfplanes()
-        self.assertEqual(intersect_halfplanes([]), [])
+
+        self.assertEqual(intersect_halfplanes(H[:0]), [])
+        self.assertEqual(intersect_halfplanes(H[:1]), [])
+        self.assertEqual(intersect_halfplanes(H[:2]), [])
+        self.assertEqual(intersect_halfplanes(H[:3]), [])
 
         assert False, "Todo: Add in other partial intersections"
 
