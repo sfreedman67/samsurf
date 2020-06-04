@@ -3,6 +3,12 @@ from sage.all import *
 import itertools
 from itertools import combinations
 
+import collections
+from collections import OrderedDict
+
+import operator
+from operator import itemgetter
+
 
 class HalfPlane():
 
@@ -45,17 +51,20 @@ class HalfPlane():
 
             return g(right, left) if oriented_right else g(left, right)
 
-    def is_interior(self, p):
-        px, py = p.coordinates()
+    def is_solution(self, p):
+        px, py = p.coordinates().real(), p.coordinates().imag()
         return bool(self.coefficients[0] * (px**2 + py**2)
                     + self.coefficients[1] * px
                     + self.coefficients[2] >= 0)
+
+    def is_circle(self):
+        return self.boundary.start() != oo and self.boundary.end() != oo
 
     def plot(self):
         start, end = self.boundary.endpoints()
         orientation = ""
 
-        if start != oo and end != oo:
+        if self.is_circle():
             orientation = "orange" if start < end else "blue"
 
         else:
@@ -63,18 +72,7 @@ class HalfPlane():
 
         return plot(self.boundary, axes=True, color=orientation)
 
-    def intersect_boundaries(self, h):
-        if self.boundary.is_ultraparallel(h.boundary):
-            return None
-        elif self.boundary.is_asympototically_parallel(h.boundary):
-            if self.boundary.start() in h.boundary.endpoints():
-                return self.boundary.start()
-            else:
-                return self.boundary.end()
-        else:
-            return self.boundary.intersection(h.boundary)[0]
-
-    def intersection(self, h):
+    def intersection_point(self, h):
         ''' return *the* point of intersection of boundary of self and h'''
         if self == h:
             return None
@@ -89,19 +87,72 @@ class HalfPlane():
             return None
         else:
             gen_ker_normalized = (1 / gen_ker[2]) * gen_ker
-            u = AA(gen_ker_normalized[1])
+            u = QQbar(gen_ker_normalized[1])
             v2 = gen_ker_normalized[0] - u**2
             if v2 < 0:
                 return None
-            
+
             else:
-                v = AA(v2).sqrt()
+                v = QQbar(v2).sqrt()
 
-                return (u, v)
+                return HyperbolicPlane().UHP().get_point(u + v * QQbar(I))
+
+    def _order_points(self, points):
+
+        if self.is_circle():
+            coordinate_real = lambda p: p.coordinates().real()
+            oriented_CCW = self.boundary.start() > self.boundary.end()
+            return sorted(points, key=coordinate_real, reverse=oriented_CCW)
+        else:
+            coordinate_imag = lambda p: p.coordinates().imag()
+            oriented_south = self.boundary.start() == oo
+            return sorted(points, key=coordinate_imag, reverse=oriented_south)
+
+    def intersection_points(self, halfplanes):
+        intersections = [self.intersection_point(h) for h in halfplanes]
+        intersections_valid = [point for point in intersections
+                               if point is not None and in_intersection(halfplanes, point)]
+
+        return self._order_points(_remove_duplicate_points(intersections_valid))
 
 
-def intersect_halfplanes(R):
-    if not R:
-        return []
-    
-    return [h0.boundary.intersection(h1.boundary) for h0, h1 in itertools.combinations(R, 2)]
+def in_intersection(halfplanes, point):
+    return all(h.is_solution(point) for h in halfplanes)
+
+
+def _remove_duplicate_points(points):
+    coordinates = lambda p: (p.coordinates().real(), p.coordinates().imag())
+    intersections_valid = list(set(map(coordinates, points)))
+    return [HyperbolicPlane().UHP().get_point(x + y * QQbar(I)) for x, y in intersections_valid]
+
+
+def intersect_halfplanes(halfplanes):
+    vertices = []
+
+    for i, h0 in enumerate(halfplanes):
+        halfplanes_previous = halfplanes[:i]
+        start, end = h0.boundary.start(), h0.boundary.end()
+
+        vertices_new = []
+        intersection_points = h0.intersection_points(halfplanes_previous)
+
+        if in_intersection(halfplanes_previous, start) and not start in vertices:
+            vertices_new.append(start)
+
+        vertices_new.extend(
+            (point for point in intersection_points if not point in vertices))
+
+        if in_intersection(halfplanes_previous, end) and not end in vertices:
+            vertices_new.append(end)
+
+        vertices_eliminated = [
+            vertex for vertex in vertices if not h0.is_solution(vertex)]
+
+        if vertices_eliminated:
+            index_min = vertices.index(vertices_eliminated[0])
+            index_max = vertices.index(vertices_eliminated[-1])
+            vertices = vertices[:index_min] + vertices_new + vertices[index_max + 1:]
+        else:
+            vertices += vertices_new
+
+    return vertices

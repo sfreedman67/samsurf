@@ -18,11 +18,11 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         unit_circle_exterior = HalfPlane(1, 0, -1)
         line_1_infty = HalfPlane(0, -1, 1)
         self.assertEqual(
-            unit_circle_exterior.intersection(line_1_infty), (1, 0))
+            unit_circle_exterior.intersection_point(line_1_infty), (1, 0))
 
     def test_intersect_ultraparallel_halfplanes(self):
         self.assertEqual(
-            HalfPlane(1, 0, -1).intersection(HalfPlane(1, 0, -4)), None)
+            HalfPlane(1, 0, -1).intersection_point(HalfPlane(1, 0, -4)), None)
 
     def test_intersect_sage_examples(self):
         examples = [(HalfPlane(1, -8, 15), HalfPlane(1, -11, 28)),
@@ -31,7 +31,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         answers = [(QQ(13 / 3), 2 / 3 * sqrt(2)), (5, 0), None]
 
         for example, answer in zip(examples, answers):
-            self.assertEqual(example[0].intersection(example[1]), answer)
+            self.assertEqual(example[0].intersection_point(example[1]), answer)
 
     def test_intersect_AY_initial_two_halfplanes(self):
         X = Triangulation.arnoux_yoccoz(3)
@@ -40,22 +40,45 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
         v = QQ(1 / 2) * alpha + QQ(1 / 2)
 
-        self.assertEqual(h0.intersection(h1), (0, v))
+        self.assertEqual(h0.intersection_point(h1), (0, v))
 
     def test_input_order_doesnt_matter(self):
         assert False, "TODO: Implement me"
 
     def test_intersect_AY3(self):
-        print("start")
 
         X = Triangulation.arnoux_yoccoz(3)
         alpha = X.base_ring.gen()
         H = X.halfplanes()
+        print("start")
+        
 
-        self.assertEqual(intersect_halfplanes(H[:0]), [])
-        self.assertEqual(intersect_halfplanes(H[:1]), [])
-        self.assertEqual(intersect_halfplanes(H[:2]), [])
-        self.assertEqual(intersect_halfplanes(H[:3]), [])
+        s0, e0 = H[0].boundary.endpoints()
+        e1 = H[1].boundary.end()
+        e2 = H[2].boundary.end()
+        s3 = H[3].boundary.start()
+
+        p01 = H[0].intersection_point(H[1])
+        p03 = H[0].intersection_point(H[3])
+        p34 = H[3].intersection_point(H[4])
+        p15 = H[1].intersection_point(H[5])
+        p25 = H[2].intersection_point(H[5])
+
+        print("end")
+
+        answers_intersections_partial = [[],
+                                         [s0, e0],
+                                         [s0, p01, e1],
+                                         [s0, p01, e1, e2],
+                                         [s3, p03, p01, e1, e2],
+                                         [s3, p34, p01, e1, e2],
+                                         [s3, p34, p01, p15, p25, e2]]
+
+
+        for i in range(len(answers_intersections_partial)):
+            self.assertEqual(intersect_halfplanes(H[:i]),
+                             answers_intersections_partial[i])
+        
 
         assert False, "Todo: Add in other partial intersections"
 
