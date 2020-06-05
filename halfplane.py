@@ -52,6 +52,7 @@ class HalfPlane():
             return g(right, left) if oriented_right else g(left, right)
 
     def is_solution(self, p):
+
         px, py = p.coordinates().real(), p.coordinates().imag()
         return bool(self.coefficients[0] * (px**2 + py**2)
                     + self.coefficients[1] * px
@@ -114,6 +115,10 @@ class HalfPlane():
                                if point is not None and in_intersection(halfplanes, point)]
 
         return self._order_points(_remove_duplicate_points(intersections_valid))
+
+    def _vertices_new(self, halfplanes):
+        pass
+
 
 
 def in_intersection(halfplanes, point):
