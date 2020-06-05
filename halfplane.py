@@ -51,7 +51,11 @@ class HalfPlane():
 
             return g(right, left) if oriented_right else g(left, right)
 
-    def is_solution(self, p):
+    def contains_point(self, p):
+        if p.coordinates() == oo:
+            if self.is_circle():
+                pass
+
 
         px, py = p.coordinates().real(), p.coordinates().imag()
         return bool(self.coefficients[0] * (px**2 + py**2)
@@ -74,6 +78,8 @@ class HalfPlane():
         return plot(self.boundary, axes=True, color=orientation)
 
     def intersection_point(self, h):
+        # TODO: fast check for whether there is an intersection?
+
         ''' return *the* point of intersection of boundary of self and h'''
         if self == h:
             return None
@@ -110,19 +116,27 @@ class HalfPlane():
             return sorted(points, key=coordinate_imag, reverse=oriented_south)
 
     def intersection_points(self, halfplanes):
-        intersections = [self.intersection_point(h) for h in halfplanes]
-        intersections_valid = [point for point in intersections
-                               if point is not None and in_intersection(halfplanes, point)]
+        points = []
 
-        return self._order_points(_remove_duplicate_points(intersections_valid))
+        if in_halfplane_intersection(halfplanes, self.boundary.start()):
+            points.append(self.boundary.start())
 
-    def _vertices_new(self, halfplanes):
-        pass
+        valid_intersection_point = lambda point: point is not None and in_halfplane_intersection(halfplanes,
+                                                                                                 point)
+
+        intersections_boundaries = [self.intersection_point(h) for h in halfplanes
+                                    if valid_intersection_point(self.intersection_point(h))]
+
+        points.extend(intersections_boundaries)
+
+        if in_halfplane_intersection(halfplanes, self.boundary.end()):
+            points.append(self.boundary.end())
+
+        return self._order_points(points)
 
 
-
-def in_intersection(halfplanes, point):
-    return all(h.is_solution(point) for h in halfplanes)
+def in_halfplane_intersection(halfplanes, point):
+    return all(h.contains_point(point) for h in halfplanes)
 
 
 def _remove_duplicate_points(points):
@@ -134,30 +148,22 @@ def _remove_duplicate_points(points):
 def intersect_halfplanes(halfplanes):
     vertices = []
 
-    for i, h0 in enumerate(halfplanes):
-        halfplanes_previous = halfplanes[:i]
-        start, end = h0.boundary.start(), h0.boundary.end()
+    for idx, h0 in enumerate(halfplanes):
+        vertices_new = h0.intersection_points(halfplanes[:idx])
 
-        vertices_new = []
-        intersection_points = h0.intersection_points(halfplanes_previous)
+        
+        # TODO: Clunky...clean up
+        indices_eliminated = [i for i, vertex in enumerate(vertices)
+                              if not h0.contains_point(vertex)]
 
-        if in_intersection(halfplanes_previous, start) and not start in vertices:
-            vertices_new.append(start)
+        
+        if indices_eliminated:
+            idx_min = indices_eliminated[0]
+            idx_max = indices_eliminated[-1]
+            vertices = vertices[:idx_min] + \
+                vertices_new + vertices[idx_max + 1:]
 
-        vertices_new.extend(
-            (point for point in intersection_points if not point in vertices))
-
-        if in_intersection(halfplanes_previous, end) and not end in vertices:
-            vertices_new.append(end)
-
-        vertices_eliminated = [
-            vertex for vertex in vertices if not h0.is_solution(vertex)]
-
-        if vertices_eliminated:
-            index_min = vertices.index(vertices_eliminated[0])
-            index_max = vertices.index(vertices_eliminated[-1])
-            vertices = vertices[:index_min] + vertices_new + vertices[index_max + 1:]
         else:
             vertices += vertices_new
 
-    return vertices
+    return _remove_duplicate_points(vertices)
