@@ -4,7 +4,7 @@ from sage.all import *
 import flatsurf as fs
 
 import halfplane
-from halfplane import HalfPlane
+from halfplane import HalfPlane, is_nondegen_ineq
 
 import itertools
 import operator
@@ -22,7 +22,7 @@ class Triangle:
             self.edges = edges
 
     def __repr__(self):
-        return f'Triangle{self.edges[0], self.edges[1], self.edges[2]}'
+        return f'Triangle{self.edges}'
 
     def __eq__(self, other):
         if isinstance(other, Triangle):
@@ -39,7 +39,7 @@ class Hinge:
         self.vectors = (v0, v1, v2)
 
     def __repr__(self):
-        return f"Hinge{self.vectors[0], self.vectors[1], self.vectors[2]}"
+        return f"Hinge{self.vectors}"
 
     def __eq__(self, other):
         if isinstance(other, Hinge):
@@ -60,18 +60,21 @@ class Hinge:
 
         return Hinge(v0, v1, v2)
 
-    def incircle_test(self):
-        return matrix([[v[0], v[1], v[0]**2 + v[1]**2] for v in self.vectors]).determinant()
+    def incircle_det(self):
+        """(p2 is inside/on/outisde oriented circle 0-P0-P1) iff (det </==/> 0) """
+        return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
 
+    @property
     def halfplane(self):
-        a = matrix([[v[0], v[1], v[1]**2]
-                    for v in self.vectors]).determinant()
-        b = 2 * matrix([[v[0], v[1], v[0] * v[1]]
-                        for v in self.vectors]).determinant()
-        c = matrix([[v[0], v[1], v[0]**2]
-                    for v in self.vectors]).determinant()
+        M_a = matrix([[x, y, y**2] for v in self.vectors])
+        M_b = matrix([[x, y, x * y] for v in self.vectors])
+        M_c = matrix([[x, y, x**2] for v in self.vectors])
 
-        return HalfPlane(a, b, c)
+        a = M_a.determinant()
+        b = 2 * M_b.determinant()
+        c = M_c.determinant()
+
+        return HalfPlane(a, b, c) if is_nondegen_ineq(a, b, c) else None
 
 
 class Triangulation:
@@ -143,18 +146,16 @@ class Triangulation:
     def hinges(self):
         return [self._hinge(edge) for edge in self.edges()]
 
-    def is_delaunay(self, strict=False):
-        if strict:
-            return all(bool(hinge.incircle_test() > 0)
-                       for hinge in self.hinges())
-        else:
-            return all(bool(hinge.incircle_test() >= 0)
-                       for hinge in self.hinges())
+    def is_delaunay(self, strict=True):
+        has_valid_sign = lambda x: bool(x > 0) or (not strict and bool(x == 0))
+        return all(has_valid_sign(hinge.incircle_det) for hinge in self.hinges())
 
     def halfplanes(self):
-        halfplanes_nontrivial = (hinge.halfplane() for hinge in self.hinges()
-                                 if hinge.halfplane().boundary is not None)
-        return list(set(halfplanes_nontrivial))
+        halfplanes = (hinge.halfplane for hinge in self.hinges()
+                      if hinge.halfplane is not None)
+
+        # TODO: should we be removing duplicates here
+        return list(set(halfplanes))
 
     def plot_halfplanes(self, count=None):
         P = sum(itertools.islice((halfplane.plot()
