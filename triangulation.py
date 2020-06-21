@@ -4,14 +4,13 @@ from sage.all import *
 import flatsurf as fs
 
 import halfplane
-from halfplane import HalfPlane, is_nondegen_ineq
+from halfplane import HalfPlane
 
 import itertools
-import operator
-import unittest
 
 
 class Triangle:
+    # TODO: Named Tuple
 
     def __init__(self, edges):
         if sum(edges) != vector([0, 0]):
@@ -34,6 +33,7 @@ class Triangle:
 
 
 class Hinge:
+    # TODO: Named Tuple
 
     def __init__(self, v0, v1, v2):
         self.vectors = (v0, v1, v2)
@@ -60,24 +60,33 @@ class Hinge:
 
         return Hinge(v0, v1, v2)
 
+    @property
     def incircle_det(self):
         """(p2 is inside/on/outisde oriented circle 0-P0-P1) iff (det </==/> 0) """
         return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
 
+    # TODO Remove property
     @property
     def halfplane(self):
-        M_a = matrix([[x, y, y**2] for v in self.vectors])
-        M_b = matrix([[x, y, x * y] for v in self.vectors])
-        M_c = matrix([[x, y, x**2] for v in self.vectors])
+        M_a = matrix([[x, y, y**2] for x, y in self.vectors])
+        M_b = matrix([[x, y, x * y] for x, y in self.vectors])
+        M_c = matrix([[x, y, x**2] for x, y in self.vectors])
 
         a = M_a.determinant()
         b = 2 * M_b.determinant()
         c = M_c.determinant()
 
-        return HalfPlane(a, b, c) if is_nondegen_ineq(a, b, c) else None
+        try:
+            H = HalfPlane.from_ineq(a, b, c)
+        except ValueError:
+            H = None
+
+        return H
 
 
 class Triangulation:
+    # TODO: Named tuple? Assuming I never change gluings.
+    # TODO: Use a tuple of triangles to prevent side effects
 
     def __init__(self, triangles, gluings, base_ring):
         self.triangles = triangles
@@ -129,10 +138,7 @@ class Triangulation:
         num_triangles = len(self.triangles)
         edges = itertools.product(range(num_triangles), range(3))
         reps = [edge for edge in edges if edge < self.gluings[edge]]
-        if not gluings:
-            return reps
-        else:
-            return [(rep, self.gluings[rep]) for rep in reps]
+        return reps if not gluings else [(rep, self.gluings[rep]) for rep in reps]
 
     def apply_matrix(self, M):
         return Triangulation([triangle.apply_matrix(M) for triangle in self.triangles], self.gluings, self.base_ring)

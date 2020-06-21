@@ -8,6 +8,25 @@ import triangulation
 from triangulation import Triangulation
 
 
+class TestContainsPoint(unittest.TestCase):
+    def setUp(self):
+        self.unit_circle_exterior = HalfPlane(1, 0, -1)
+        self.unit_circle_interior = HalfPlane(-1, 0, 1)
+        self.y_axis_right = HalfPlane(0, 1, 0)
+        self.infty = halfplane.Point(oo, 0)
+        self.i = halfplane.Point(0, 1)
+        self.i_plus_1 = halfplane.Point(1, 1)
+
+    def test_point_is_infinity(self):
+        self.assertTrue(self.unit_circle_exterior.contains_point(self.infty))
+        self.assertFalse(self.unit_circle_interior.contains_point(self.infty))
+        self.assertTrue(self.y_axis_right.contains_point(self.infty))
+
+    def test_point_is_finite(self):
+        self.assertFalse(self.unit_circle_interior.contains_point(self.i_plus_1))
+        self.assertTrue(self.unit_circle_exterior.contains_point(self.i_plus_1))
+        self.assertTrue(self.y_axis_right.contains_point(self.i_plus_1))
+
 class TestIntersectHalfPlanes(unittest.TestCase):
 
     def setUp(self):
