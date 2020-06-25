@@ -3,8 +3,8 @@ from sage.all import *
 
 import flatsurf as fs
 
-import halfplane
-from halfplane import HalfPlane
+import bowman.halfplane
+from bowman.halfplane import HalfPlane
 
 import itertools
 
@@ -103,6 +103,8 @@ class Triangulation:
 
     @classmethod
     def _from_flatsurf(cls, X):
+        # TODO: hardcode in the answers from sage so we can remove flatsurf
+
         DT = X.delaunay_triangulation()
 
         DT_polygons = [DT.polygon(i) for i in range(DT.num_polygons())]
