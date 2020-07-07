@@ -3,6 +3,7 @@ from sage.all import *
 
 import flatsurf as fs
 
+from context import bowman
 import bowman.halfplane
 from bowman.halfplane import HalfPlane
 
@@ -65,7 +66,7 @@ class Hinge:
         """(p2 is inside/on/outisde oriented circle 0-P0-P1) iff (det </==/> 0) """
         return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
 
-    # TODO Remove property
+
     @property
     def halfplane(self):
         M_a = matrix([[x, y, y**2] for x, y in self.vectors])
@@ -166,6 +167,7 @@ class Triangulation:
         return list(set(halfplanes))
 
     def plot_halfplanes(self, count=None):
+        # TODO: Labels?
         P = sum(itertools.islice((halfplane.plot()
                                   for halfplane in self.halfplanes()), count))
         if count is not None:

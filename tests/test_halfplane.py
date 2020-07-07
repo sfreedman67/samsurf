@@ -3,9 +3,6 @@ from sage.all import *
 
 import unittest
 
-from context import bowman
-
-import bowman.point_hyperbolic
 from bowman.halfplane import HalfPlane
 from bowman.triangulation import Triangulation
 
@@ -33,8 +30,10 @@ class TestContainsPoint(unittest.TestCase):
         self.assertTrue(self.y_axis_right.contains_point(self.i_plus_1))
 
 
-class TestHalfPlaneBoundary(unittest.TestCase):
 
+class TestEndpoints(unittest.TestCase):
+
+    
     def test_endpoints_are_in_correct_order(self):
         X = Triangulation.arnoux_yoccoz(3)
         alpha = X.base_ring.gen()
@@ -45,3 +44,5 @@ class TestHalfPlaneBoundary(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+    

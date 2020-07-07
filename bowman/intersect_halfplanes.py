@@ -1,41 +1,39 @@
-import bowman.halfplane
+import itertools
+from itertools import takewhile, dropwhile, chain
+
 from bowman.halfplane import Edge
-
-import bowman.trues_consecutive
-from bowman.trues_consecutive import trues_consecutive
-
-
-def truncate_ends(chain, point_head, point_tail):
-    def process_edge(idx, edge):
-        if idx == 0:
-            return edge.chop_at(point_head)
-        elif idx == len(chain) - 1:
-            return edge.retract_to(point_tail)
-        return edge
-
-    return [process_edge(idx, edge) for idx, edge in enumerate(chain)]
-
-
-def insert_new_halfplane(chain, halfplane):
-    if not chain:
-        start, end = halfplane.endpoints
-        return [Edge(halfplane, start, end), Edge(None, end, start)]
-
-    intersection_head = halfplane.edge_intersection(chain[-1])
-    intersection_last = halfplane.edge_intersection(chain[0])
-    edge_new = Edge(halfplane, intersection_head, intersection_last)
-
-    return truncate_ends(chain, intersection_head, intersection_last) + [edge_new]
 
 
 def intersect_halfplanes(halfplanes):
     if not halfplanes:
         return []
 
-    edges = intersect_halfplanes(halfplanes[:-1])
-    halfplane_curr = halfplanes[-1]
+    intersection_previous = intersect_halfplanes(halfplanes[1:])
+    current = halfplanes[0]
 
-    intersects_curr = lambda edge: not halfplane_curr.is_edge_exterior(edge)
-    edges_curr = list(trues_consecutive(edges, pred=intersects_curr))
+    if intersection_previous is None:
+        return None
 
-    return insert_new_halfplane(edges_curr, halfplane_curr)
+    elif intersection_previous == []:
+        return [Edge(current, current.start, current.end),
+                Edge(None, current.end, current.start)]
+
+    curr_intersect_prev = [component for edge in intersection_previous
+                           for component in current.intersect_edge(edge)
+                           if isinstance(component, Edge)]
+
+    if curr_intersect_prev == intersection_previous:
+        return intersection_previous
+    elif not curr_intersect_prev:
+        return None
+
+
+    [head_idx] = [idx for idx, edge in enumerate(curr_intersect_prev)
+                  if edge.start.is_boundary_point(current)]
+
+    edge_chain = [*curr_intersect_prev[head_idx:],
+                  *curr_intersect_prev[:head_idx]]
+
+    edge_new = Edge(current, edge_chain[-1].end, edge_chain[0].start)
+
+    return [*edge_chain, edge_new]

@@ -6,7 +6,8 @@ from sage.all import *
 import collections
 from collections import namedtuple
 
-from bowman.point_hyperbolic import Radical, Point
+from context import bowman
+from bowman.point import Radical, Point
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
@@ -28,7 +29,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         return term_quadratic + term_linear + term_constant + ">= 0"
 
     @property
-    def oriented_positively(self):
+    def is_oriented(self):
         raise NotImplementedError
 
     @property
@@ -43,23 +44,18 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def endpoints(self):
         return (self.start, self.end)
 
+    @property
+    def _point_inside(self):
+        raise NotImplementedError
+
+    @property
+    def _point_outside(self):
+        raise NotImplementedError
+
     def contains_point(self, point):
-        if point == Point.infinity:
-            return isinstance(self, Line) or (not self.oriented_positively)
+        return point.is_interior_point(self) or point.is_boundary_point(self)
 
-        a, b, c = self
-        u, v2 = point
-        A, B, C = u
-
-        # a[(A + B sqrt(C))^2 + v2] + b (A + B sqrt(C)) + c >= 0
-        # --> A1 + B1 sqrt(C) >= 0
-
-        A1 = a * (A**2 + B**2 * C + v2) + b * A + c
-        B1 = a * (2 * A * B) + b * B
-
-        return Radical(A1, B1, C).is_nonnegative
-
-    def halfplane_intersection(self, other):
+    def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
             return Point(oo, 0)
 
@@ -72,88 +68,159 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
         return None if bool(v2 < 0) else Point(Radical(u, 0, 0), v2)
 
-    def edge_intersection(self, edge):
-        return self.halfplane_intersection(edge.halfplane)
+    def _intersect_edge_real(self, edge):
+        contains_start = self.contains_point(edge.start)
+        contains_end = self.contains_point(edge.end)
 
-    def is_edge_exterior(self, edge):
-        return not (self.contains_point(edge.start) or self.contains_point(edge.end))
+        if contains_start and contains_end:
+            return (edge,)
+        elif not (contains_start or contains_end):
+            return ()
+
+        edge_intersect_boundary = self.intersect_boundaries(edge.halfplane)
+
+        if contains_start:
+            return (Edge(edge.halfplane, edge.start, edge_intersect_boundary),)
+
+        return (Edge(edge.halfplane,
+                     edge_intersect_boundary, edge.end),)
+
+    def _intersect_edge_ideal(self, edge):
+        includes_edge_start = self.contains_point(edge.start)
+        includes_edge_end = self.contains_point(edge.end)
+
+        if includes_edge_start and includes_edge_end:
+            if Point.CCW(edge.start, edge.end, self._point_outside):
+                return (edge,)
+            return (Edge(None, edge.start, self.start),
+                    Edge(None, self.end, edge.end))
+        elif includes_edge_start != includes_edge_end:
+            if includes_edge_start:
+                return (Edge(None, edge.start, self.start),)
+            return (Edge(None, self.end, edge.end),)
+        else:
+            if Point.CCW(edge.start, edge.end, self._point_inside):
+                return ()
+            return (Edge(None, self.end, self.start),)
+
+    def intersect_edge(self, edge):
+        return self._intersect_edge_ideal(edge) if edge.is_ideal else self._intersect_edge_real(edge)
 
     def plot(self):
-        # TODO: Fix with new types for points
-
         # For circles: Below Blue, Above Orange
         # For lines: Left bLue, Right oRange
-        orientation = "blue" if self.oriented_positively else "orange"
+        color_orientation = "blue" if self.is_oriented else "orange"
 
-        # coordinate_start = oo if self.start.is_infinity else self.start.u._value
-        # coordinate_end = oo if self.start.is_infinity else self.end.u._value
+        def _value(u):
+            if u == oo:
+                return oo
+            A, B, C = u
+            return AA(A) + AA(B) * sqrt(AA(C))
 
-        value_start = self.start.u._value
-        value_end = self.end.u._value
+        value_start = _value(self.start.u)
+        value_end = _value(self.end.u)
 
         boundary = HyperbolicPlane().UHP().get_geodesic(value_start, value_end)
-        return boundary.plot(axes=True, color=orientation)
+        return boundary.plot(axes=True, color=color_orientation)
 
 
 class Line(HalfPlane):
+    __slots__ = ()
 
     @property
-    def oriented_positively(self):
+    def is_oriented(self):
         return bool(self.b < 0)
 
     @property
     def start(self):
-        u = -self.c / self.b if self.oriented_positively else oo
-        return Point.boundary(u)
+        A = -self.c / self.b if self.is_oriented else oo
+        return Point(A, 0)
 
     @property
     def end(self):
-        u = oo if self.oriented_positively else -self.c / self.b
-        return Point.boundary(u)
+        A = oo if self.is_oriented else -self.c / self.b
+        return Point(A, 0)
+
+    @property
+    def endpoint_real(self):
+        return self.start if self.is_oriented else self.end
+
+    @property
+    def _point_inside(self):
+        A, *_ = self.endpoint_real.u
+        if self.is_oriented:
+            return Point(A - 1, 0)
+        return Point(A + 1, 0)
+
+    @property
+    def _point_outside(self):
+        A, *_ = self.endpoint_real.u
+        if self.is_oriented:
+            return Point(A + 1, 0)
+        return Point(A - 1, 0)
 
 
 class Circle(HalfPlane):
-
-    def __new__(cls, a, b, c):
-        self = super(Circle, cls).__new__(cls, a, b, c)
-        self.center = Point.boundary(-b / (QQ(2) * a))
-        self.radius2 = (b**2 - 4 * a * c) / (QQ(4) * a**2)
-
-        return self
+    __slots__ = ()
 
     @property
-    def oriented_positively(self):
+    def center(self):
+        return Point(-self.b / (ZZ(2) * self.a), 0)
+
+    @property
+    def radius2(self):
+        return (self.b**2 - 4 * self.a * self.c) / (ZZ(4) * self.a**2)
+
+    @property
+    def is_oriented(self):
         return self.contains_point(self.center)
 
     @property
     def start(self):
         coord_center = self.center.u.A
-        B = 1 if self.oriented_positively else -1
-        r = Radical(coord_center, B, self.radius2)
-        return Point.boundary(r)
+        plus_or_minus = 1 if self.is_oriented else -1
+        return Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
 
     @property
     def end(self):
         coord_center = self.center.u.A
-        B = -1 if self.oriented_positively else 1
-        r = Radical(coord_center, B, self.radius2)
-        return Point.boundary(r)
+        plus_or_minus = -1 if self.is_oriented else 1
+        return Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
+
+    @property
+    def _point_inside(self):
+        if self.is_oriented:
+            return self.center
+        A, B, C = self.end.u
+        return Point(Radical(A + 1, B, C), 0)
+
+    @property
+    def _point_outside(self):
+        if self.is_oriented:
+            A, B, C = self.start.u
+            return Point(Radical(A + 1, B, C), 0)
+        return self.center
 
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     __slots__ = ()
 
+    def __new__(cls, halfplane, start, end):
+        if start == end:
+            return start
+
+        self = super(Edge, cls).__new__(cls, halfplane, start, end)
+
+        return self
+
     def __repr__(self):
         Ideal_descriptor = "Ideal" if self.is_ideal else ""
-        return Ideal_descriptor + f"Edge from {self.start} to {self.end}"
+        return Ideal_descriptor + f"Edge({self.start}->{self.end})"
 
-    
     @property
     def is_ideal(self):
-        return self.halfplane is not None 
+        return self.halfplane is None
 
-    def retract_to(self, point):
-        return Edge(self.halfplane, self.start, point)
-
-    def chop_at(self, point):
-        return Edge(self.halfplane, point, self.end)
+    @property
+    def endpoints(self):
+        return (self.start, self.end)

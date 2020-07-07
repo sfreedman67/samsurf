@@ -1,82 +1,149 @@
+import sage.all
+from sage.all import *
+
 import unittest
 
-from context import bowman
-import bowman.triangulation as triangulation
+import inspect
 
-import bowman.intersect_halfplanes
+import cProfile
+import pstats
+
+from context import bowman
+
+from bowman.halfplane import HalfPlane, Edge
+
 from bowman.intersect_halfplanes import intersect_halfplanes
+
+from bowman.point import Point, Radical
+
+from bowman.triangulation import Triangulation
 
 
 class TestIntersectHalfPlanes(unittest.TestCase):
 
+    def setUp(self):
+        self.circle_neg1_pos1 = HalfPlane.from_ineq(ZZ(1), ZZ(0), ZZ(-1))
+        self.circle_phi_phibar = HalfPlane.from_ineq(ZZ(-1), ZZ(1), ZZ(1))
+        self.line_pos1_infty = HalfPlane.from_ineq(ZZ(0), ZZ(-1), ZZ(1))
+
+        self.pt_neg1 = Point(ZZ(-1), ZZ(0))
+        self.pt_pos1 = Point(ZZ(1), ZZ(0))
+        self.pt_infty = Point(oo, ZZ(0))
+        self.pt_phi = Point(Radical(QQ(1 / 2), QQ(1 / 2), QQ(5)), 0)
+        self.pt_phibar = Point(Radical(QQ(1 / 2), QQ(-1 / 2), QQ(5)), 0)
+
+        self.edge_neg1_pos1 = Edge(
+            self.circle_neg1_pos1, self.pt_neg1, self.pt_pos1)
+        self.edge_pos1_infty = Edge(
+            self.line_pos1_infty, self.pt_pos1, self.pt_infty)
+        self.edge_phi_phibar = Edge(
+            self.circle_phi_phibar, self.pt_phi, self.pt_phibar)
+
+        self.ideal_pos1_neg1 = Edge(None, self.pt_pos1, self.pt_neg1)
+        self.ideal_infty_pos1 = Edge(None, self.pt_infty, self.pt_pos1)
+        self.ideal_infty_neg1 = Edge(None, self.pt_infty, self.pt_neg1)
+        self.ideal_phibar_phi = Edge(None, self.pt_phibar, self.pt_phi)
+
+    def test_intersecting_one_halfplane(self):
+        single_halfplanes = [
+            (self.circle_neg1_pos1, [
+             self.edge_neg1_pos1, self.ideal_pos1_neg1]),
+            (self.line_pos1_infty, [
+             self.edge_pos1_infty, self.ideal_infty_pos1]),
+            (self.circle_phi_phibar, [self.ideal_phibar_phi, self.edge_phi_phibar])]
+
+        for halfplane, result in single_halfplanes:
+            output = intersect_halfplanes([halfplane])
+            self.assertCountEqual(output, result, msg=f"{halfplane}")
+
     def test_intersect_asymptotically_parallel_halfplanes(self):
-        unit_circle_exterior = HalfPlane(1, 0, -1)
-        line_1_infty = HalfPlane(0, -1, 1)
         self.assertEqual(
-            unit_circle_exterior.intersection_point(line_1_infty), (1, 0))
+            self.circle_neg1_pos1.intersect_boundaries(self.line_pos1_infty), self.pt_pos1)
+
+        halfplanes = [self.circle_neg1_pos1, self.line_pos1_infty]
+        result = [self.edge_neg1_pos1,
+                  self.edge_pos1_infty, self.ideal_infty_neg1]
+
+        self.assertCountEqual(intersect_halfplanes(halfplanes), result)
+        # Check order doesn't matter
+        self.assertCountEqual(intersect_halfplanes(halfplanes[::-1]), result)
 
     def test_intersect_ultraparallel_halfplanes(self):
         self.assertEqual(
-            HalfPlane(1, 0, -1).intersection_point(HalfPlane(1, 0, -4)), None)
+            HalfPlane(1, 0, -1).intersect_boundaries(HalfPlane(1, 0, -4)), None)
+        assert False, "TODO: add in"
 
     def test_intersect_sage_examples(self):
         examples = [(HalfPlane(1, -8, 15), HalfPlane(1, -11, 28)),
                     (HalfPlane(1, -9, 20), HalfPlane(1, -12, 35)),
                     (HalfPlane(1, 0, -1), HalfPlane(1, 0, -1))]
-        answers = [(QQ(13 / 3), 2 / 3 * sqrt(2)), (5, 0), None]
+        answers = [Point(QQ(13 / 3), QQ(8 / 9)), Point(5, 0), None]
 
         for example, answer in zip(examples, answers):
-            self.assertEqual(example[0].intersection_point(example[1]), answer)
+            self.assertEqual(
+                example[0].intersect_boundaries(example[1]), answer)
 
-    def test_intersect_AY_initial_two_halfplanes(self):
-        X = Triangulation.arnoux_yoccoz(3)
-        alpha = X.base_ring.gen()
-        h0, h1, *rest = X.halfplanes()
-
-        v = QQ(1 / 2) * alpha + QQ(1 / 2)
-
-        self.assertEqual(h0.intersection_point(h1), (0, v))
-
-    def test_input_order_doesnt_matter(self):
-        assert False, "TODO: Implement me"
+        assert False, "TODO: add in?"
 
     def test_intersect_AY3(self):
 
-        X = triangulation.Triangulation.arnoux_yoccoz(3)
+        X = Triangulation.arnoux_yoccoz(3)
         alpha = X.base_ring.gen()
         H = X.halfplanes()
-        print("start")
+
+        # X.plot_halfplanes(7)
 
         s0, e0 = H[0].endpoints
-        e1 = H[1].end
+        s1, e1 = H[1].endpoints
         e2 = H[2].end
         s3 = H[3].start
+        s4 = H[4].start
+        e6 = H[6].end
 
-        p01 = H[0].halfplane_intersection(H[1])
-        p03 = H[0].halfplane_intersection(H[3])
-        p34 = H[3].halfplane_intersection(H[4])
-        p15 = H[1].halfplane_intersection(H[5])
-        p25 = H[2].halfplane_intersection(H[5])
+        p01 = H[0].intersect_boundaries(H[1])
+        p03 = H[0].intersect_boundaries(H[3])
+        p34 = H[3].intersect_boundaries(H[4])
+        p15 = H[1].intersect_boundaries(H[5])
+        p16 = H[1].intersect_boundaries(H[6])
+        p25 = H[2].intersect_boundaries(H[5])
 
-        answers_intersections_partial = [[],
-                                         [s0, e0],
-                                         [s0, p01, e1],
-                                         [s0, p01, e1, e2],
-                                         [s3, p03, p01, e1, e2],
-                                         [s3, p34, p01, e1, e2],
-                                         [s3, p34, p01, p15, p25, e2]]
+        answers = [[],
+                   [Edge(H[0], s0, e0), Edge(None, e0, s0)],
+                   [Edge(H[0], s0, p01), Edge(
+                       H[1], p01, e1), Edge(None, e1, s0)],
+                   [Edge(H[0], s0, p01), Edge(H[1], p01, e1),
+                    Edge(H[2], e1, e2), Edge(None, e2, s0)],
+                   [Edge(H[3], s3, p03), Edge(H[0], p03, p01), Edge(
+                       H[1], p01, e1), Edge(H[2], e1, e2), Edge(None, e2, s3)],
+                   [Edge(H[1], p01, e1), Edge(H[2], e1, e2), Edge(
+                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)],
+                   [Edge(H[1], p01, p15), Edge(H[5], p15, p25), Edge(H[2], p25, e2), Edge(
+                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)],
+                   [Edge(None, e6, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01), Edge(H[1], p01, p16), Edge(H[6], p16, e6)]]
 
-        for idx, answer in enumerate(answers_intersections_partial):
+        for idx, answer in enumerate(answers):
             output = intersect_halfplanes(H[:idx])
-            # TODO: check whether lists are cyclic rearrangments
-            self.assertEqual(output, answer, msg=f"\nTestCase: {idx}\noutput={output}\nexpected={answer}")
+            self.assertCountEqual(output, answer, msg=f"\nTestCase: {idx}")
 
-        print("end")
-
+        P = X.plot_halfplanes()
+        print(intersect_halfplanes(H))
         assert False, "Todo: Add in other partial intersections"
 
+
+def run_only_one_test(name):
+    suite = unittest.TestSuite()
+    suite.addTest(TestIntersectHalfPlanes(name))
+
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
+
 if __name__ == "__main__":
-	suite = unittest.TestSuite()
-	suite.addTest(TestIntersectHalfPlanes("test_intersect_AY3"))
-	runner = unittest.TextTestRunner(verbosity=1)
-	runner.run(suite)
+    # unittest.main(failfast=False, verbosity=2)
+
+    # run_only_one_test("test_intersect_AY3")
+
+    planes_g20 = Triangulation.arnoux_yoccoz(20).halfplanes()
+    cProfile.run("intersect_halfplanes(planes_g20)", "intersect.profile")
+    s = pstats.Stats("intersect.profile")
+    s.dump_stats("output.pstats")
+    # s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)
