@@ -7,7 +7,9 @@ import collections
 from collections import namedtuple
 
 from context import bowman
-from bowman.point import Radical, Point
+
+from bowman.radical import Radical
+from bowman.polygon import Point, Edge
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
@@ -52,12 +54,15 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _point_outside(self):
         raise NotImplementedError
 
-    def contains_point(self, point):
+    def contains_point(self, point, on_boundary=False):
         if point.is_infinity:
-            return isinstance(self, Line) or not self.is_oriented
+            if not on_boundary:
+                return isinstance(self, Line) or not self.is_oriented
+            else:
+                return isinstance(self, Line)
 
         result = Point._plug_point_into_halfplane(point, self).value
-        return result >= 0
+        return result == 0 or (not on_boundary and result > 0)
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
@@ -198,27 +203,3 @@ class Circle(HalfPlane):
             A, B, C = self.start.u
             return Point(Radical(A + 1, B, C), 0)
         return self.center
-
-
-class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
-    __slots__ = ()
-
-    def __new__(cls, halfplane, start, end):
-        if start == end:
-            return start
-
-        self = super(Edge, cls).__new__(cls, halfplane, start, end)
-
-        return self
-
-    def __repr__(self):
-        Ideal_descriptor = "Ideal" if self.is_ideal else ""
-        return Ideal_descriptor + f"Edge({self.start}->{self.end})"
-
-    @property
-    def is_ideal(self):
-        return self.halfplane is None
-
-    @property
-    def endpoints(self):
-        return (self.start, self.end)

@@ -1,7 +1,7 @@
 import itertools
 from itertools import takewhile, dropwhile, chain
 
-from bowman.halfplane import Edge
+from bowman.polygon import Edge
 
 
 def intersect_halfplanes(halfplanes):
@@ -29,7 +29,7 @@ def intersect_halfplanes(halfplanes):
 
 
     [head_idx] = [idx for idx, edge in enumerate(curr_intersect_prev)
-                  if edge.start.is_boundary_point(current)]
+                  if current.contains_point(edge.start, on_boundary=True)]
 
     edge_chain = [*curr_intersect_prev[head_idx:],
                   *curr_intersect_prev[:head_idx]]

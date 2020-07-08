@@ -10,11 +10,13 @@ import pstats
 
 from context import bowman
 
-from bowman.halfplane import HalfPlane, Edge
+
 
 from bowman.intersect_halfplanes import intersect_halfplanes
 
-from bowman.point import Point, Radical
+from bowman.polygon import Point, Edge
+from bowman.radical import Radical
+from bowman.halfplane import HalfPlane
 
 from bowman.triangulation import Triangulation
 
@@ -140,12 +142,12 @@ def run_only_one_test(name):
     runner.run(suite)
 
 if __name__ == "__main__":
-    # unittest.main(failfast=False, verbosity=2)
+    unittest.main(failfast=False, verbosity=2)
 
     # run_only_one_test("test_intersect_AY3")
 
-    planes_g20 = Triangulation.arnoux_yoccoz(20).halfplanes()
-    cProfile.run("intersect_halfplanes(planes_g20)", "intersect.profile")
-    s = pstats.Stats("intersect.profile")
-    s.dump_stats("output.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
+    # planes_g20 = Triangulation.arnoux_yoccoz(20).halfplanes()
+    # cProfile.run("intersect_halfplanes(planes_g20)", "intersect.profile")
+    # s = pstats.Stats("intersect.profile")
+    # s.dump_stats("output.pstats")
+    # s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
