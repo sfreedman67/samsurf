@@ -4,22 +4,21 @@ from sage.all import *
 import collections
 from collections import namedtuple
 
-from functools import total_ordering
+import functools
 
 from context import bowman
 import bowman.halfplane as halfplane
 
-@total_ordering
-class Radical(namedtuple('Radical', ['A', 'B', 'C'])):
-    __slots__ = ()
-
-    def __new__(cls, A, B, C):
-        self = super(Radical, cls).__new__(cls, A, B, C)
-
+@functools.total_ordering
+class Radical:
+    def __init__(self, A, B, C):
         if bool(C < 0):
             raise ValueError("C must be non-negative")
 
-        return self
+        self.A = A
+        self.B = B
+        self.C = C
+        self._value = None
 
     def __repr__(self):
         term_rational = f"{self.A}" if bool(self.A != 0) else ""
@@ -30,79 +29,32 @@ class Radical(namedtuple('Radical', ['A', 'B', 'C'])):
             return "0"
         return term_rational + term_radical
 
+    def __iter__(self):
+        return iter((self.A, self.B, self.C))
+
+    @property
+    def value(self):
+        if self._value is None:
+            self._value = self.A + self.B * sqrt(AA(self.C))
+        return self._value
+
     def _is_valid_operand(self, other):
         return all(hasattr(other, letter) for letter in ('A', 'B', 'C'))
+
+    def __hash__(self):
+        return hash(self.value)
 
     def __eq__(self, other):
         if not self._is_valid_operand(other):
             return NotImplemented
 
-        A, B, C = self
-        D, E, F = other
-
-        # A + B sqrt(C) = D + E sqrt(F)
-        # (A - D) + B sqrt(C) = E sqrt(F)
-        LHS = Radical(A - D, B, C)
-        RHS = Radical(0, E, F)
-
-        is_nonneg_LHS = bool(LHS.sign >= 0)
-        is_nonneg_RHS = bool(RHS.sign >= 0)
-
-        if is_nonneg_LHS != is_nonneg_RHS:
-            return False
-
-        # Square --> (A - D)^2 + B^2 C + 2(A - D)Bsqrt(C) ? E^2 F
-        LHS_sq_minus_RHS_sq = Radical(
-            (A - D)**2 + B**2 * C - E**2 * F, 2 * (A - D) * B, C)
-
-        # if 0 <= x <= y , then x = y iff x^2 = y^2
-        # if x <= y < 0, then x = y iff x^2 = y^2
-
-        return LHS_sq_minus_RHS_sq.sign == 0
-
+        return self.value  == other.value
+    
     def __lt__(self, other):
         if not self._is_valid_operand(other):
             return NotImplemented
 
-        A, B, C = self
-        D, E, F = other
-
-        # A + B sqrt(C) < D + E sqrt(F)
-        # (A - D) + B sqrt(C) < E sqrt(F)
-        LHS = Radical(A - D, B, C)
-        RHS = Radical(0, E, F)
-
-        is_nonneg_LHS = bool(LHS.sign >= 0)
-        is_nonneg_RHS = bool(RHS.sign >= 0)
-
-        if is_nonneg_LHS and not is_nonneg_RHS:
-            return False
-
-        elif not is_nonneg_LHS and is_nonneg_RHS:
-            return True
-
-        # Square --> (A - D)^2 + B^2 C + 2(A - D)Bsqrt(C) ? E^2 F
-        # [(A - D)^2 + B^2 C - E^2 F} + 2(A - D)Bsqrt(C) ? 0
-
-        LHS_sq_minus_RHS_sq = Radical(
-            (A - D)**2 + B**2 * C - E**2 * F, 2 * (A - D) * B, C)
-
-        # if 0 <= x < y , then x < y iff x^2 < y^2
-        # if x < y < 0, then x < y iff x^2 > y^2
-
-        if is_nonneg_LHS and is_nonneg_RHS:
-            return LHS_sq_minus_RHS_sq.sign < 0
-
-        return LHS_sq_minus_RHS_sq.sign > 0
-
-    @property
-    def sign(self):
-        if self.B == 0:
-            return sign(self.A)
-
-        K = -self.A / self.B
-
-        return sign(self.B) if K < 0 else sign(self.B) * sign(self.C - K**2)
+        return self.value  < other.value
 
 
 class Point(namedtuple('Point', ['u', 'v2'])):
@@ -154,15 +106,9 @@ class Point(namedtuple('Point', ['u', 'v2'])):
         B1 = a * (2 * A * B) + b * B
 
         return Radical(A1, B1, C)
-
+    # TODO: decide where this, _plug_point_into, and contains_point goes
     def is_boundary_point(self, plane):
         if self.is_infinity:
             return isinstance(plane, halfplane.Line)
 
-        return Point._plug_point_into_halfplane(self, plane).sign == 0
-
-    def is_interior_point(self, plane):
-        if self.is_infinity:
-            return isinstance(plane, halfplane.Circle) and not (plane.is_oriented)
-
-        return Point._plug_point_into_halfplane(self, plane).sign == 1
+        return Point._plug_point_into_halfplane(self, plane).value == 0

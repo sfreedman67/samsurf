@@ -53,7 +53,11 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         raise NotImplementedError
 
     def contains_point(self, point):
-        return point.is_interior_point(self) or point.is_boundary_point(self)
+        if point.is_infinity:
+            return isinstance(self, Line) or not self.is_oriented
+
+        result = Point._plug_point_into_halfplane(point, self).value
+        return result >= 0
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
@@ -111,14 +115,8 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         # For lines: Left bLue, Right oRange
         color_orientation = "blue" if self.is_oriented else "orange"
 
-        def _value(u):
-            if u == oo:
-                return oo
-            A, B, C = u
-            return AA(A) + AA(B) * sqrt(AA(C))
-
-        value_start = _value(self.start.u)
-        value_end = _value(self.end.u)
+        value_start = oo if u == oo else self.start.u.value
+        value_end = oo if u == oo else self.end.u.value
 
         boundary = HyperbolicPlane().UHP().get_geodesic(value_start, value_end)
         return boundary.plot(axes=True, color=color_orientation)

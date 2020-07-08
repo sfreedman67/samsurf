@@ -22,6 +22,7 @@ from bowman.triangulation import Triangulation
 class TestIntersectHalfPlanes(unittest.TestCase):
 
     def setUp(self):
+
         self.circle_neg1_pos1 = HalfPlane.from_ineq(ZZ(1), ZZ(0), ZZ(-1))
         self.circle_phi_phibar = HalfPlane.from_ineq(ZZ(-1), ZZ(1), ZZ(1))
         self.line_pos1_infty = HalfPlane.from_ineq(ZZ(0), ZZ(-1), ZZ(1))
@@ -31,6 +32,8 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         self.pt_infty = Point(oo, ZZ(0))
         self.pt_phi = Point(Radical(QQ(1 / 2), QQ(1 / 2), QQ(5)), 0)
         self.pt_phibar = Point(Radical(QQ(1 / 2), QQ(-1 / 2), QQ(5)), 0)
+
+        phi = Radical(QQ(1 / 2), QQ(1 / 2), QQ(5))     
 
         self.edge_neg1_pos1 = Edge(
             self.circle_neg1_pos1, self.pt_neg1, self.pt_pos1)
@@ -102,7 +105,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
         p01 = H[0].intersect_boundaries(H[1])
         p03 = H[0].intersect_boundaries(H[3])
-        p34 = H[3].intersect_boundaries(H[4])
+        p34 = H[3].intersect_boundaries(H[4]) 
         p15 = H[1].intersect_boundaries(H[5])
         p16 = H[1].intersect_boundaries(H[6])
         p25 = H[2].intersect_boundaries(H[5])
@@ -125,8 +128,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
             output = intersect_halfplanes(H[:idx])
             self.assertCountEqual(output, answer, msg=f"\nTestCase: {idx}")
 
-        P = X.plot_halfplanes()
-        print(intersect_halfplanes(H))
+
         assert False, "Todo: Add in other partial intersections"
 
 
@@ -146,4 +148,4 @@ if __name__ == "__main__":
     cProfile.run("intersect_halfplanes(planes_g20)", "intersect.profile")
     s = pstats.Stats("intersect.profile")
     s.dump_stats("output.pstats")
-    # s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)
+    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
