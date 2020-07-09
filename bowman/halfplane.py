@@ -9,7 +9,8 @@ from collections import namedtuple
 from context import bowman
 
 from bowman.radical import Radical
-from bowman.polygon import Point, Edge
+
+import bowman.polygon as polygon
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
@@ -61,12 +62,12 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
             else:
                 return isinstance(self, Line)
 
-        result = Point._plug_point_into_halfplane(point, self).value
+        result = polygon.Point._plug_point_into_halfplane(point, self).value
         return result == 0 or (not on_boundary and result > 0)
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
-            return Point(oo, 0)
+            return polygon.polygon.Point(oo, 0)
 
         M = matrix([[self.a, self.b], [other.a, other.b]])
         if M.determinant() == 0:
@@ -75,7 +76,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         u2_plus_v2, u = M.solve_right(vector([-self.c, -other.c]))
         v2 = u2_plus_v2 - u**2
 
-        return None if bool(v2 < 0) else Point(Radical(u, 0, 0), v2)
+        return None if bool(v2 < 0) else polygon.Point(Radical(u, 0, 0), v2)
 
     def _intersect_edge_real(self, edge):
         contains_start = self.contains_point(edge.start)
@@ -89,9 +90,9 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         edge_intersect_boundary = self.intersect_boundaries(edge.halfplane)
 
         if contains_start:
-            return (Edge(edge.halfplane, edge.start, edge_intersect_boundary),)
+            return (polygon.Edge(edge.halfplane, edge.start, edge_intersect_boundary),)
 
-        return (Edge(edge.halfplane,
+        return (polygon.Edge(edge.halfplane,
                      edge_intersect_boundary, edge.end),)
 
     def _intersect_edge_ideal(self, edge):
@@ -99,18 +100,18 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         includes_edge_end = self.contains_point(edge.end)
 
         if includes_edge_start and includes_edge_end:
-            if Point.CCW(edge.start, edge.end, self._point_outside):
+            if polygon.Point.CCW(edge.start, edge.end, self._point_outside):
                 return (edge,)
-            return (Edge(None, edge.start, self.start),
-                    Edge(None, self.end, edge.end))
+            return (polygon.Edge(None, edge.start, self.start),
+                    polygon.Edge(None, self.end, edge.end))
         elif includes_edge_start != includes_edge_end:
             if includes_edge_start:
-                return (Edge(None, edge.start, self.start),)
-            return (Edge(None, self.end, edge.end),)
+                return (polygon.Edge(None, edge.start, self.start),)
+            return (polygon.Edge(None, self.end, edge.end),)
         else:
-            if Point.CCW(edge.start, edge.end, self._point_inside):
+            if polygon.Point.CCW(edge.start, edge.end, self._point_inside):
                 return ()
-            return (Edge(None, self.end, self.start),)
+            return (polygon.Edge(None, self.end, self.start),)
 
     def intersect_edge(self, edge):
         return self._intersect_edge_ideal(edge) if edge.is_ideal else self._intersect_edge_real(edge)
@@ -120,8 +121,8 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         # For lines: Left bLue, Right oRange
         color_orientation = "blue" if self.is_oriented else "orange"
 
-        value_start = oo if u == oo else self.start.u.value
-        value_end = oo if u == oo else self.end.u.value
+        value_start = oo if self.start.is_infinity else self.start.u.value
+        value_end = oo if self.end.is_infinity else self.end.u.value
 
         boundary = HyperbolicPlane().UHP().get_geodesic(value_start, value_end)
         return boundary.plot(axes=True, color=color_orientation)
@@ -137,12 +138,12 @@ class Line(HalfPlane):
     @property
     def start(self):
         A = -self.c / self.b if self.is_oriented else oo
-        return Point(A, 0)
+        return polygon.Point(A, 0)
 
     @property
     def end(self):
         A = oo if self.is_oriented else -self.c / self.b
-        return Point(A, 0)
+        return polygon.Point(A, 0)
 
     @property
     def endpoint_real(self):
@@ -152,15 +153,15 @@ class Line(HalfPlane):
     def _point_inside(self):
         A, *_ = self.endpoint_real.u
         if self.is_oriented:
-            return Point(A - 1, 0)
-        return Point(A + 1, 0)
+            return polygon.Point(A - 1, 0)
+        return polygon.Point(A + 1, 0)
 
     @property
     def _point_outside(self):
         A, *_ = self.endpoint_real.u
         if self.is_oriented:
-            return Point(A + 1, 0)
-        return Point(A - 1, 0)
+            return polygon.Point(A + 1, 0)
+        return polygon.Point(A - 1, 0)
 
 
 class Circle(HalfPlane):
@@ -168,7 +169,7 @@ class Circle(HalfPlane):
 
     @property
     def center(self):
-        return Point(-self.b / (ZZ(2) * self.a), 0)
+        return polygon.Point(-self.b / (ZZ(2) * self.a), 0)
 
     @property
     def radius2(self):
@@ -182,24 +183,24 @@ class Circle(HalfPlane):
     def start(self):
         coord_center = self.center.u.A
         plus_or_minus = 1 if self.is_oriented else -1
-        return Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
+        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
 
     @property
     def end(self):
         coord_center = self.center.u.A
         plus_or_minus = -1 if self.is_oriented else 1
-        return Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
+        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
 
     @property
     def _point_inside(self):
         if self.is_oriented:
             return self.center
         A, B, C = self.end.u
-        return Point(Radical(A + 1, B, C), 0)
+        return polygon.Point(Radical(A + 1, B, C), 0)
 
     @property
     def _point_outside(self):
         if self.is_oriented:
             A, B, C = self.start.u
-            return Point(Radical(A + 1, B, C), 0)
+            return polygon.Point(Radical(A + 1, B, C), 0)
         return self.center

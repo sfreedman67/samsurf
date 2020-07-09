@@ -2,8 +2,10 @@ import sage.all
 from sage.all import *
 
 from collections import namedtuple
+import itertools
 
 from bowman.radical import Radical
+import bowman.halfplane as halfplane
 
 
 class Point(namedtuple('Point', ['u', 'v2'])):
@@ -57,8 +59,6 @@ class Point(namedtuple('Point', ['u', 'v2'])):
         return Radical(A1, B1, C)
 
 
-
-
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     __slots__ = ()
 
@@ -82,3 +82,37 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     def endpoints(self):
         return (self.start, self.end)
 
+    def plot(self):
+        coords_start = CC(self.start.u.value, self.start.v2)
+        coords_end = CC(self.end.u.value, self.end.v2)
+
+        if self.is_ideal or isinstance(self.halfplane, halfplane.Line):
+            return line((coords_start, coords_end)).plot()
+
+        coords_start = CC(self.start.u.value, self.start.v2)
+        coords_end = CC(self.end.u.value, self.end.v2)
+        return HyperbolicPlane().UHP().get_geodesic(coords_start, coords_end).plot()
+
+
+def intersect_polygon_halfplane(polygon, halfplane):
+        intersection = itertools.chain.from_iterable(
+            (halfplane.intersect_edge(edge) for edge in polygon))
+
+        edges_new = [component for component in intersection if isinstance(component, Edge)]
+        
+        if edges_new == polygon:
+            return polygon
+        elif not edges_new:
+            return None
+
+        [head_idx]=[idx for idx, edge in enumerate(edges_new)
+                      if halfplane.contains_point(edge.start, on_boundary=True)]
+
+        edge_chain=[*edges_new[head_idx:], *edges_new[:head_idx]]
+
+        edge_new=Edge(halfplane, edge_chain[-1].end, edge_chain[0].start)
+
+        return [*edge_chain, edge_new]
+
+def plot_polygon(polygon):
+    return sum(edge.plot() for edge in polygon)

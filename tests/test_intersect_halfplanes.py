@@ -11,10 +11,9 @@ import pstats
 from context import bowman
 
 
-
 from bowman.intersect_halfplanes import intersect_halfplanes
 
-from bowman.polygon import Point, Edge
+from bowman.polygon import Point, Edge, plot_polygon
 from bowman.radical import Radical
 from bowman.halfplane import HalfPlane
 
@@ -35,7 +34,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         self.pt_phi = Point(Radical(QQ(1 / 2), QQ(1 / 2), QQ(5)), 0)
         self.pt_phibar = Point(Radical(QQ(1 / 2), QQ(-1 / 2), QQ(5)), 0)
 
-        phi = Radical(QQ(1 / 2), QQ(1 / 2), QQ(5))     
+        phi = Radical(QQ(1 / 2), QQ(1 / 2), QQ(5))
 
         self.edge_neg1_pos1 = Edge(
             self.circle_neg1_pos1, self.pt_neg1, self.pt_pos1)
@@ -107,29 +106,37 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
         p01 = H[0].intersect_boundaries(H[1])
         p03 = H[0].intersect_boundaries(H[3])
-        p34 = H[3].intersect_boundaries(H[4]) 
+        p34 = H[3].intersect_boundaries(H[4])
         p15 = H[1].intersect_boundaries(H[5])
         p16 = H[1].intersect_boundaries(H[6])
         p25 = H[2].intersect_boundaries(H[5])
 
-        answers = [[],
-                   [Edge(H[0], s0, e0), Edge(None, e0, s0)],
-                   [Edge(H[0], s0, p01), Edge(
-                       H[1], p01, e1), Edge(None, e1, s0)],
-                   [Edge(H[0], s0, p01), Edge(H[1], p01, e1),
-                    Edge(H[2], e1, e2), Edge(None, e2, s0)],
-                   [Edge(H[3], s3, p03), Edge(H[0], p03, p01), Edge(
-                       H[1], p01, e1), Edge(H[2], e1, e2), Edge(None, e2, s3)],
-                   [Edge(H[1], p01, e1), Edge(H[2], e1, e2), Edge(
-                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)],
-                   [Edge(H[1], p01, p15), Edge(H[5], p15, p25), Edge(H[2], p25, e2), Edge(
-                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)],
-                   [Edge(None, e6, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01), Edge(H[1], p01, p16), Edge(H[6], p16, e6)]]
+        answers = [(),
+                   (Edge(H[0], s0, e0), Edge(None, e0, s0)),
+                   (Edge(H[0], s0, p01), Edge(
+                       H[1], p01, e1), Edge(None, e1, s0)),
+                   (Edge(H[0], s0, p01), Edge(H[1], p01, e1),
+                    Edge(H[2], e1, e2), Edge(None, e2, s0)),
+                   (Edge(H[3], s3, p03), Edge(H[0], p03, p01), Edge(
+                       H[1], p01, e1), Edge(H[2], e1, e2), Edge(None, e2, s3)),
+                   (Edge(H[1], p01, e1), Edge(H[2], e1, e2), Edge(
+                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)),
+                   (Edge(H[1], p01, p15), Edge(H[5], p15, p25), Edge(H[2], p25, e2), Edge(
+                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)),
+                   (Edge(None, e6, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01), Edge(H[1], p01, p16), Edge(H[6], p16, e6))]
 
         for idx, answer in enumerate(answers):
+            print(idx)
             output = intersect_halfplanes(H[:idx])
             self.assertCountEqual(output, answer, msg=f"\nTestCase: {idx}")
 
+        # print(intersect_halfplanes(H))
+
+        # idx = 10
+        # first_k = intersect_halfplanes(H[:idx])
+        # P = plot_polygon(first_k)
+        # polygon_and_new_halfplane = P + H[idx].plot()
+        # polygon_and_new_halfplane.save(f"first_{idx}_and_next.png")
 
         assert False, "Todo: Add in other partial intersections"
 
@@ -142,12 +149,12 @@ def run_only_one_test(name):
     runner.run(suite)
 
 if __name__ == "__main__":
-    unittest.main(failfast=False, verbosity=2)
+    # unittest.main(failfast=False, verbosity=2)
 
     # run_only_one_test("test_intersect_AY3")
 
-    # planes_g20 = Triangulation.arnoux_yoccoz(20).halfplanes()
-    # cProfile.run("intersect_halfplanes(planes_g20)", "intersect.profile")
-    # s = pstats.Stats("intersect.profile")
-    # s.dump_stats("output.pstats")
-    # s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
+    planes_g20 = Triangulation.arnoux_yoccoz(20).halfplanes()
+    cProfile.run("intersect_halfplanes(planes_g20)", "intersect.profile")
+    s = pstats.Stats("intersect.profile")
+    s.dump_stats("output.pstats")
+    s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)
