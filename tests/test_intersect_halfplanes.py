@@ -156,5 +156,5 @@ if __name__ == "__main__":
     planes_g20 = Triangulation.arnoux_yoccoz(20).halfplanes()
     cProfile.run("intersect_halfplanes(planes_g20)", "intersect.profile")
     s = pstats.Stats("intersect.profile")
-    s.dump_stats("output.pstats")
+    s.dump_stats("bottle_neck.pstats")
     s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)

@@ -55,6 +55,11 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _point_outside(self):
         raise NotImplementedError
 
+    @staticmethod
+    def _bottle_neck(A, B, C, on_boundary):
+        result = A if C == 0 else A + B * sqrt(AA(C))
+        return result == 0 or (not on_boundary and result > 0)
+
     def contains_point(self, point, on_boundary=False):
         if point.is_infinity:
             if not on_boundary:
@@ -72,9 +77,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         A1 = a * (A**2 + B**2 * C + v2) + b * A + c
         B1 = a * (2 * A * B) + b * B
 
-        result = A1 if C == 0 else Radical(A1, B1, C).value
-        
-        return result == 0 or (not on_boundary and result > 0)
+        return HalfPlane._bottle_neck(A1, B1, C, on_boundary)
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
@@ -104,7 +107,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
             return (polygon.Edge(edge.halfplane, edge.start, edge_intersect_boundary),)
 
         return (polygon.Edge(edge.halfplane,
-                     edge_intersect_boundary, edge.end),)
+                             edge_intersect_boundary, edge.end),)
 
     def _intersect_edge_ideal(self, edge):
         includes_edge_start = self.contains_point(edge.start)
