@@ -11,6 +11,7 @@ from context import bowman
 from bowman.radical import Radical
 
 import bowman.polygon as polygon
+import bowman.bottle_neck as bottle_neck
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
@@ -55,11 +56,6 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _point_outside(self):
         raise NotImplementedError
 
-    @staticmethod
-    def _bottle_neck(A, B, C, on_boundary):
-        result = A if C == 0 else A + B * sqrt(AA(C))
-        return result == 0 or (not on_boundary and result > 0)
-
     def contains_point(self, point, on_boundary=False):
         if point.is_infinity:
             if not on_boundary:
@@ -77,7 +73,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         A1 = a * (A**2 + B**2 * C + v2) + b * A + c
         B1 = a * (2 * A * B) + b * B
 
-        return HalfPlane._bottle_neck(A1, B1, C, on_boundary)
+        return bottle_neck._bottle_neck(A1, B1, C, on_boundary)
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
