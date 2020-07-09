@@ -30,6 +30,23 @@ class Radical:
         return iter((self.A, self.B, self.C))
 
     @property
+    def _is_zero(self):
+        if self.B == 0 or self.C == 0:
+            return self.A == 0
+    
+        K = (-self.A) / self.B
+        return bool(K >= 0) and bool(self.C - K**2 == 0)
+
+    @property
+    def _is_negative(self):
+        if self.B == 0 or self.C == 0:
+            return bool(self.A < 0)
+        K = (-self.A) / self.B
+        if self.B > 0:
+            return bool(K >= 0) and bool((self.C - K**2) < 0)
+        return K <= 0 or self.C - K**2 > 0
+
+    @property
     def value(self):
         if self._value is None:
             if self.C == 0:

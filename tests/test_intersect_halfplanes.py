@@ -132,11 +132,11 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         intersect_halfplanes(H)
         # print(intersect_halfplanes(H))
 
-        # idx = 10
-        # first_k = intersect_halfplanes(H[:idx])
-        # P = plot_polygon(first_k)
-        # polygon_and_new_halfplane = P + H[idx].plot()
-        # polygon_and_new_halfplane.save(f"first_{idx}_and_next.png")
+        idx = 10
+        first_k = intersect_halfplanes(H[:idx])
+        P = plot_polygon(first_k)
+        polygon_and_new_halfplane = P + H[idx].plot()
+        polygon_and_new_halfplane.save(f"first_{idx}_and_next.png")
 
         assert False, "Todo: Add in other partial intersections"
 

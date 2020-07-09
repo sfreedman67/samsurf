@@ -73,7 +73,11 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         A1 = a * (A**2 + B**2 * C + v2) + b * A + c
         B1 = a * (2 * A * B) + b * B
 
-        return bottle_neck._bottle_neck(A1, B1, C, on_boundary)
+        LHS = Radical(A1, B1, C)
+        if on_boundary:
+            return LHS._is_zero
+        return not LHS._is_negative
+        # return bottle_neck._bottle_neck(A1, B1, C, on_boundary)
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
