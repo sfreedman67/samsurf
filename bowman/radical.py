@@ -44,7 +44,8 @@ class Radical:
     def __eq__(self, other):
         if not self._is_valid_operand(other):
             return NotImplemented
-
+        if self.C == 0 and other.C == 0:
+            return self.A == other.A
         return self.value  == other.value
     
     def __lt__(self, other):

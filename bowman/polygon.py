@@ -44,20 +44,6 @@ class Point(namedtuple('Point', ['u', 'v2'])):
     def is_infinity(self):
         return self.u == oo and self.v2 == 0
 
-    @staticmethod
-    def _plug_point_into_halfplane(point, plane):
-        a, b, c = plane
-        u, v2 = point
-        A, B, C = u
-
-        # a[(A + B sqrt(C))^2 + v2] + b (A + B sqrt(C)) + c >= 0
-        # --> A1 + B1 sqrt(C) >= 0
-
-        A1 = a * (A**2 + B**2 * C + v2) + b * A + c
-        B1 = a * (2 * A * B) + b * B
-
-        return Radical(A1, B1, C)
-
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     __slots__ = ()
@@ -100,7 +86,7 @@ def intersect_polygon_halfplane(polygon, halfplane):
 
         edges_new = [component for component in intersection if isinstance(component, Edge)]
         
-        if edges_new == polygon:
+        if edges_new == polygon: 
             return polygon
         elif not edges_new:
             return None

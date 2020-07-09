@@ -126,10 +126,10 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                    (Edge(None, e6, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01), Edge(H[1], p01, p16), Edge(H[6], p16, e6))]
 
         for idx, answer in enumerate(answers):
-            print(idx)
             output = intersect_halfplanes(H[:idx])
             self.assertCountEqual(output, answer, msg=f"\nTestCase: {idx}")
 
+        intersect_halfplanes(H)
         # print(intersect_halfplanes(H))
 
         # idx = 10

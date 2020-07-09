@@ -62,7 +62,18 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
             else:
                 return isinstance(self, Line)
 
-        result = polygon.Point._plug_point_into_halfplane(point, self).value
+        a, b, c = self
+        u, v2 = point
+        A, B, C = u
+
+        # a[(A + B sqrt(C))^2 + v2] + b (A + B sqrt(C)) + c >= 0
+        # --> A1 + B1 sqrt(C) >= 0
+
+        A1 = a * (A**2 + B**2 * C + v2) + b * A + c
+        B1 = a * (2 * A * B) + b * B
+
+        result = A1 if C == 0 else Radical(A1, B1, C).value
+        
         return result == 0 or (not on_boundary and result > 0)
 
     def intersect_boundaries(self, other):
