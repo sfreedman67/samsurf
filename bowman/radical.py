@@ -32,7 +32,10 @@ class Radical:
     @property
     def value(self):
         if self._value is None:
-            self._value = self.A + self.B * sqrt(AA(self.C))
+            if self.C == 0:
+                self._value = self.A
+            
+            self._value = self.A + self.B * AA(self.C).sqrt()
         return self._value
 
     def _is_valid_operand(self, other):
@@ -44,7 +47,7 @@ class Radical:
     def __eq__(self, other):
         if not self._is_valid_operand(other):
             return NotImplemented
-        if self.C == 0 and other.C == 0:
+        elif self.C == other.C == 0:
             return self.A == other.A
         return self.value  == other.value
     
