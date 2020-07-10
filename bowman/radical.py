@@ -6,12 +6,11 @@ from collections import namedtuple
 
 import functools
 
-@functools.total_ordering
-class Radical:
-    def __init__(self, A, B, C):
-        if bool(C < 0):
-            raise ValueError("C must be non-negative")
 
+# class Radical(namedtuple("Radical", ["A", "B", "C"])):
+class Radical:
+
+    def __init__(self, A, B, C):
         self.A = A
         self.B = B
         self.C = C
@@ -31,11 +30,11 @@ class Radical:
 
     @property
     def _is_zero(self):
-        if self.B == 0 or self.C == 0:
+        if self.B == 0:
             return self.A == 0
-    
+
         K = (-self.A) / self.B
-        return bool(K >= 0) and bool(self.C - K**2 == 0)
+        return bool(self.C - K**2 == 0) and bool(K >= 0)
 
     @property
     def _is_negative(self):
@@ -43,7 +42,7 @@ class Radical:
             return bool(self.A < 0)
         K = (-self.A) / self.B
         if self.B > 0:
-            return bool(K >= 0) and bool((self.C - K**2) < 0)
+            return bool(K >= 0) and bool(self.C - K**2 < 0)
         return K <= 0 or self.C - K**2 > 0
 
     @property
@@ -51,27 +50,24 @@ class Radical:
         if self._value is None:
             if self.C == 0:
                 self._value = self.A
-            
             self._value = self.A + self.B * AA(self.C).sqrt()
         return self._value
 
-    def _is_valid_operand(self, other):
-        return all(hasattr(other, letter) for letter in ('A', 'B', 'C'))
 
     def __hash__(self):
         return hash(self.value)
 
     def __eq__(self, other):
-        if not self._is_valid_operand(other):
-            return NotImplemented
-        elif self.C == other.C == 0:
-            return self.A == other.A
-        return self.value  == other.value
-    
+        A, B, C = self
+        D, E, F = other
+
+        if E == 0:
+            return Radical(A - D, B, C)._is_zero
+        
+        G = (A - D) / E
+        H = B // E
+        return Radical(G**2 + H**2 * C - F, 2 * G * H, C)._is_zero and not Radical(G, H, C)._is_negative
+
+
     def __lt__(self, other):
-        if not self._is_valid_operand(other):
-            return NotImplemented
-
-        return self.value  < other.value
-
-
+        return self.value < other.value

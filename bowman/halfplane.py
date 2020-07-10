@@ -11,7 +11,6 @@ from context import bowman
 from bowman.radical import Radical
 
 import bowman.polygon as polygon
-import bowman.bottle_neck as bottle_neck
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
@@ -74,10 +73,10 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         B1 = a * (2 * A * B) + b * B
 
         LHS = Radical(A1, B1, C)
+
         if on_boundary:
             return LHS._is_zero
         return not LHS._is_negative
-        # return bottle_neck._bottle_neck(A1, B1, C, on_boundary)
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):

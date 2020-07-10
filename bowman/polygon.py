@@ -8,19 +8,20 @@ from bowman.radical import Radical
 import bowman.halfplane as halfplane
 
 
-class Point(namedtuple('Point', ['u', 'v2'])):
-    __slots__ = ()
-
-    def __new__(cls, u, v2):
-        self = super(Point, cls).__new__(cls, u, v2)
-
-        if u != oo and not isinstance(u, Radical):
-            return Point.__new__(cls, Radical(u, 0, 0), v2)
-
-        return self
+class Point:
+    def __init__(self, u, v2):
+        if not isinstance(u, Radical) and u != oo:
+            self.u = Radical(u, 0, 0)
+            self.v2 = v2
+        else:
+            self.u = u
+            self.v2 = v2
 
     def __repr__(self):
         return f"Point({self.u}, {self.v2})"
+
+    def __iter__(self):
+        return iter((self.u, self.v2))
 
     @staticmethod
     def CCW(p1, p2, p3):
@@ -42,7 +43,19 @@ class Point(namedtuple('Point', ['u', 'v2'])):
 
     @property
     def is_infinity(self):
-        return self.u == oo and self.v2 == 0
+        return not isinstance(self.u, Radical) and self.u == oo and self.v2 == 0
+
+    def __eq__(self, other):
+        if self.is_infinity:
+            return other.is_infinity
+        elif other.is_infinity:
+            return self.is_infinity
+        return (self.u, self.v2) == (other.u, other.v2) 
+
+    def __lt__(self, other):
+        if self.is_infinity or other.is_infinity:
+            raise ValueError("Can't compare infinity")
+        return (self.u, self.v2) < (other.u, other.v2)
 
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
