@@ -56,15 +56,15 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         raise NotImplementedError
 
     def contains_point(self, point, on_boundary=False):
-        if point.is_infinity:
-            if not on_boundary:
-                return isinstance(self, Line) or not self.is_oriented
-            else:
-                return isinstance(self, Line)
-
         a, b, c = self
         u, v2 = point
-        A, B, C = u
+        try:
+            A, B, C = u
+        
+        except TypeError:
+            if isinstance(self, Line):
+                return True
+            return not on_boundary and (not self.is_oriented)
 
         # a[(A + B sqrt(C))^2 + v2] + b (A + B sqrt(C)) + c >= 0
         # --> A1 + B1 sqrt(C) >= 0
@@ -73,10 +73,11 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         B1 = a * (2 * A * B) + b * B
 
         LHS = Radical(A1, B1, C)
-
+        
         if on_boundary:
             return LHS._is_zero
         return not LHS._is_negative
+        
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
