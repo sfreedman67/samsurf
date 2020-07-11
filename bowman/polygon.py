@@ -11,7 +11,7 @@ import bowman.halfplane as halfplane
 class Point:
     def __init__(self, u, v2):
         if not isinstance(u, Radical) and u != oo:
-            self.u = Radical(u, 0, 0)
+            self.u = Radical(u, QQ(0), QQ(0))
             self.v2 = v2
         else:
             self.u = u
@@ -27,7 +27,7 @@ class Point:
     def CCW(p1, p2, p3):
         if any((p1 == p2, p1 == p3, p2 == p3)):
             raise ValueError("Can only determine CCW for 3 distinct points")
-        elif any(getattr(pt, "v2") != 0 for pt in (p1, p2, p3)):
+        elif any(getattr(pt, "v2") != QQ(0) for pt in (p1, p2, p3)):
             raise ValueError("Can only determine CCW for boundary points")
 
         if all(not pt.is_infinity for pt in (p1, p2, p3)):
@@ -43,7 +43,7 @@ class Point:
 
     @property
     def is_infinity(self):
-        return not isinstance(self.u, Radical) and self.u == oo and self.v2 == 0
+        return not isinstance(self.u, Radical) and self.u == oo and self.v2 == QQ(0)
 
     def __eq__(self, other):
         if self.is_infinity:

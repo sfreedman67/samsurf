@@ -66,9 +66,6 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
                 return True
             return not on_boundary and (not self.is_oriented)
 
-        # a[(A + B sqrt(C))^2 + v2] + b (A + B sqrt(C)) + c >= 0
-        # --> A1 + B1 sqrt(C) >= 0
-
         A1 = a * (A**2 + B**2 * C + v2) + b * A + c
         B1 = a * (2 * A * B) + b * B
 
@@ -90,7 +87,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         u2_plus_v2, u = M.solve_right(vector([-self.c, -other.c]))
         v2 = u2_plus_v2 - u**2
 
-        return None if bool(v2 < 0) else polygon.Point(Radical(u, 0, 0), v2)
+        return None if bool(v2 < 0) else polygon.Point(Radical(u, QQ(0), QQ(0)), v2)
 
     def _intersect_edge_real(self, edge):
         contains_start = self.contains_point(edge.start)
@@ -183,11 +180,11 @@ class Circle(HalfPlane):
 
     @property
     def center(self):
-        return polygon.Point(-self.b / (ZZ(2) * self.a), 0)
+        return polygon.Point(-self.b / (QQ(2) * self.a), 0)
 
     @property
     def radius2(self):
-        return (self.b**2 - 4 * self.a * self.c) / (ZZ(4) * self.a**2)
+        return (self.b**2 - 4 * self.a * self.c) / (QQ(4) * self.a**2)
 
     @property
     def is_oriented(self):
@@ -196,13 +193,13 @@ class Circle(HalfPlane):
     @property
     def start(self):
         coord_center = self.center.u.A
-        plus_or_minus = 1 if self.is_oriented else -1
+        plus_or_minus = QQ(1) if self.is_oriented else QQ(-1)
         return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
 
     @property
     def end(self):
         coord_center = self.center.u.A
-        plus_or_minus = -1 if self.is_oriented else 1
+        plus_or_minus = QQ(-1) if self.is_oriented else QQ(1)
         return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
 
     @property

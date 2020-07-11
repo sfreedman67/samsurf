@@ -157,8 +157,8 @@ if __name__ == "__main__":
 
     # run_only_one_test("test_intersect_AY3")
 
-    planes_g40 = Triangulation.arnoux_yoccoz(40).halfplanes()
-    cProfile.run("intersect_halfplanes(planes_g40)", "intersect.profile")
+    planes = Triangulation.arnoux_yoccoz(20).halfplanes()
+    cProfile.run("intersect_halfplanes(planes)", "intersect.profile")
     s = pstats.Stats("intersect.profile")
     s.dump_stats("intersect.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)
+    s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(5)
