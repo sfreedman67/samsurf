@@ -42,7 +42,9 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
 
     @property
     def value(self):
-        return self.A + self.B * AA(self.C).sqrt()
+        if self.C.is_square():
+            return self.A + self.B * self.C.sqrt()
+        return QQbar(self.A) + QQbar(self.B) * QQbar(self.C).sqrt()
 
     def __hash__(self):
         return hash(self.value)

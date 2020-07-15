@@ -31,6 +31,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         term_constant = f"[{self.c}]" if self.c != 0 else ""
         return term_quadratic + term_linear + term_constant + ">= 0"
 
+
     @property
     def is_oriented(self):
         raise NotImplementedError
@@ -55,30 +56,30 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _point_outside(self):
         raise NotImplementedError
 
-    def contains_point(self, point, on_boundary=False):
-        a, b, c = self
-        u, v2 = point
-        try:
-            A, B, C = u
-        
-        except TypeError:
-            if isinstance(self, Line):
-                return True
-            return not on_boundary and (not self.is_oriented)
+    def _plug_in_point(self, point):
+        A, B, C = point.u
 
-        A1 = a * (A**2 + B**2 * C + v2) + b * A + c
-        B1 = a * (2 * A * B) + b * B
+        if B == 0:
+            return Radical(self.a * (A**2 + point.v2) + self.b * A + self.c, 0, 0)
+        elif B == 1:
+            return Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, 2 * self.a * A + self.b, C)
 
-        LHS = Radical(A1, B1, C)
-        
-        if on_boundary:
-            return LHS._is_zero
-        return not LHS._is_negative
-        
+        return Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, -2 * self.a * A - self.b, C)
+
+    def contains_point(self, point):
+        if point.is_infinity:
+            return isinstance(self, Line) or (not self.is_oriented)
+
+        return not self._plug_in_point(point)._is_negative
+
+    def contains_point_on_boundary(self, point):
+        if point.is_infinity:
+            return isinstance(self, Line)
+        return self._plug_in_point(point)._is_zero
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
-            return polygon.polygon.Point(oo, 0)
+            return polygon.polygon.Point(oo, QQ(0))
 
         M = matrix([[self.a, self.b], [other.a, other.b]])
         if M.determinant() == 0:
@@ -149,12 +150,12 @@ class Line(HalfPlane):
     @property
     def start(self):
         A = -self.c / self.b if self.is_oriented else oo
-        return polygon.Point(A, 0)
+        return polygon.Point(A, QQ(0))
 
     @property
     def end(self):
         A = oo if self.is_oriented else -self.c / self.b
-        return polygon.Point(A, 0)
+        return polygon.Point(A, QQ(0))
 
     @property
     def endpoint_real(self):
@@ -180,7 +181,7 @@ class Circle(HalfPlane):
 
     @property
     def center(self):
-        return polygon.Point(-self.b / (QQ(2) * self.a), 0)
+        return polygon.Point(-self.b / (QQ(2) * self.a), QQ(0))
 
     @property
     def radius2(self):
@@ -194,24 +195,24 @@ class Circle(HalfPlane):
     def start(self):
         coord_center = self.center.u.A
         plus_or_minus = QQ(1) if self.is_oriented else QQ(-1)
-        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
+        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
 
     @property
     def end(self):
         coord_center = self.center.u.A
         plus_or_minus = QQ(-1) if self.is_oriented else QQ(1)
-        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), 0)
+        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
 
     @property
     def _point_inside(self):
         if self.is_oriented:
             return self.center
         A, B, C = self.end.u
-        return polygon.Point(Radical(A + 1, B, C), 0)
+        return polygon.Point(Radical(A + 1, B, C), QQ(0))
 
     @property
     def _point_outside(self):
         if self.is_oriented:
             A, B, C = self.start.u
-            return polygon.Point(Radical(A + 1, B, C), 0)
+            return polygon.Point(Radical(A + 1, B, C), QQ(0))
         return self.center

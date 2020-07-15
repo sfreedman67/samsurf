@@ -10,7 +10,6 @@ import pstats
 
 from context import bowman
 
-
 from bowman.intersect_halfplanes import intersect_halfplanes
 
 from bowman.polygon import Point, Edge, plot_polygon
@@ -93,10 +92,8 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
         X = Triangulation.arnoux_yoccoz(3)
         alpha = X.base_ring.gen()
-        
-        H = X.halfplanes()
 
-        # X.plot_halfplanes(7)
+        H = X.halfplanes()
 
         s0, e0 = H[0].endpoints
         s1, e1 = H[1].endpoints
@@ -125,24 +122,54 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                    (Edge(H[1], p01, p15), Edge(H[5], p15, p25), Edge(H[2], p25, e2), Edge(
                        None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)),
                    (Edge(None, e6, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01), Edge(H[1], p01, p16), Edge(H[6], p16, e6))]
-        
-        # intersect_halfplanes(H[:3])
 
         for idx, answer in enumerate(answers):
             output = intersect_halfplanes(H[:idx])
             self.assertCountEqual(output, answer, msg=f"\nTestCase: {idx}")
 
-        intersect_halfplanes(H)
-        # print(intersect_halfplanes(H))
+        p14 = H[1].intersect_boundaries(H[4])
+        p16 = H[1].intersect_boundaries(H[6])
+        p67 = H[6].intersect_boundaries(H[7])
+        p47 = H[4].intersect_boundaries(H[7])
 
-        # idx = 7
-        # first_k = intersect_halfplanes(H[:idx])
-        # P = plot_polygon(first_k)
-        # polygon_and_new_halfplane = P + H[idx].plot()
-        # polygon_and_new_halfplane.save(f"first_{idx}_and_next.png")
+        answer_final = [Edge(H[1], p14, p16),
+                        Edge(H[6], p16, p67),
+                        Edge(H[7], p67, p47),
+                        Edge(H[4], p47, p14)]
 
-        
-        assert False, "Todo: Add in other partial intersections"
+        output_final = intersect_halfplanes(H)
+        self.assertCountEqual(output_final, answer_final)
+
+    def test_regular_octagon(self):
+        K = QuadraticField(2)
+        a = K.gen()
+
+        ineqs39 = [(QQ(1 / 2) * a - 1, a - 2, QQ(-1 / 2) * a + 1),
+                   (2 * a - 2, 4 * a - 6, 0),
+                   (-a, -2 * a, a),
+                   (0, 2 * a, 0),
+                   (2 * a + 2, -2, 0),
+                   (4 * a + 4, -4, 0),
+                   (2 * a - 2, -4 * a + 6, 0)]
+        ineqs81 = []
+
+        halfplanes39 = [HalfPlane.from_ineq(*ineq) for ineq in ineqs39]
+
+        P = intersect_halfplanes(halfplanes39)
+
+        for plane in halfplanes39:
+            a, b, c = plane
+            if a > 0:
+                plane = HalfPlane.from_ineq(1, b/a, c/a)
+            elif a < 0:
+                plane = HalfPlane.from_ineq(-1, -b/a, -c/a)
+            elif b > 0:
+                plane = HalfPlane.from_ineq(0, 1, c/b)
+            else:
+                plane = HalfPlane.from_ineq(0, -1, -c/b)
+            print(plane)
+
+        assert False, "Todo: determine answer"
 
 
 def run_only_one_test(name):
@@ -155,10 +182,10 @@ def run_only_one_test(name):
 if __name__ == "__main__":
     # unittest.main(failfast=False, verbosity=2)
 
-    # run_only_one_test("test_intersect_AY3")
+    run_only_one_test("test_regular_octagon")
 
-    planes = Triangulation.arnoux_yoccoz(20).halfplanes()
-    cProfile.run("intersect_halfplanes(planes)", "intersect.profile")
-    s = pstats.Stats("intersect.profile")
-    s.dump_stats("intersect.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(5)
+    # planes = Triangulation.arnoux_yoccoz(20).halfplanes()
+    # cProfile.run("intersect_halfplanes(planes)", "intersect.profile")
+    # s = pstats.Stats("intersect.profile")
+    # s.dump_stats("intersect.pstats")
+    # s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(5)

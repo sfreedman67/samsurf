@@ -1,12 +1,14 @@
-import triangulation
-from triangulation import Triangle, Hinge, Triangulation
-
-import halfplane
+import sage.all
+from sage.all import *
 
 import unittest
 
-import sage.all
-from sage.all import *
+from context import bowman
+
+import bowman.triangulation
+from bowman.triangulation import Triangle, Hinge, Triangulation
+
+import bowman.halfplane
 
 
 class TestShearedOctagon(unittest.TestCase):
@@ -117,7 +119,6 @@ class TestInequaltyToGeodesic(unittest.TestCase):
         self.assertEqual([hinge.halfplane().boundary for hinge in square_torus.hinges()],
                          [self.geodesic(0, oo), self.geodesic(-1, 0), self.geodesic(oo, -1)])
 
-
 class TestApplyMatrixToTriangulation(unittest.TestCase):
 
     def test_shear_torus(self):
@@ -160,4 +161,6 @@ class TestIsDelaunay(unittest.TestCase):
             self.assertTrue(X.is_delaunay())
 
 if __name__ == "__main__":
+    X = Triangulation.regular_octagon()
+
     unittest.main(verbosity=2)

@@ -66,7 +66,6 @@ class Hinge:
         """(p2 is inside/on/outisde oriented circle 0-P0-P1) iff (det </==/> 0) """
         return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
 
-
     @property
     def halfplane(self):
         M_a = matrix([[x, y, y**2] for x, y in self.vectors])
@@ -160,20 +159,25 @@ class Triangulation:
         return all(has_valid_sign(hinge.incircle_det) for hinge in self.hinges())
 
     def halfplanes(self):
-        halfplanes = (hinge.halfplane for hinge in self.hinges()
-                      if hinge.halfplane is not None)
+        halfplanes = [hinge.halfplane for hinge in self.hinges()
+                      if hinge.halfplane is not None]
 
         # TODO: should we be removing duplicates here
         return list(set(halfplanes))
 
+    @property
+    def halfplanes_to_hinges(self):
+        return {hinge.halfplane: hinge for hinge in self.hinges()
+                if hinge.halfplane is not None}
+
     def plot_halfplanes(self, count=None):
         # TODO: Labels?
-        P = sum(itertools.islice((halfplane.plot()
+        figure = sum(itertools.islice((halfplane.plot()
                                   for halfplane in self.halfplanes()), count))
         if count is not None:
-            plt_final = P[-1]
+            plt_final = figure[-1]
             opt = plt_final.options()
             opt["linestyle"] = "--"
             plt_final.set_options(opt)
 
-        return P
+        return figure

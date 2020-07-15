@@ -4,11 +4,14 @@ from sage.all import *
 from collections import namedtuple
 import itertools
 
+from context import bowman 
+
 from bowman.radical import Radical
 import bowman.halfplane as halfplane
 
 
 class Point:
+
     def __init__(self, u, v2):
         if not isinstance(u, Radical) and u != oo:
             self.u = Radical(u, QQ(0), QQ(0))
@@ -50,7 +53,7 @@ class Point:
             return other.is_infinity
         elif other.is_infinity:
             return self.is_infinity
-        return (self.u, self.v2) == (other.u, other.v2) 
+        return (self.u, self.v2) == (other.u, other.v2)
 
     def __lt__(self, other):
         if self.is_infinity or other.is_infinity:
@@ -82,36 +85,48 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         return (self.start, self.end)
 
     def plot(self):
-        coords_start = CC(self.start.u.value, self.start.v2)
-        coords_end = CC(self.end.u.value, self.end.v2)
+        if self.start.is_infinity:
+            coord_start = oo
+        else:
+            coord_start = CC(self.start.u.value, QQbar(self.start.v2).sqrt())
 
-        if self.is_ideal or isinstance(self.halfplane, halfplane.Line):
-            return line((coords_start, coords_end)).plot()
+        if self.end.is_infinity:
+            coord_end = oo
+        else:
+            coord_end = CC(self.end.u.value, QQbar(self.end.v2).sqrt())
 
-        coords_start = CC(self.start.u.value, self.start.v2)
-        coords_end = CC(self.end.u.value, self.end.v2)
-        return HyperbolicPlane().UHP().get_geodesic(coords_start, coords_end).plot()
+        return HyperbolicPlane().UHP().get_geodesic(coord_start, coord_end).plot(axes=True)
 
+
+# TODO: wrap in polygon class
+
+# TODO: is_nontriv property
 
 def intersect_polygon_halfplane(polygon, halfplane):
-        intersection = itertools.chain.from_iterable(
-            (halfplane.intersect_edge(edge) for edge in polygon))
+    intersection = itertools.chain.from_iterable(
+        (halfplane.intersect_edge(edge) for edge in polygon))
 
-        edges_new = [component for component in intersection if isinstance(component, Edge)]
-        
-        if edges_new == polygon: 
-            return polygon
-        elif not edges_new:
-            return None
+    edges_new = [component for component in intersection
+                 if isinstance(component, Edge)]
 
-        [head_idx]=[idx for idx, edge in enumerate(edges_new)
-                      if halfplane.contains_point(edge.start, on_boundary=True)]
+    if edges_new == polygon:
+        return polygon
+    elif not edges_new:
+        return None
 
-        edge_chain=[*edges_new[head_idx:], *edges_new[:head_idx]]
+    [head_idx] = [idx for idx, edge in enumerate(edges_new)
+                  if halfplane.contains_point_on_boundary(edge.start)]
 
-        edge_new=Edge(halfplane, edge_chain[-1].end, edge_chain[0].start)
+    edge_chain = [*edges_new[head_idx:], *edges_new[:head_idx]]
 
-        return [*edge_chain, edge_new]
+    if edge_chain[0].start == edge_chain[-1].end:
+        return edge_chain
+
+    edge_new = Edge(halfplane, edge_chain[-1].end, edge_chain[0].start)
+
+    return [*edge_chain, edge_new]
+
 
 def plot_polygon(polygon):
-    return sum(edge.plot() for edge in polygon)
+    P = sum(edge.plot() for edge in polygon)
+    return P

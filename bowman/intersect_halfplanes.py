@@ -1,4 +1,7 @@
-import bowman.polygon as polygon
+from context import bowman
+
+import bowman.polygon
+from bowman.polygon import Edge
 
 
 def intersect_halfplanes(halfplanes):
@@ -12,9 +15,7 @@ def intersect_halfplanes(halfplanes):
         return None
 
     elif polygon_previous == []:
-        return [polygon.Edge(current, current.start, current.end),
-                polygon.Edge(None, current.end, current.start)]
+        return [Edge(current, current.start, current.end),
+                Edge(None, current.end, current.start)]
 
-    return polygon.intersect_polygon_halfplane(polygon_previous, current)
-
-    
+    return bowman.polygon.intersect_polygon_halfplane(polygon_previous, current)
