@@ -89,56 +89,30 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         assert False, "TODO: add in?"
 
     def test_intersect_AY3(self):
-
         X = Triangulation.arnoux_yoccoz(3)
         alpha = X.base_ring.gen()
 
         H = X.halfplanes()
 
-        s0, e0 = H[0].endpoints
-        s1, e1 = H[1].endpoints
-        e2 = H[2].end
-        s3 = H[3].start
-        s4 = H[4].start
-        e6 = H[6].end
+        p68 = H[6].intersect_boundaries(H[8])
+        p08 = H[0].intersect_boundaries(H[8])
+        p05 = H[0].intersect_boundaries(H[5])
+        p56 = H[5].intersect_boundaries(H[6])
 
-        p01 = H[0].intersect_boundaries(H[1])
-        p03 = H[0].intersect_boundaries(H[3])
-        p34 = H[3].intersect_boundaries(H[4])
-        p15 = H[1].intersect_boundaries(H[5])
-        p16 = H[1].intersect_boundaries(H[6])
-        p25 = H[2].intersect_boundaries(H[5])
-
-        answers = [(),
-                   (Edge(H[0], s0, e0), Edge(None, e0, s0)),
-                   (Edge(H[0], s0, p01), Edge(
-                       H[1], p01, e1), Edge(None, e1, s0)),
-                   (Edge(H[0], s0, p01), Edge(H[1], p01, e1),
-                    Edge(H[2], e1, e2), Edge(None, e2, s0)),
-                   (Edge(H[3], s3, p03), Edge(H[0], p03, p01), Edge(
-                       H[1], p01, e1), Edge(H[2], e1, e2), Edge(None, e2, s3)),
-                   (Edge(H[1], p01, e1), Edge(H[2], e1, e2), Edge(
-                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)),
-                   (Edge(H[1], p01, p15), Edge(H[5], p15, p25), Edge(H[2], p25, e2), Edge(
-                       None, e2, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01)),
-                   (Edge(None, e6, s3), Edge(H[3], s3, p34), Edge(H[4], p34, p01), Edge(H[1], p01, p16), Edge(H[6], p16, e6))]
-
-        for idx, answer in enumerate(answers):
-            output = intersect_halfplanes(H[:idx])
-            self.assertCountEqual(output, answer, msg=f"\nTestCase: {idx}")
-
-        p14 = H[1].intersect_boundaries(H[4])
-        p16 = H[1].intersect_boundaries(H[6])
-        p67 = H[6].intersect_boundaries(H[7])
-        p47 = H[4].intersect_boundaries(H[7])
-
-        answer_final = [Edge(H[1], p14, p16),
-                        Edge(H[6], p16, p67),
-                        Edge(H[7], p67, p47),
-                        Edge(H[4], p47, p14)]
+        answer_final = [Edge(H[8], p68, p08),
+                        Edge(H[0], p08, p05),
+                        Edge(H[5], p05, p56),
+                        Edge(H[6], p56, p68)]
 
         output_final = intersect_halfplanes(H)
         self.assertCountEqual(output_final, answer_final)
+
+        hinges_from_dict = [hinge
+                            for list_hinges in X.halfplanes_to_hinges.values()
+                            for hinge in list_hinges]
+        self.assertCountEqual(hinges_from_dict, X.hinges())
+
+        print(f"num_distinct_halfplanes={len(X.halfplanes_to_hinges.keys())}")
 
     def test_regular_octagon(self):
         K = QuadraticField(2)
@@ -157,18 +131,6 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
         P = intersect_halfplanes(halfplanes39)
 
-        for plane in halfplanes39:
-            a, b, c = plane
-            if a > 0:
-                plane = HalfPlane.from_ineq(1, b/a, c/a)
-            elif a < 0:
-                plane = HalfPlane.from_ineq(-1, -b/a, -c/a)
-            elif b > 0:
-                plane = HalfPlane.from_ineq(0, 1, c/b)
-            else:
-                plane = HalfPlane.from_ineq(0, -1, -c/b)
-            print(plane)
-
         assert False, "Todo: determine answer"
 
 
@@ -180,7 +142,7 @@ def run_only_one_test(name):
     runner.run(suite)
 
 if __name__ == "__main__":
-    # unittest.main(failfast=False, verbosity=2)
+    unittest.main(failfast=False, verbosity=2)
 
     run_only_one_test("test_regular_octagon")
 

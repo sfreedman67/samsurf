@@ -101,6 +101,7 @@ def plot_trin_comb(trin_comb):
 
 
 if __name__ == "__main__":
-    trin0, *_ = gen_trins_IDR_nontriv()
-    print(trin0.geom.halfplanes_to_hinges)
+    _, trin_geom = gen_trins_IDR_nontriv()[0]
+    for halfplane, hinges in trin_geom.halfplanes_to_hinges.items():
+        print(halfplane, hinges)
 

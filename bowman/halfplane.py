@@ -19,9 +19,13 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     @staticmethod
     def from_ineq(a, b, c):
         if a == 0 and b != 0:
-            return Line(a, b, c)
+            if b > 0:
+                return Line(0, 1, c / b)
+            return Line(0, -1, -c/b)
         elif a != 0 and (b**2 - 4 * a * c) > 0:
-            return Circle(a, b, c)
+            if a > 0:
+                return Circle(1, b/a, c/a)
+            return Circle(-1, -b/a, -c/a)
         else:
             raise ValueError("Coeffs determine a degenerate inequality")
 
@@ -79,7 +83,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
     def intersect_boundaries(self, other):
         if isinstance(self, Line) and isinstance(other, Line):
-            return polygon.polygon.Point(oo, QQ(0))
+            return polygon.Point(oo, QQ(0))
 
         M = matrix([[self.a, self.b], [other.a, other.b]])
         if M.determinant() == 0:

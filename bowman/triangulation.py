@@ -8,6 +8,7 @@ import bowman.halfplane
 from bowman.halfplane import HalfPlane
 
 import itertools
+from collections import defaultdict
 
 
 class Triangle:
@@ -162,13 +163,18 @@ class Triangulation:
         halfplanes = [hinge.halfplane for hinge in self.hinges()
                       if hinge.halfplane is not None]
 
-        # TODO: should we be removing duplicates here
         return list(set(halfplanes))
 
     @property
     def halfplanes_to_hinges(self):
-        return {hinge.halfplane: hinge for hinge in self.hinges()
-                if hinge.halfplane is not None}
+        halfplanes_to_hinges = defaultdict(list)
+        
+        for hinge in self.hinges():
+            halfplane = hinge.halfplane
+            if halfplane is not None:
+                halfplanes_to_hinges[halfplane].append(hinge)
+        
+        return halfplanes_to_hinges
 
     def plot_halfplanes(self, count=None):
         # TODO: Labels?
