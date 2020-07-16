@@ -1,40 +1,53 @@
-#!/usr/bin/env sage
+import collections
+from collections import namedtuple
 
 import sage.all
 from sage.all import *
 
-import collections
-from collections import namedtuple
-
 from context import bowman
-
-from bowman.radical import Radical
-
-import bowman.polygon as polygon
+import bowman.radical
+from bowman import radical
+import bowman.polygon
+from bowman import polygon
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     __slots__ = ()
 
-    @staticmethod
-    def from_ineq(a, b, c):
+    @classmethod
+    def from_ineq(cls, a, b, c):
         if a == 0 and b != 0:
             if b > 0:
                 return Line(0, 1, c / b)
-            return Line(0, -1, -c/b)
+            return Line(0, -1, -c / b)
         elif a != 0 and (b**2 - 4 * a * c) > 0:
             if a > 0:
-                return Circle(1, b/a, c/a)
-            return Circle(-1, -b/a, -c/a)
+                return Circle(1, b / a, c / a)
+            return Circle(-1, -b / a, -c / a)
         else:
             raise ValueError("Coeffs determine a degenerate inequality")
+
+    @classmethod
+    def from_endpoints(cls, start, end):
+        if start.is_infinity:
+            return Line(1, 0, -end.u.A)
+        elif end.is_infinity:
+            return Line(0, -1, start.u.A)
+        else:
+            coord_start, coord_end = start.u.A, end.u.A
+            if coord_start < coord_end:
+                return Circle(1,
+                              -(coord_start + coord_end),
+                              coord_start * coord_end)
+            return Circle(-1,
+                          (coord_start + coord_end),
+                          coord_start * coord_end)
 
     def __repr__(self):
         term_quadratic = f"[{self.a}](u^2 + v^2)+" if self.a != 0 else ""
         term_linear = f"[{self.b}]u+" if self.b != 0 else ""
         term_constant = f"[{self.c}]" if self.c != 0 else ""
         return term_quadratic + term_linear + term_constant + ">= 0"
-
 
     @property
     def is_oriented(self):
@@ -64,11 +77,11 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         A, B, C = point.u
 
         if B == 0:
-            return Radical(self.a * (A**2 + point.v2) + self.b * A + self.c, 0, 0)
+            return radical.Radical(self.a * (A**2 + point.v2) + self.b * A + self.c, 0, 0)
         elif B == 1:
-            return Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, 2 * self.a * A + self.b, C)
+            return radical.Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, 2 * self.a * A + self.b, C)
 
-        return Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, -2 * self.a * A - self.b, C)
+        return radical.Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, -2 * self.a * A - self.b, C)
 
     def contains_point(self, point):
         if point.is_infinity:
@@ -92,7 +105,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         u2_plus_v2, u = M.solve_right(vector([-self.c, -other.c]))
         v2 = u2_plus_v2 - u**2
 
-        return None if bool(v2 < 0) else polygon.Point(Radical(u, QQ(0), QQ(0)), v2)
+        return None if bool(v2 < 0) else polygon.Point(radical.Radical(u, QQ(0), QQ(0)), v2)
 
     def _intersect_edge_real(self, edge):
         contains_start = self.contains_point(edge.start)
@@ -131,6 +144,24 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
     def intersect_edge(self, edge):
         return self._intersect_edge_ideal(edge) if edge.is_ideal else self._intersect_edge_real(edge)
+
+    @classmethod
+    def intersect_halfplanes(cls, halfplanes):
+        if not halfplanes:
+            return polygon.Polygon([])
+
+        polygon_previous = HalfPlane.intersect_halfplanes(halfplanes[:-1])
+        current = halfplanes[-1]
+
+        if polygon_previous is None:
+            return None
+
+        elif polygon_previous.edges == []:
+            edges = [polygon.Edge(current, current.start, current.end),
+                     polygon.Edge(None, current.end, current.start)]
+            return polygon.Polygon(edges)
+
+        return polygon_previous.intersect_with_halfplane(current)
 
     def plot(self):
         # For circles: Below Blue, Above Orange
@@ -189,34 +220,34 @@ class Circle(HalfPlane):
 
     @property
     def radius2(self):
-        return (self.b**2 - 4 * self.a * self.c) / (QQ(4) * self.a**2)
+        return (self.b**2 - 4 * self.a * self.c) / QQ(4)
 
     @property
     def is_oriented(self):
-        return self.contains_point(self.center)
+        return self.a < 0
 
     @property
     def start(self):
         coord_center = self.center.u.A
         plus_or_minus = QQ(1) if self.is_oriented else QQ(-1)
-        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
+        return polygon.Point(radical.Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
 
     @property
     def end(self):
         coord_center = self.center.u.A
         plus_or_minus = QQ(-1) if self.is_oriented else QQ(1)
-        return polygon.Point(Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
+        return polygon.Point(radical.Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
 
     @property
     def _point_inside(self):
         if self.is_oriented:
             return self.center
         A, B, C = self.end.u
-        return polygon.Point(Radical(A + 1, B, C), QQ(0))
+        return polygon.Point(radical.Radical(A + 1, B, C), QQ(0))
 
     @property
     def _point_outside(self):
         if self.is_oriented:
             A, B, C = self.start.u
-            return polygon.Point(Radical(A + 1, B, C), QQ(0))
+            return polygon.Point(radical.Radical(A + 1, B, C), QQ(0))
         return self.center

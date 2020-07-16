@@ -1,14 +1,13 @@
+import itertools
+from collections import defaultdict, namedtuple
+
 import sage.all
 from sage.all import *
-
-import flatsurf as fs
+import flatsurf
 
 from context import bowman
 import bowman.halfplane
-from bowman.halfplane import HalfPlane
-
-import itertools
-from collections import defaultdict
+from bowman import halfplane
 
 
 class Triangle:
@@ -34,6 +33,7 @@ class Triangle:
         return Triangle([M * edge for edge in self.edges])
 
 
+# class Hinge(namedtuple("Hinge", ["v0, v1, v2, id"])):
 class Hinge:
     # TODO: Named Tuple
 
@@ -78,7 +78,7 @@ class Hinge:
         c = M_c.determinant()
 
         try:
-            H = HalfPlane.from_ineq(a, b, c)
+            H = halfplane.HalfPlane.from_ineq(a, b, c)
         except ValueError:
             H = None
 
@@ -121,21 +121,21 @@ class Triangulation:
 
     @classmethod
     def square_torus(cls):
-        return cls._from_flatsurf(fs.translation_surfaces.square_torus())
+        return cls._from_flatsurf(flatsurf.translation_surfaces.square_torus())
 
     @classmethod
     def regular_octagon(cls):
-        return cls._from_flatsurf(fs.translation_surfaces.regular_octagon())
+        return cls._from_flatsurf(flatsurf.translation_surfaces.regular_octagon())
 
     @classmethod
     def arnoux_yoccoz(cls, g):
         if g < 3:
             raise ValueError("g must be >= 3")
-        return cls._from_flatsurf(fs.translation_surfaces.arnoux_yoccoz(g))
+        return cls._from_flatsurf(flatsurf.translation_surfaces.arnoux_yoccoz(g))
 
     @classmethod
     def octagon_and_squares(cls):
-        return cls._from_flatsurf(fs.translation_surfaces.octagon_and_squares())
+        return cls._from_flatsurf(flatsurf.translation_surfaces.octagon_and_squares())
 
     def edges(self, gluings=False):
         num_triangles = len(self.triangles)
@@ -152,15 +152,17 @@ class Triangulation:
         tri2 = self.triangles[edge_opposite[0]]
         return Hinge._from_triangles(tri1, edge[1], tri2, edge_opposite[1])
 
+    @property
     def hinges(self):
         return [self._hinge(edge) for edge in self.edges()]
 
     def is_delaunay(self, strict=True):
         has_valid_sign = lambda x: bool(x > 0) or (not strict and bool(x == 0))
-        return all(has_valid_sign(hinge.incircle_det) for hinge in self.hinges())
+        return all(has_valid_sign(hinge.incircle_det) for hinge in self.hinges)
 
+    @property
     def halfplanes(self):
-        halfplanes = [hinge.halfplane for hinge in self.hinges()
+        halfplanes = [hinge.halfplane for hinge in self.hinges
                       if hinge.halfplane is not None]
 
         return list(set(halfplanes))
@@ -169,7 +171,7 @@ class Triangulation:
     def halfplanes_to_hinges(self):
         halfplanes_to_hinges = defaultdict(list)
         
-        for hinge in self.hinges():
+        for hinge in self.hinges:
             halfplane = hinge.halfplane
             if halfplane is not None:
                 halfplanes_to_hinges[halfplane].append(hinge)
@@ -179,7 +181,7 @@ class Triangulation:
     def plot_halfplanes(self, count=None):
         # TODO: Labels?
         figure = sum(itertools.islice((halfplane.plot()
-                                  for halfplane in self.halfplanes()), count))
+                                  for halfplane in self.halfplanes), count))
         if count is not None:
             plt_final = figure[-1]
             opt = plt_final.options()
@@ -187,3 +189,7 @@ class Triangulation:
             plt_final.set_options(opt)
 
         return figure
+
+    @property
+    def IDR(self):
+        return halfplane.HalfPlane.intersect_halfplanes(self.halfplanes)

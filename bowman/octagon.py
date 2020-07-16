@@ -7,10 +7,8 @@ import collections
 import triangulation
 from triangulation import Triangle, Triangulation
 
-import intersect_halfplanes
-from intersect_halfplanes import intersect_halfplanes
-
-from polygon import plot_polygon
+import halfplane
+from halfplane import HalfPlane
 
 K = QuadraticField(2)
 A = K.gen()
@@ -101,7 +99,5 @@ def plot_trin_comb(trin_comb):
 
 
 if __name__ == "__main__":
-    _, trin_geom = gen_trins_IDR_nontriv()[0]
-    for halfplane, hinges in trin_geom.halfplanes_to_hinges.items():
-        print(halfplane, hinges)
+    pass
 
