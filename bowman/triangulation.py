@@ -10,30 +10,22 @@ import bowman.halfplane
 from bowman import halfplane
 
 
-class Triangle:
-    # TODO: Named Tuple
+class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
+    __slots__ = ()
 
-    def __init__(self, edges):
-        if sum(edges) != vector([0, 0]):
+    def __new__(cls, v0, v1, v2):
+        if sum((v0, v1, v2)) != vector([0, 0]):
             raise ValueError("sides do not close up")
-        elif matrix([edges[0], -edges[2]]).determinant() <= 0:
+        elif matrix([v0, -v2]).determinant() <= 0:
             raise ValueError("sides are not oriented correctly")
-        else:
-            self.edges = edges
 
-    def __repr__(self):
-        return f'Triangle{self.edges}'
-
-    def __eq__(self, other):
-        if isinstance(other, Triangle):
-            return self.edges == other.edges
-        return NotImplemented
+        self = super(Triangle, cls).__new__(cls, v0, v1, v2)
+        return self
 
     def apply_matrix(self, M):
-        return Triangle([M * edge for edge in self.edges])
+        return Triangle([M * side for side in self])
 
 
-# class Hinge(namedtuple("Hinge", ["v0, v1, v2, id"])):
 class Hinge:
     # TODO: Named Tuple
 
@@ -50,15 +42,15 @@ class Hinge:
 
     @classmethod
     def _from_triangles(cls, triangle1, label_e1, triangle2, label_e2):
-        edge1, edge2 = triangle1.edges[label_e1], triangle2.edges[label_e2]
+        edge1, edge2 = triangle1[label_e1], triangle2[label_e2]
 
         if edge1 != -edge2:
             raise ValueError(
                 "Edges are either nonparallel or oriented incorrectly")
 
-        v0 = triangle2.edges[(label_e2 + 1) % 3]
+        v0 = triangle2[(label_e2 + 1) % 3]
         v1 = edge1
-        v2 = -triangle1.edges[(label_e1 - 1) % 3]
+        v2 = -triangle1[(label_e1 - 1) % 3]
 
         return Hinge(v0, v1, v2)
 
@@ -110,7 +102,7 @@ class Triangulation:
 
         DT_polygons = [DT.polygon(i) for i in range(DT.num_polygons())]
 
-        triangles = [Triangle([vector(edge) for edge in polygon.edges()])
+        triangles = [Triangle(*[vector(edge) for edge in polygon.edges()])
                      for polygon in DT_polygons]
 
         gluings = {edge[0]: edge[1] for edge in DT.edge_iterator(gluings=True)}
