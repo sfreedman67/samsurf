@@ -150,7 +150,7 @@ class TestFlipHinge(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # X = triangulation.Triangulation.arnoux_yoccoz(3)
+    # X = triangulation.Triangulation.arnoux_yoccoz(4)
     # cx = X.iso_delaunay_complex(num_regions=200)
     # print(len(cx))
 
@@ -163,4 +163,4 @@ if __name__ == "__main__":
     cProfile.run("X.iso_delaunay_complex(150)", "complex.profile")
     s = pstats.Stats("complex.profile")
     s.dump_stats("complex.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)
+    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)

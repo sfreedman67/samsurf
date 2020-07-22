@@ -236,12 +236,12 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     IDR = namedtuple("IDR", ["polygon", "labels_hinge"])
 
     def get_IDR(self):
-        dd = self._halfplanes_hinges
-        halfplanes = list(dd.keys())
+        halfplanes_hinges = self._halfplanes_hinges
+        halfplanes = list(halfplanes_hinges.keys())
 
         P = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
 
-        labels = {segment.halfplane: dd[segment.halfplane]
+        labels = {segment.halfplane: halfplanes_hinges[segment.halfplane]
                   for segment in P.edges}
 
         return Triangulation.IDR(P, labels)
