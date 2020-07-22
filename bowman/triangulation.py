@@ -167,11 +167,14 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                    else hinge.incircle_det >= 0
                    for hinge in self.hinges)
 
+    # TODO: these two functions are closely related:
+    # They both call .halfplane
     @property
     def halfplanes(self):
         halfplanes = [hinge.halfplane for hinge in self.hinges
                       if hinge.halfplane is not None]
 
+        # TODO: removing duplicates?
         return list(set(halfplanes))
 
     @property
@@ -237,7 +240,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     def IDR(self):
         return halfplane.HalfPlane.intersect_halfplanes(self.halfplanes)
 
-    def iso_delaunay_complex(self, depth):
+    def iso_delaunay_complex(self, num_regions):
         IDR_start = self.IDR
         IDRs_visited = set()
         IDRs_visited.add(IDR_start)
@@ -245,23 +248,20 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         queue = deque()
         queue.appendleft((self, IDR_start))
 
-        # fig = IDR_start.plot()
-
         count = 0
 
-        while(queue and count < depth):
+        while(queue and count < num_regions):
             triangulation, IDR = queue[-1]
+            get_degenerate_edges = triangulation.halfplane_to_id_edge
             for segment in IDR.edges:
-                edges_degenerated = triangulation.halfplane_to_id_edge[
-                    segment.halfplane]
+                edges_degenerated = get_degenerate_edges[segment.halfplane]
                 triangulation_new = triangulation.flip_hinges(
                     edges_degenerated)
                 IDR_new = triangulation_new.IDR
                 if IDR_new not in IDRs_visited:
-                    # fig += IDR_new.plot()
                     count += 1
                     IDRs_visited.add(IDR_new)
                     queue.appendleft((triangulation_new, IDR_new))
             queue.pop()
 
-        # fig.save("iso_delaunay_complex.png")
+        return list(IDRs_visited)

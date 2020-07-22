@@ -16,16 +16,17 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
     @classmethod
     def from_ineq(cls, a, b, c):
-        if a == 0 and b != 0:
-            if b > 0:
-                return Line(0, 1, c / b)
+        if b**2 - 4 * a * c <= 0:
+            raise ValueError("Coeffs are degenerate")
+        elif a == 0 and b > 0:
+            return Line(0, 1, c / b)
+        elif a == 0 and b < 0:
             return Line(0, -1, -c / b)
-        elif a != 0 and (b**2 - 4 * a * c) > 0:
-            if a > 0:
-                return Circle(1, b / a, c / a)
-            return Circle(-1, -b / a, -c / a)
+        elif a > 0:
+            return Circle(1, b / a, c / a)
         else:
-            raise ValueError("Coeffs determine a degenerate inequality")
+            return Circle(-1, -b / a, -c / a)
+
 
 
     def __repr__(self):

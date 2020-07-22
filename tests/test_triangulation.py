@@ -149,16 +149,15 @@ class TestFlipHinge(unittest.TestCase):
         self.assertEqual(triang.flip_hinge((0, 1)).gluings, gluings_answer)
 
 
-class TestIDComplex(unittest.TestCase):
-
-    def test_AY3_complex(self):
-        X = triangulation.Triangulation.arnoux_yoccoz(3)
-        X.iso_delaunay_complex(depth=100)
-
-
 if __name__ == "__main__":
+    # X = triangulation.Triangulation.arnoux_yoccoz(3)
+    # cx = X.iso_delaunay_complex(num_regions=150)
+
+    # fig = sum(IDR.plot() for IDR in cx)
+    # fig.save("iso_delaunay_complex.png")
+
     # unittest.main(verbosity=2)
-    
+
     # suite = unittest.TestSuite()
     # suite.addTest(TestIDComplex("test_AY3_complex"))
     # runner = unittest.TextTestRunner()
