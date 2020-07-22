@@ -171,11 +171,12 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     # They both call .halfplane on each hinge
     @property
     def halfplanes(self):
-        halfplanes = [hinge.halfplane for hinge in self.hinges
-                      if hinge.halfplane is not None]
+        halfplanes_all = [hinge.halfplane for hinge in self.hinges]
+        halfplanes_nondegen = [plane for plane in halfplanes_all
+                               if plane is not None]
 
         # TODO: removing duplicates?
-        return list(set(halfplanes))
+        return list(set(halfplanes_nondegen))
 
     @property
     def halfplane_to_id_edge(self):
