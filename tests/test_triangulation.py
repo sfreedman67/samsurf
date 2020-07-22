@@ -157,12 +157,12 @@ class TestIDComplex(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # unittest.main(verbosity=2)
+    unittest.main(verbosity=2)
     
-    suite = unittest.TestSuite()
-    suite.addTest(TestIDComplex("test_AY3_complex"))
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    # suite = unittest.TestSuite()
+    # suite.addTest(TestIDComplex("test_AY3_complex"))
+    # runner = unittest.TextTestRunner()
+    # runner.run(suite)
 
     X = triangulation.Triangulation.arnoux_yoccoz(3)
     cProfile.run("X.iso_delaunay_complex(100)", "complex.profile")

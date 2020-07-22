@@ -60,24 +60,18 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         """(p2 is inside/on/outisde oriented circle 0-P0-P1) iff (det </==/> 0) """
         return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
 
-    def _constant_term(self):
-        pass
-
-    def _linear_term(self):
-        pass
-
-    def _quadratic_term(self):
-        pass
 
     @property
     def halfplane(self):
-        M_a = matrix([[x, y, y**2] for x, y in self.vectors])
-        M_b = matrix([[x, y, x * y] for x, y in self.vectors])
-        M_c = matrix([[x, y, x**2] for x, y in self.vectors])
+        (x0, y0), (x1, y1), (x2, y2) = self.vectors
 
-        a = M_a.determinant()
-        b = 2 * M_b.determinant()
-        c = M_c.determinant()
+        m02 = x1 * y2 - x2 * y1
+        m12 = x0 * y2 - x2 * y0
+        m22 = x0 * y1 - x1 * y0
+
+        a = y0**2 * m02 - y1**2 * m12 + y2**2 * m22
+        b = 2 * (x0 * y0 * m02 - x1 * y1 * m12 + x2 * y2 * m22)
+        c = x0**2 * m02 - x1**2 * m12 + x2**2 * m22
 
         try:
             return halfplane.HalfPlane.from_ineq(a, b, c)
