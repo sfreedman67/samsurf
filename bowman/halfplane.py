@@ -27,8 +27,6 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         else:
             return Circle(-1, -b / a, -c / a)
 
-
-
     def __repr__(self):
         term_quadratic = f"[{self.a}](u^2 + v^2)+" if self.a != 0 else ""
         term_linear = f"[{self.b}]u+" if self.b != 0 else ""
