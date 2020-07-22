@@ -167,27 +167,23 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                    else hinge.incircle_det >= 0
                    for hinge in self.hinges)
 
-    # TODO: the following two functions are closely related.
-    # They both call .halfplane on each hinge
     @property
     def halfplanes(self):
-        halfplanes_all = [hinge.halfplane for hinge in self.hinges]
-        halfplanes_nondegen = [plane for plane in halfplanes_all
-                               if plane is not None]
-
-        # TODO: removing duplicates?
-        return list(set(halfplanes_nondegen))
+        return list(self._halfplanes_hinges.keys())
 
     @property
-    def halfplane_to_id_edge(self):
-        halfplane_to_id_edge = defaultdict(list)
+    def _halfplanes_hinges(self):
+        halfplanes_labelled = [(hinge.halfplane, hinge.id_edge)
+                               for hinge in self.hinges]
 
-        for hinge in self.hinges:
-            halfplane = hinge.halfplane
-            if halfplane is not None:
-                halfplane_to_id_edge[halfplane].append(hinge.id_edge)
+        dd = defaultdict(list)
+        for halfplane, id_hinge in halfplanes_labelled:
+            dd[halfplane].append(id_hinge)
 
-        return halfplane_to_id_edge
+        # remove halfplanes that are None
+        dd.pop(None, None)
+
+        return dd
 
     def _triangles_after_flip(self, id_edge):
         triangles_new = self.triangles.copy()
@@ -237,37 +233,43 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         return figure
 
-    @property
-    def IDR(self):
-        return halfplane.HalfPlane.intersect_halfplanes(self.halfplanes)
+    IDR = namedtuple("IDR", ["polygon", "labels_hinge"])
+
+    def get_IDR(self):
+        dd = self._halfplanes_hinges
+        halfplanes = list(dd.keys())
+
+        P = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
+
+        labels = {segment.halfplane: dd[segment.halfplane]
+                  for segment in P.edges}
+
+        return Triangulation.IDR(P, labels)
 
     def iso_delaunay_complex(self, num_regions):
-        IDR_start = self.IDR
-        IDRs_visited = set()
-        IDRs_visited.add(IDR_start)
+        IDR_start = self.get_IDR()
+        polygons_visited = set()
+        polygons_visited.add(IDR_start.polygon)
 
         queue = deque()
-        queue.appendleft((self, IDR_start, self.halfplane_to_id_edge))
+        queue.appendleft((self, IDR_start))
 
         count = 0
 
         while(queue and count < num_regions):
-            triangulation, IDR, to_ids = queue[-1]
-            for segment in IDR.edges:
-                hinges_degenerated = to_ids[segment.halfplane]
+            triangulation, IDR = queue[-1]
+            for segment in IDR.polygon.edges:
+                hinges_degenerated = IDR.labels_hinge[segment.halfplane]
 
                 triangulation_new = triangulation.flip_hinges(
                     hinges_degenerated)
 
-                to_ids_new = triangulation_new.halfplane_to_id_edge
-                halfplanes_new = list(to_ids_new.keys())
-                IDR_new = halfplane.HalfPlane.intersect_halfplanes(
-                    halfplanes_new)
+                IDR_new = triangulation_new.get_IDR()
 
-                if IDR_new not in IDRs_visited:
+                if IDR_new.polygon not in polygons_visited:
                     count += 1
-                    IDRs_visited.add(IDR_new)
-                    queue.appendleft((triangulation_new, IDR_new, to_ids_new))
+                    polygons_visited.add(IDR_new.polygon)
+                    queue.appendleft((triangulation_new, IDR_new))
             queue.pop()
 
-        return list(IDRs_visited)
+        return list(polygons_visited)
