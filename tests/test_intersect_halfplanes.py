@@ -127,7 +127,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                                polygon.Edge(None, e11, s10)
                                ])
 
-        h20 = halfplane.HalfPlane.from_ineq(1, 0, -1)
+        h20 = halfplane.HalfPlane.from_ineq(QQ(1), 0, QQ(-1))
         s20, e20 = h20.endpoints
 
         self.assertCountEqual(halfplane.HalfPlane.intersect_halfplanes([h20, h20]).edges,
@@ -135,7 +135,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
     def test_intersect_AY3(self):
         X = triangulation.Triangulation.arnoux_yoccoz(3)
-        alpha = X.base_ring.gen()
+        alpha = X.field.gen()
 
         H = X.halfplanes
 
@@ -151,11 +151,6 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
         output_final = halfplane.HalfPlane.intersect_halfplanes(H)
         self.assertCountEqual(output_final.edges, answer_final)
-
-        hinges_from_dict = [hinge
-                            for list_hinges in X.halfplanes_to_hinges.values()
-                            for hinge in list_hinges]
-        self.assertCountEqual(hinges_from_dict, X.hinges)
 
     def test_regular_octagon(self):
         K = QuadraticField(2)

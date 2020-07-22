@@ -25,6 +25,12 @@ class Point:
     def __iter__(self):
         return iter((self.u, self.v2))
 
+    def __key(self):
+        return (self.u, self.v2)
+
+    def __hash__(self):
+        return hash(self.__key())
+
     @staticmethod
     def CCW(p1, p2, p3):
         if any((p1 == p2, p1 == p3, p2 == p3)):
@@ -52,7 +58,7 @@ class Point:
             return other.is_infinity
         elif other.is_infinity:
             return self.is_infinity
-        return (self.u, self.v2) == (other.u, other.v2)
+        return self.__key() == other.__key()
 
     def __lt__(self, other):
         if self.is_infinity or other.is_infinity:
@@ -101,6 +107,22 @@ class Polygon(namedtuple("Polygon", ["edges"])):
     # TODO: is_nontriv property
 
     # TODO: two polys eq if same edges
+
+    @property
+    def vertices(self):
+        return (edge.start for edge in self.edges)
+
+    
+    def __key(self):
+        return tuple(sorted(self.vertices, key=lambda vertex: (vertex.is_infinity, vertex)))
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        if isinstance(other, Polygon):
+            return self.__key() == other.__key()
+        return NotImplemented
     
     def intersect_with_halfplane(self, halfplane):
         intersection = itertools.chain.from_iterable(
@@ -127,5 +149,5 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         return Polygon([*edge_chain, edge_new])
 
 
-    def plot_polygon(self):
+    def plot(self):
         return sum(edge.plot() for edge in self.edges)

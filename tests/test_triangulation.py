@@ -1,84 +1,31 @@
+import unittest
+import cProfile
+import pstats
+
 import sage.all
 from sage.all import *
 
-import unittest
-
 from context import bowman
-
 import bowman.triangulation
-from bowman.triangulation import Triangle, Hinge, Triangulation
-
+from bowman import triangulation
 import bowman.halfplane
-
-
-class TestShearedOctagon(unittest.TestCase):
-
-    def setUp(self):
-        self.sheared_octagon = Triangulation.regular_octagon(
-        ).apply_matrix(matrix(([1, QQ(1 / 2)], [0, 1])))
-        self.a = Triangulation.regular_octagon().base_ring.gen()
-        self.g = HyperbolicPlane().UHP().get_geodesic
-
-    def test_can_generate_IDR(self):
-        # Checks if triangulation is non-degenerate DLNY
-        self.assertTrue(self.sheared_octagon.is_delaunay(strict=True))
-
-        # Generates the edge representatives
-        self.assertEqual(self.sheared_octagon.edges(), [
-                         (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)])
-
-        # From edges, generates the hinges
-        hinge1, hinge2, hinge3 = self.sheared_octagon.hinge(
-            0, 0), self.sheared_octagon.hinge(0, 1), self.sheared_octagon.hinge(0, 2)
-        self.assertEqual(hinge1, Hinge(vector(
-            [self.a + 1, self.a + 1]), vector([1, 1 / 2 * self.a + 1]), vector([0, QQ(1 / 2) * self.a])))
-
-        self.assertEqual(hinge2, Hinge(vector(
-            [-1, QQ(-1 / 2) * self.a - 1]), vector([-1, -1]), vector([-self.a - 2, QQ(-1 / 2) * self.a - 1])))
-
-        self.assertEqual(hinge3, Hinge(vector(
-            [-self.a - 2, -self.a - 1]), vector([0, QQ(-1 / 2) * self.a]), vector([1, 1])))
-
-        # "From hinges, generates the edge inequalities"
-        self.assertEqual(hinge1.edge_inequality(), (0, self.a + 1, self.a + 1))
-        self.assertEqual(hinge2.edge_inequality(),
-                         (-self.a - 3 / 2, -2 * self.a - 3, -2 * self.a - 3))
-        self.assertEqual(hinge3.edge_inequality(),
-                         (QQ(5 / 2) * self.a + QQ(7 / 2), 6 * self.a + 8, 4 * self.a + 5))
-
-        # From edge inequalities, generates the geodesic halfplanes
-        self.assertEqual(inequality_to_geodesic(
-            0, self.a + 1, self.a + 1), self.g(oo, -1))
-        self.assertEqual(inequality_to_geodesic(
-            QQ(1 / 2) * self.a + QQ(1 / 2), self.a + 1, 0), self.g(-2, 0))
-        self.assertEqual(inequality_to_geodesic(QQ(1 / 2) * self.a + QQ(1 / 2),                                     -self.a - 2,
-                                                (-2) * self.a - 3),
-                         self.g(self.a - sqrt(2 * self.a + 4),
-                                self.a + sqrt(2 * self.a + 4)))
-        self.assertEqual(inequality_to_geodesic(-self.a - QQ(3 / 2),
-                                                -4 * self.a - 6,
-                                                -2 * self.a - 3),
-                         self.g(-2 - self.a, self.a - 2))
-
-        # Intersects the halfplanes and forms the IDR
-
-        assert False, "Todo: finish me"
+from bowman import halfplane
 
 
 class TestApplyMatrixToTriangle(unittest.TestCase):
 
     def setUp(self):
-        self.torus = Triangulation.square_torus()
-        self.octagon = Triangulation.regular_octagon()
-        self.a = self.octagon.base_ring.gen()
+        self.torus = triangulation.Triangulation.square_torus()
+        self.octagon = triangulation.Triangulation.regular_octagon()
+        self.a = self.octagon.field.gen()
         self.A2 = matrix([[1, 2 * (self.a + 1)], [0, 1]])
 
     def test_shear_triangle0_in_torus(self):
-        sq_t = Triangulation.square_torus()
+        sq_t = triangulation.Triangulation.square_torus()
         tri0 = sq_t.triangles[0]
         M = matrix([[2, 1], [1, 1]])
-        sheared_triangle = Triangle(
-            [vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
+        sheared_triangle = triangulation.Triangle(
+            vector([3, 2]), vector([-2, -1]), vector([-1, -1]))
         self.assertEqual(tri0.apply_matrix(M), sheared_triangle)
 
     def test_shear_triangle5_in_octagon(self):
@@ -86,50 +33,41 @@ class TestApplyMatrixToTriangle(unittest.TestCase):
         w1 = vector([1 / 2 * (-8 - 5 * self.a), 1 / 2 * (-2 - self.a)])
         w2 = vector([6 + 4 * self.a, 1 + self.a])
         w3 = vector([1 / 2 * (-4 - 3 * self.a), -1 / self.a])
-        sheared_tri5 = Triangle([w1, w2, w3])
+        sheared_tri5 = triangulation.Triangle(w1, w2, w3)
         self.assertEqual(tri5.apply_matrix(self.A2), sheared_tri5)
 
 
 class TestEdgeReps(unittest.TestCase):
 
     def test_regular_polygons(self):
-        T1 = Triangulation.square_torus()
+        T1 = triangulation.Triangulation.square_torus()
 
-        self.assertEqual(T1.edges(), [(0, 0), (0, 1), (0, 2)])
+        self.assertEqual(T1.edges, [(0, 0), (0, 1), (0, 2)])
 
-        T2 = Triangulation.regular_octagon()
-        self.assertEqual(T2.edges(), [
+        T2 = triangulation.Triangulation.regular_octagon()
+        self.assertEqual(T2.edges, [
                          (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)])
 
 
 class TestEdgeInequality(unittest.TestCase):
 
     def test_normal_hinge(self):
-        h = Hinge(vector([2, 2]), vector([2, 4]), vector([1, 4]))
-        self.assertEqual(h.halfplane().coefficients, (-16, -32, -4))
+        h = triangulation.Hinge(
+            (vector([2, 2]), vector([2, 4]), vector([1, 4])), (-1, -1), (-1, -1))
+        self.assertEqual(h.halfplane, (-1, -2, QQ(-1 / 4)))
 
 
-class TestInequaltyToGeodesic(unittest.TestCase):
-
-    def setUp(self):
-        self.geodesic = HyperbolicPlane().UHP().get_geodesic
-
-    def test_square_torus(self):
-        square_torus = Triangulation.square_torus()
-        self.assertEqual([hinge.halfplane().boundary for hinge in square_torus.hinges()],
-                         [self.geodesic(0, oo), self.geodesic(-1, 0), self.geodesic(oo, -1)])
-
-class TestApplyMatrixToTriangulation(unittest.TestCase):
+class TestApplyMatrixTotriangulation(unittest.TestCase):
 
     def test_shear_torus(self):
-        sq_t = Triangulation.square_torus()
+        sq_t = triangulation.Triangulation.square_torus()
 
-        sheared_triangle0 = Triangle(
-            [vector([3, 2]), vector([-2, -1]), vector([-1, -1])])
-        sheared_triangle1 = Triangle(
-            [vector([-3, -2]), vector([2, 1]), vector([1, 1])])
-        sheared_triangulation = Triangulation(
-            [sheared_triangle0, sheared_triangle1], sq_t.gluings, sq_t.base_ring)
+        sheared_triangle0 = triangulation.Triangle(
+            vector([3, 2]), vector([-2, -1]), vector([-1, -1]))
+        sheared_triangle1 = triangulation.Triangle(
+            vector([-3, -2]), vector([2, 1]), vector([1, 1]))
+        sheared_triangulation = triangulation.Triangulation(
+            [sheared_triangle0, sheared_triangle1], sq_t.gluings, sq_t.field)
 
         M = matrix([[2, 1], [1, 1]])
         self.assertEqual(sq_t.apply_matrix(M), sheared_triangulation)
@@ -139,28 +77,95 @@ class TestIsNonDegenerate(unittest.TestCase):
 
     def test_regular_polygons(self):
         # triangulation from a regular torus
-        self.assertFalse(Triangulation.square_torus().is_delaunay(strict=True))
+        self.assertFalse(triangulation.Triangulation.square_torus(
+        ).is_delaunay(non_degenerate=True))
         self.assertFalse(
-            Triangulation.regular_octagon().is_delaunay(strict=True))
+            triangulation.Triangulation.regular_octagon().is_delaunay(non_degenerate=True))
         self.assertFalse(
-            Triangulation.octagon_and_squares().is_delaunay(strict=True))
+            triangulation.Triangulation.octagon_and_squares().is_delaunay(non_degenerate=True))
 
     def test_arnoux_yoccoz(self):
-        self.assertTrue(Triangulation.arnoux_yoccoz(
-            3).is_delaunay(strict=True))
+        self.assertTrue(triangulation.Triangulation.arnoux_yoccoz(
+            3).is_delaunay(non_degenerate=True))
 
 
 class TestIsDelaunay(unittest.TestCase):
 
     def test_flatsurf_examples(self):
-        for X in [Triangulation.square_torus(),
-                  Triangulation.regular_octagon(),
-                  Triangulation.octagon_and_squares(),
-                  Triangulation.arnoux_yoccoz(3),
-                  Triangulation.arnoux_yoccoz(5)]:
-            self.assertTrue(X.is_delaunay())
+        for X in [triangulation.Triangulation.square_torus(),
+                  triangulation.Triangulation.regular_octagon(),
+                  triangulation.Triangulation.octagon_and_squares(),
+                  triangulation.Triangulation.arnoux_yoccoz(3),
+                  triangulation.Triangulation.arnoux_yoccoz(5)]:
+            self.assertTrue(X.is_delaunay(non_degenerate=False))
+
+
+class TestFlipHinge(unittest.TestCase):
+
+    def test_AY3_flip_hinge(self):
+        X = triangulation.Triangulation.arnoux_yoccoz(3)
+        tri = X.triangles[0]
+        tri_opp = X.triangles[4]
+
+        tri_new = triangulation.Triangle(
+            tri_opp[1] + tri[1], tri[2], tri_opp[0])
+
+        tri_opp_new = triangulation.Triangle(
+            tri_opp[1], tri[1], tri[2] + tri_opp[0])
+
+        X_flipped = X.flip_hinge((0, 0))
+
+        answer_triangles = [tri_new,
+                            *X.triangles[1: 4],
+                            tri_opp_new,
+                            *X.triangles[5:]]
+
+        self.assertEqual(X_flipped.triangles, answer_triangles)
+
+        gluings_new = {(0, 0): (4, 2), (0, 1): (10, 2), (0, 2): (8, 2), (1, 0): (5, 2), (1, 1): (4, 1), (1, 2): (11, 2), (2, 0): (8, 0), (2, 1): (3, 1), (2, 2): (6, 0), (3, 0): (9, 0), (3, 1): (2, 1), (3, 2): (7, 0), (4, 0): (5, 1), (4, 1): (1, 1), (4, 2): (0, 0), (5, 0): (9, 2), (5, 1): (4, 0), (5, 2): (
+            1, 0), (6, 0): (2, 2), (6, 1): (7, 1), (6, 2): (10, 0), (7, 0): (3, 2), (7, 1): (6, 1), (7, 2): (11, 0), (8, 0): (2, 0), (8, 1): (9, 1), (8, 2): (0, 2), (9, 0): (3, 0), (9, 1): (8, 1), (9, 2): (5, 0), (10, 0): (6, 2), (10, 1): (11, 1), (10, 2): (0, 1), (11, 0): (7, 2), (11, 1): (10, 1), (11, 2): (1, 2)}
+
+        self.assertEqual(X_flipped.gluings, gluings_new)
+
+    def test_hinge_doubly_connected(self):
+        tri1 = triangulation.Triangle(vector([-1, 1]),
+                                      vector([0, -2]),
+                                      vector([1, 1]))
+
+        tri2 = triangulation.Triangle(vector([1, -1]),
+                                      vector([0, 2]),
+                                      vector([-1, -1]))
+
+        gluings = {(0, 0): (1, 0), (0, 1): (1, 1), (0, 2): (11, 0),
+                   (1, 0): (0, 0), (1, 1): (0, 1), (1, 2): (10, 0),
+                   (10, 0): (1, 2), (11, 0): (0, 2)}
+
+        triang = triangulation.Triangulation([tri1, tri2], gluings, QQ)
+
+        gluings_answer = {(0, 0): (10, 0), (0, 1): (1, 1), (0, 2): (1, 2),
+                          (1, 0): (11, 0), (1, 1): (0, 1), (1, 2): (0, 2),
+                          (10, 0): (0, 0), (11, 0): (1, 0)}
+
+        self.assertEqual(triang.flip_hinge((0, 1)).gluings, gluings_answer)
+
+
+class TestIDComplex(unittest.TestCase):
+
+    def test_AY3_complex(self):
+        X = triangulation.Triangulation.arnoux_yoccoz(3)
+        X.iso_delaunay_complex(depth=20)
+
 
 if __name__ == "__main__":
-    X = Triangulation.regular_octagon()
+    # unittest.main(verbosity=2)
+    
+    suite = unittest.TestSuite()
+    suite.addTest(TestIDComplex("test_AY3_complex"))
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
 
-    unittest.main(verbosity=2)
+    X = triangulation.Triangulation.arnoux_yoccoz(3)
+    cProfile.run("X.iso_delaunay_complex(100)", "complex.profile")
+    s = pstats.Stats("complex.profile")
+    s.dump_stats("complex.pstats")
+    s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)

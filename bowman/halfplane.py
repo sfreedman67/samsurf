@@ -27,21 +27,6 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         else:
             raise ValueError("Coeffs determine a degenerate inequality")
 
-    @classmethod
-    def from_endpoints(cls, start, end):
-        if start.is_infinity:
-            return Line(1, 0, -end.u.A)
-        elif end.is_infinity:
-            return Line(0, -1, start.u.A)
-        else:
-            coord_start, coord_end = start.u.A, end.u.A
-            if coord_start < coord_end:
-                return Circle(1,
-                              -(coord_start + coord_end),
-                              coord_start * coord_end)
-            return Circle(-1,
-                          (coord_start + coord_end),
-                          coord_start * coord_end)
 
     def __repr__(self):
         term_quadratic = f"[{self.a}](u^2 + v^2)+" if self.a != 0 else ""
