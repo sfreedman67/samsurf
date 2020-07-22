@@ -153,11 +153,11 @@ class TestIDComplex(unittest.TestCase):
 
     def test_AY3_complex(self):
         X = triangulation.Triangulation.arnoux_yoccoz(3)
-        X.iso_delaunay_complex(depth=20)
+        X.iso_delaunay_complex(depth=100)
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    # unittest.main(verbosity=2)
     
     # suite = unittest.TestSuite()
     # suite.addTest(TestIDComplex("test_AY3_complex"))
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     # runner.run(suite)
 
     X = triangulation.Triangulation.arnoux_yoccoz(3)
-    cProfile.run("X.iso_delaunay_complex(100)", "complex.profile")
+    cProfile.run("X.iso_delaunay_complex(150)", "complex.profile")
     s = pstats.Stats("complex.profile")
     s.dump_stats("complex.pstats")
     s.strip_dirs().sort_stats(pstats.SortKey.TIME).print_stats(10)

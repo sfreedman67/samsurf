@@ -60,9 +60,8 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         """(p2 is inside/on/outisde oriented circle 0-P0-P1) iff (det </==/> 0) """
         return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
 
-
     @property
-    def halfplane(self):
+    def _coefficients(self):
         (x0, y0), (x1, y1), (x2, y2) = self.vectors
 
         m02 = x1 * y2 - x2 * y1
@@ -73,8 +72,12 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         b = 2 * (x0 * y0 * m02 - x1 * y1 * m12 + x2 * y2 * m22)
         c = x0**2 * m02 - x1**2 * m12 + x2**2 * m22
 
+        return (a, b, c)
+
+    @property
+    def halfplane(self):
         try:
-            return halfplane.HalfPlane.from_ineq(a, b, c)
+            return halfplane.HalfPlane.from_ineq(*self._coefficients)
         except ValueError:
             return None
 
@@ -235,13 +238,14 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return halfplane.HalfPlane.intersect_halfplanes(self.halfplanes)
 
     def iso_delaunay_complex(self, depth):
+        IDR_start = self.IDR
         IDRs_visited = set()
-        IDRs_visited.add(self.IDR)
+        IDRs_visited.add(IDR_start)
 
         queue = deque()
-        queue.appendleft((self, self.IDR))
+        queue.appendleft((self, IDR_start))
 
-        # fig = self.IDR.plot()
+        # fig = IDR_start.plot()
 
         count = 0
 
@@ -253,7 +257,6 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                 triangulation_new = triangulation.flip_hinges(
                     edges_degenerated)
                 IDR_new = triangulation_new.IDR
-
                 if IDR_new not in IDRs_visited:
                     # fig += IDR_new.plot()
                     count += 1
@@ -262,4 +265,3 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
             queue.pop()
 
         # fig.save("iso_delaunay_complex.png")
-        # fig.show(xmin=-2, xmax=2, ymax=2)

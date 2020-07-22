@@ -81,6 +81,9 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         Ideal_descriptor = "Ideal" if self.is_ideal else ""
         return Ideal_descriptor + f"Edge({self.start}->{self.end})"
 
+    def __hash__(self):
+        return hash((self.start, self.end))
+
     @property
     def is_ideal(self):
         return self.halfplane is None
