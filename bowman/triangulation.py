@@ -167,8 +167,8 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                    else hinge.incircle_det >= 0
                    for hinge in self.hinges)
 
-    # TODO: these two functions are closely related:
-    # They both call .halfplane
+    # TODO: the following two functions are closely related.
+    # They both call .halfplane on each hinge
     @property
     def halfplanes(self):
         halfplanes = [hinge.halfplane for hinge in self.hinges
@@ -246,22 +246,27 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         IDRs_visited.add(IDR_start)
 
         queue = deque()
-        queue.appendleft((self, IDR_start))
+        queue.appendleft((self, IDR_start, self.halfplane_to_id_edge))
 
         count = 0
 
         while(queue and count < num_regions):
-            triangulation, IDR = queue[-1]
-            get_degenerate_edges = triangulation.halfplane_to_id_edge
+            triangulation, IDR, to_ids = queue[-1]
             for segment in IDR.edges:
-                edges_degenerated = get_degenerate_edges[segment.halfplane]
+                hinges_degenerated = to_ids[segment.halfplane]
+
                 triangulation_new = triangulation.flip_hinges(
-                    edges_degenerated)
-                IDR_new = triangulation_new.IDR
+                    hinges_degenerated)
+
+                to_ids_new = triangulation_new.halfplane_to_id_edge
+                halfplanes_new = list(to_ids_new.keys())
+                IDR_new = halfplane.HalfPlane.intersect_halfplanes(
+                    halfplanes_new)
+
                 if IDR_new not in IDRs_visited:
                     count += 1
                     IDRs_visited.add(IDR_new)
-                    queue.appendleft((triangulation_new, IDR_new))
+                    queue.appendleft((triangulation_new, IDR_new, to_ids_new))
             queue.pop()
 
         return list(IDRs_visited)

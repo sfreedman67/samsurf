@@ -150,18 +150,14 @@ class TestFlipHinge(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # X = triangulation.Triangulation.arnoux_yoccoz(3)
-    # cx = X.iso_delaunay_complex(num_regions=150)
+    X = triangulation.Triangulation.arnoux_yoccoz(3)
+    cx = X.iso_delaunay_complex(num_regions=200)
+    print(len(cx))
 
-    # fig = sum(IDR.plot() for IDR in cx)
-    # fig.save("iso_delaunay_complex.png")
+    fig = sum(IDR.plot() for IDR in cx)
+    fig.save("iso_delaunay_complex.png")
 
     # unittest.main(verbosity=2)
-
-    # suite = unittest.TestSuite()
-    # suite.addTest(TestIDComplex("test_AY3_complex"))
-    # runner = unittest.TextTestRunner()
-    # runner.run(suite)
 
     X = triangulation.Triangulation.arnoux_yoccoz(3)
     cProfile.run("X.iso_delaunay_complex(150)", "complex.profile")
