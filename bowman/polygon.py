@@ -92,6 +92,9 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     def endpoints(self):
         return (self.start, self.end)
 
+    def reverse(self):
+        return Edge(self.halfplane.reverse(), self.end, self.start)
+        
     def plot(self):
         if self.start.is_infinity:
             coord_start = oo

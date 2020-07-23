@@ -8,6 +8,8 @@ import flatsurf
 from context import bowman
 import bowman.halfplane
 from bowman import halfplane
+import bowman.idr
+from bowman import idr
 
 
 class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
@@ -27,6 +29,7 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
 
 
 class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
+    __slots__ = ()
 
     @classmethod
     def _from_id_edge(cls, trin, id_edge):
@@ -233,9 +236,8 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         return figure
 
-    IDR = namedtuple("IDR", ["polygon", "labels_hinge"])
-
-    def get_IDR(self):
+    @property
+    def IDR(self):
         halfplanes_hinges = self._halfplanes_hinges
         halfplanes = list(halfplanes_hinges.keys())
 
@@ -244,32 +246,36 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         labels = {segment.halfplane: halfplanes_hinges[segment.halfplane]
                   for segment in P.edges}
 
-        return Triangulation.IDR(P, labels)
+        return idr.IDR(P, labels, self)
 
     def iso_delaunay_complex(self, num_regions):
-        IDR_start = self.get_IDR()
+        IDR_start = self.IDR
+
         polygons_visited = set()
         polygons_visited.add(IDR_start.polygon)
 
-        queue = deque()
-        queue.appendleft((self, IDR_start))
+        segments_crossed = set()
 
-        count = 0
+        queue = deque()
+        queue.appendleft(IDR_start)
+
+        count = 1
 
         while(queue and count < num_regions):
-            triangulation, IDR = queue[-1]
-            for segment in IDR.polygon.edges:
-                hinges_degenerated = IDR.labels_hinge[segment.halfplane]
+            IDR = queue[-1]
+            segments_uncrossed = [segment for segment in IDR.polygon.edges
+                                  if (segment.reverse() not in segments_crossed and segment not in segments_crossed)]
 
-                triangulation_new = triangulation.flip_hinges(
-                    hinges_degenerated)
-
-                IDR_new = triangulation_new.get_IDR()
+            if segments_uncrossed:
+                segment = segments_uncrossed[0]
+                IDR_new = IDR.cross_segment(segment)
+                segments_crossed.add(segment)
 
                 if IDR_new.polygon not in polygons_visited:
                     count += 1
                     polygons_visited.add(IDR_new.polygon)
-                    queue.appendleft((triangulation_new, IDR_new))
-            queue.pop()
+                    queue.appendleft(IDR_new)
+            else:
+                queue.pop()
 
         return list(polygons_visited)

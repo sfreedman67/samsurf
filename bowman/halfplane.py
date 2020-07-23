@@ -147,6 +147,10 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
         return polygon_previous.intersect_with_halfplane(current)
 
+    def reverse(self):
+        a, b, c = self
+        return HalfPlane.from_ineq(-a, -b, -c)
+
     def plot(self):
         # For circles: Below Blue, Above Orange
         # For lines: Left bLue, Right oRange
