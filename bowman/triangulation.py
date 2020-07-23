@@ -248,7 +248,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         return idr.IDR(P, labels, self)
 
-    def iso_delaunay_complex(self, num_regions):
+    def iso_delaunay_complex(self, limit):
         IDR_start = self.IDR
 
         polygons_visited = set()
@@ -259,23 +259,22 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         queue = deque()
         queue.appendleft(IDR_start)
 
-        count = 1
-
-        while(queue and count < num_regions):
+        while(queue and len(polygons_visited) < limit):
             IDR = queue[-1]
             segments_uncrossed = [segment for segment in IDR.polygon.edges
                                   if (segment.reverse() not in segments_crossed and segment not in segments_crossed)]
 
-            if segments_uncrossed:
-                segment = segments_uncrossed[0]
+            # New Goal:
+            # leverage the fact that most of the hinges don't change
+
+            for segment in segments_uncrossed:
                 IDR_new = IDR.cross_segment(segment)
                 segments_crossed.add(segment)
 
                 if IDR_new.polygon not in polygons_visited:
-                    count += 1
                     polygons_visited.add(IDR_new.polygon)
                     queue.appendleft(IDR_new)
-            else:
-                queue.pop()
+
+            queue.pop()
 
         return list(polygons_visited)

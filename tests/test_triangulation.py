@@ -148,19 +148,22 @@ class TestFlipHinge(unittest.TestCase):
 
         self.assertEqual(triang.flip_hinge((0, 1)).gluings, gluings_answer)
 
+class Test_Generate_IsoDelaunay_Complex(unittest.TestCase):
+    def test_can_generate_AY3_complex(self):
+        X = triangulation.Triangulation.arnoux_yoccoz(3)
+        
+        for num_regions in range(10):
+            cx = X.iso_delaunay_complex(num_regions)
+            # fig = sum(IDR.plot() for IDR in cx)
+            # fig.save("iso_delaunay_complex.png")
+            
+        assert False, "Todo: make a test"
 
 if __name__ == "__main__":
-    # X = triangulation.Triangulation.arnoux_yoccoz(3)
-    # cx = X.iso_delaunay_complex(num_regions=150)
-    # print(len(cx))
+    # unittest.main(verbosity=2)
 
-    # fig = sum(IDR.plot() for IDR in cx)
-    # fig.save("iso_delaunay_complex.png")
-
-    unittest.main(verbosity=2)
-
-    # X = triangulation.Triangulation.arnoux_yoccoz(3)
-    # cProfile.run("X.iso_delaunay_complex(150)", "complex.profile")
-    # s = pstats.Stats("complex.profile")
-    # s.dump_stats("complex.pstats")
-    # s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
+    X = triangulation.Triangulation.arnoux_yoccoz(3)
+    cProfile.run("X.iso_delaunay_complex(150)", "complex.profile")
+    s = pstats.Stats("complex.profile")
+    s.dump_stats("complex.pstats")
+    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
