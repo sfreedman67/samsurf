@@ -163,7 +163,7 @@ if __name__ == "__main__":
     # unittest.main(verbosity=2)
 
     X = triangulation.Triangulation.arnoux_yoccoz(3)
-    cProfile.run("X.iso_delaunay_complex(150)", "complex.profile")
+    cProfile.run("X.iso_delaunay_complex(300)", "complex.profile")
     s = pstats.Stats("complex.profile")
     s.dump_stats("complex.pstats")
     s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)

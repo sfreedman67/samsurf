@@ -4,13 +4,11 @@ import sage.all
 from sage.all import *
 
 
-class IDR(namedtuple("IDR", ["polygon", "labels_hinge", "triangulation"])):
+class IDR(namedtuple("IDR", ["polygon", "labels_segment", "triangulation"])):
     __slots__ = ()
 
-    # TODO: access segments quicker?
-
     def cross_segment(self, segment):
-        hinges_degenerated = self.labels_hinge[segment.halfplane]
+        hinges_degenerated = self.labels_segment[segment]
 
         triangulation_new = self.triangulation.flip_hinges(hinges_degenerated)
 

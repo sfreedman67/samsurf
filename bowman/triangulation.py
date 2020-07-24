@@ -172,10 +172,11 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
     @property
     def halfplanes(self):
-        return list(self._halfplanes_hinges.keys())
+        return list(filter(lambda x: x is not None,
+                           (hinge.halfplane for hinge in self.hinges)))
 
     @property
-    def _halfplanes_hinges(self):
+    def _halfplanes_to_hinges_degen(self):
         halfplanes_labelled = [(hinge.halfplane, hinge.id_edge)
                                for hinge in self.hinges]
 
@@ -183,7 +184,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         for halfplane, id_hinge in halfplanes_labelled:
             dd[halfplane].append(id_hinge)
 
-        # remove halfplanes that are None
+        # remove degen halfplanes that are None
         dd.pop(None, None)
 
         return dd
@@ -238,15 +239,15 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
     @property
     def IDR(self):
-        halfplanes_hinges = self._halfplanes_hinges
-        halfplanes = list(halfplanes_hinges.keys())
+        halfplane_to_ids_hinge = self._halfplanes_to_hinges_degen
+        halfplanes = list(halfplane_to_ids_hinge.keys())
 
         P = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
 
-        labels = {segment.halfplane: halfplanes_hinges[segment.halfplane]
-                  for segment in P.edges}
+        labels_segment = {segment: halfplane_to_ids_hinge[segment.halfplane]
+                          for segment in P.edges}
 
-        return idr.IDR(P, labels, self)
+        return idr.IDR(P, labels_segment, self)
 
     def iso_delaunay_complex(self, limit):
         IDR_start = self.IDR
@@ -259,13 +260,11 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         queue = deque()
         queue.appendleft(IDR_start)
 
-        while(queue and len(polygons_visited) < limit):
+        while(len(polygons_visited) < limit and queue):
             IDR = queue[-1]
             segments_uncrossed = [segment for segment in IDR.polygon.edges
-                                  if (segment.reverse() not in segments_crossed and segment not in segments_crossed)]
-
-            # New Goal:
-            # leverage the fact that most of the hinges don't change
+                                  if not (segment.reverse() in segments_crossed
+                                          or segment in segments_crossed)]
 
             for segment in segments_uncrossed:
                 IDR_new = IDR.cross_segment(segment)
