@@ -122,23 +122,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def intersect_edge(self, edge):
         return self._intersect_edge_ideal(edge) if edge.is_ideal else self._intersect_edge_real(edge)
 
-    # @staticmethod
-    # def intersect_halfplanes(halfplanes):
-    #     if not halfplanes:
-    #         return polygon.Polygon([])
-
-    #     polygon_previous = HalfPlane.intersect_halfplanes(halfplanes[:-1])
-    #     current = halfplanes[-1]
-
-    #     if polygon_previous is None:
-    #         return None
-
-    #     elif polygon_previous.edges == []:
-    #         edges = [polygon.Edge(current, current.start, current.end),
-    #                  polygon.Edge(None, current.end, current.start)]
-    #         return polygon.Polygon(edges)
-
-    #     return polygon_previous.intersect_with_halfplane(current)
+    
     @staticmethod
     def intersect_halfplanes(halfplanes):
         if not halfplanes:
