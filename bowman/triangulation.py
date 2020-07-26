@@ -1,5 +1,6 @@
 import itertools
 from collections import defaultdict, namedtuple, deque
+from functools import lru_cache
 
 import sage.all
 from sage.all import *
@@ -30,6 +31,13 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
 
 class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
     __slots__ = ()
+
+    @property
+    def coords(self):
+        return tuple(coord for vector in self.vectors for coord in vector)
+    
+    def __hash__(self):
+        return hash((self.coords,))
 
     @classmethod
     def _from_id_edge(cls, trin, id_edge):
@@ -64,6 +72,7 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
 
     @property
+    @lru_cache(None)
     def _coefficients(self):
         (x0, y0), (x1, y1), (x2, y2) = self.vectors
 
@@ -115,7 +124,6 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
 
 
 class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"])):
-
     @classmethod
     def _from_flatsurf(cls, X):
         # TODO: hardcode in the answers from sage so we can remove flatsurf
@@ -129,9 +137,9 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         gluings = {edge[0]: edge[1] for edge in DT.edge_iterator(gluings=True)}
 
-        ring = DT.base_ring()
+        field = DT.base_ring()
 
-        return Triangulation(triangles, gluings, ring)
+        return Triangulation(triangles, gluings, field)
 
     @classmethod
     def square_torus(cls):
@@ -248,6 +256,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                           for segment in P.edges}
 
         return idr.IDR(P, labels_segment, self)
+
 
     def iso_delaunay_complex(self, limit):
         IDR_start = self.IDR

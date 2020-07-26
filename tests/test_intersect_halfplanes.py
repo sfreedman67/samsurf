@@ -138,6 +138,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         alpha = X.field.gen()
 
         H = X.halfplanes
+        output_final = halfplane.HalfPlane.intersect_halfplanes(H)
 
         p68 = H[6].intersect_boundaries(H[8])
         p08 = H[0].intersect_boundaries(H[8])
@@ -149,7 +150,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                         polygon.Edge(H[5], p05, p56),
                         polygon.Edge(H[6], p56, p68)]
 
-        output_final = halfplane.HalfPlane.intersect_halfplanes(H)
+        
         self.assertCountEqual(output_final.edges, answer_final)
 
     def test_regular_octagon(self):

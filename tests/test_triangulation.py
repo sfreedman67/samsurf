@@ -152,10 +152,10 @@ class Test_Generate_IsoDelaunay_Complex(unittest.TestCase):
     def test_can_generate_AY3_complex(self):
         X = triangulation.Triangulation.arnoux_yoccoz(3)
         
-        for num_regions in range(10):
+        for num_regions in range(0, 100, 10):
             cx = X.iso_delaunay_complex(num_regions)
-            # fig = sum(IDR.plot() for IDR in cx)
-            # fig.save("iso_delaunay_complex.png")
+            fig = sum(IDR.plot() for IDR in cx)
+            fig.save(f"iso_delaunay_complex_{num_regions}.png")
             
         assert False, "Todo: make a test"
 
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     # unittest.main(verbosity=2)
 
     X = triangulation.Triangulation.arnoux_yoccoz(3)
-    cProfile.run("X.iso_delaunay_complex(300)", "complex.profile")
+    cProfile.run("X.iso_delaunay_complex(500)", "complex.profile")
     s = pstats.Stats("complex.profile")
     s.dump_stats("complex.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
+    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(20)

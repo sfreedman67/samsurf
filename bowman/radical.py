@@ -42,7 +42,9 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
 
     @property
     def value(self):
-        if self.C.is_square():
+        if self.B == 0 or self.C == 0:
+            return self.A
+        elif self.C.is_square():
             return self.A + self.B * self.C.sqrt()
         return QQbar(self.A) + QQbar(self.B) * QQbar(self.C).sqrt()
 

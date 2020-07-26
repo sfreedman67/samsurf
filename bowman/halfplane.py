@@ -1,5 +1,6 @@
 import collections
 from collections import namedtuple
+from functools import lru_cache
 
 import sage.all
 from sage.all import *
@@ -57,39 +58,32 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _point_outside(self):
         raise NotImplementedError
 
-    def _plug_in_point(self, point):
-        A, B, C = point.u
-
+    @lru_cache(maxsize=None)
+    def _plug_in_point(self, A, B, C, v2):
         if B == 0:
-            return radical.Radical(self.a * (A**2 + point.v2) + self.b * A + self.c, 0, 0)
+            return radical.Radical(self.a * (A**2 + v2) + self.b * A + self.c, 0, 0)
         elif B == 1:
-            return radical.Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, 2 * self.a * A + self.b, C)
+            return radical.Radical(self.a * (A**2 + C + v2) + self.b * A + self.c, 2 * self.a * A + self.b, C)
 
-        return radical.Radical(self.a * (A**2 + C + point.v2) + self.b * A + self.c, -2 * self.a * A - self.b, C)
+        return radical.Radical(self.a * (A**2 + C + v2) + self.b * A + self.c, -2 * self.a * A - self.b, C)
 
     def contains_point(self, point):
         if point.is_infinity:
             return isinstance(self, Line) or (not self.is_oriented)
 
-        return not self._plug_in_point(point)._is_negative
+        return not self._plug_in_point(*point.u, point.v2)._is_negative
 
     def contains_point_on_boundary(self, point):
         if point.is_infinity:
             return isinstance(self, Line)
-        return self._plug_in_point(point)._is_zero
+        return self._plug_in_point(*point.u, point.v2)._is_zero
 
     def intersect_boundaries(self, other):
-        if isinstance(self, Line) and isinstance(other, Line):
-            return polygon.Point(oo, QQ(0))
+        if isinstance(other, Circle):
+            return self._intersect_circle(other)
 
-        M = matrix([[self.a, self.b], [other.a, other.b]])
-        if M.determinant() == 0:
-            return None
+        return self._intersect_line(other)
 
-        u2_plus_v2, u = M.solve_right(vector([-self.c, -other.c]))
-        v2 = u2_plus_v2 - u**2
-
-        return None if bool(v2 < 0) else polygon.Point(radical.Radical(u, QQ(0), QQ(0)), v2)
 
     def _intersect_edge_real(self, edge):
         contains_start = self.contains_point(edge.start)
@@ -198,6 +192,24 @@ class Line(HalfPlane):
             return polygon.Point(A + 1, 0)
         return polygon.Point(A - 1, 0)
 
+    def _intersect_circle(self, other):
+        c1 = self.c / self.b
+        b2, c2 = other.b / other.a, other.c / other.a
+
+        u = -c1
+
+        v2 = -(u**2 + b2 * u + c2)
+
+        return None if v2 < 0 else polygon.Point(u, v2)
+
+    def _intersect_line(self, other):
+        c1 = self.c / self.b
+        c2 = other.c / other.b
+
+        if c1 == c2:
+            return None
+        return polygon.Point(oo, QQ(0))
+
 
 class Circle(HalfPlane):
     __slots__ = ()
@@ -239,3 +251,17 @@ class Circle(HalfPlane):
             A, B, C = self.start.u
             return polygon.Point(radical.Radical(A + 1, B, C), QQ(0))
         return self.center
+
+    def _intersect_circle(self, other):
+        b1, c1 = self.b / self.a, self.c / self.a
+        b2, c2, = other.b / other.a, other.c / other.a
+
+        if b1 == b2:
+            return None
+        else:
+            u = (c2 - c1) / (b1 - b2)
+            v2 = -(b1 * u + c1 + u**2)
+            return polygon.Point(u, v2)
+
+    def _intersect_line(self, other):
+        return other._intersect_circle(self)
