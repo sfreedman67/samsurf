@@ -84,7 +84,6 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
         return self._intersect_line(other)
 
-
     def _intersect_edge_real(self, edge):
         contains_start = self.contains_point(edge.start)
         contains_end = self.contains_point(edge.end)
@@ -123,23 +122,46 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def intersect_edge(self, edge):
         return self._intersect_edge_ideal(edge) if edge.is_ideal else self._intersect_edge_real(edge)
 
-    @classmethod
-    def intersect_halfplanes(cls, halfplanes):
+    # @staticmethod
+    # def intersect_halfplanes(halfplanes):
+    #     if not halfplanes:
+    #         return polygon.Polygon([])
+
+    #     polygon_previous = HalfPlane.intersect_halfplanes(halfplanes[:-1])
+    #     current = halfplanes[-1]
+
+    #     if polygon_previous is None:
+    #         return None
+
+    #     elif polygon_previous.edges == []:
+    #         edges = [polygon.Edge(current, current.start, current.end),
+    #                  polygon.Edge(None, current.end, current.start)]
+    #         return polygon.Polygon(edges)
+
+    #     return polygon_previous.intersect_with_halfplane(current)
+    @staticmethod
+    def intersect_halfplanes(halfplanes):
         if not halfplanes:
             return polygon.Polygon([])
 
-        polygon_previous = HalfPlane.intersect_halfplanes(halfplanes[:-1])
-        current = halfplanes[-1]
+        polygon_current = polygon.Polygon([])
 
-        if polygon_previous is None:
-            return None
+        for idx in range(len(halfplanes)):
+            current = halfplanes[idx]
 
-        elif polygon_previous.edges == []:
-            edges = [polygon.Edge(current, current.start, current.end),
-                     polygon.Edge(None, current.end, current.start)]
-            return polygon.Polygon(edges)
+            if polygon_current is None:
+                return None
 
-        return polygon_previous.intersect_with_halfplane(current)
+            elif idx == 0:
+                edges = [polygon.Edge(current, current.start, current.end),
+                         polygon.Edge(None, current.end, current.start)]
+                polygon_current = polygon.Polygon(edges)
+
+            else:
+                polygon_current = polygon_current.intersect_with_halfplane(
+                    current)
+
+        return polygon_current
 
     def reverse(self):
         a, b, c = self
@@ -197,7 +219,6 @@ class Line(HalfPlane):
         b2, c2 = other.b / other.a, other.c / other.a
 
         u = -c1
-
         v2 = -(u**2 + b2 * u + c2)
 
         return None if v2 < 0 else polygon.Point(u, v2)
@@ -254,7 +275,7 @@ class Circle(HalfPlane):
 
     def _intersect_circle(self, other):
         b1, c1 = self.b / self.a, self.c / self.a
-        b2, c2, = other.b / other.a, other.c / other.a
+        b2, c2 = other.b / other.a, other.c / other.a
 
         if b1 == b2:
             return None

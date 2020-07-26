@@ -138,17 +138,20 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         alpha = X.field.gen()
 
         H = X.halfplanes
+
         output_final = halfplane.HalfPlane.intersect_halfplanes(H)
 
-        p68 = H[6].intersect_boundaries(H[8])
-        p08 = H[0].intersect_boundaries(H[8])
-        p05 = H[0].intersect_boundaries(H[5])
-        p56 = H[5].intersect_boundaries(H[6])
 
-        answer_final = [polygon.Edge(H[8], p68, p08),
-                        polygon.Edge(H[0], p08, p05),
-                        polygon.Edge(H[5], p05, p56),
-                        polygon.Edge(H[6], p56, p68)]
+
+        p16 = H[1].intersect_boundaries(H[6])
+        p6_11 = H[6].intersect_boundaries(H[11])
+        p11_13 = H[11].intersect_boundaries(H[13])
+        p13_1 = H[13].intersect_boundaries(H[1])
+
+        answer_final = [polygon.Edge(H[6], p16, p6_11),
+                        polygon.Edge(H[11], p6_11, p11_13),
+                        polygon.Edge(H[13], p11_13, p13_1),
+                        polygon.Edge(H[1], p13_1, p16)]
 
         
         self.assertCountEqual(output_final.edges, answer_final)

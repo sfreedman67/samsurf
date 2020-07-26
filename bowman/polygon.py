@@ -4,16 +4,18 @@ from sage.all import *
 from collections import namedtuple
 import itertools
 
-from context import bowman 
-
-from bowman.radical import Radical
-import bowman.halfplane as halfplane
+from context import bowman
+import bowman.radical
+from bowman import radical
+import bowman.halfplane
+from bowman import halfplane
 
 
 class Point:
+
     def __init__(self, u, v2):
-        if not isinstance(u, Radical) and u != oo:
-            self.u = Radical(u, QQ(0), QQ(0))
+        if not isinstance(u, radical.Radical) and u != oo:
+            self.u = radical.Radical(u, QQ(0), QQ(0))
             self.v2 = v2
         else:
             self.u = u
@@ -51,7 +53,7 @@ class Point:
 
     @property
     def is_infinity(self):
-        return not isinstance(self.u, Radical) and self.u == oo and self.v2 == QQ(0)
+        return not isinstance(self.u, radical.Radical) and self.u == oo and self.v2 == QQ(0)
 
     def __eq__(self, other):
         if self.is_infinity:
@@ -94,7 +96,25 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
     def reverse(self):
         return Edge(self.halfplane.reverse(), self.end, self.start)
-        
+
+    @property
+    def tangent_vector(self):
+        plane = self.halfplane
+
+        if plane is None:
+            return vector([1, 0])
+
+        elif isinstance(plane, halfplane.Circle):
+            b = plane.b / plane.a
+
+            u, v2 = self.start
+            return vector([radical.Radical(0, -1, v2), u + b / 2])
+
+        elif self.start.is_infinity:
+            return vector([1, 0])
+        else:
+            return vector([0, 1])
+
     def plot(self):
         if self.start.is_infinity:
             coord_start = oo
@@ -108,17 +128,15 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
         return HyperbolicPlane().UHP().get_geodesic(coord_start, coord_end).plot(axes=True)
 
+
 class Polygon(namedtuple("Polygon", ["edges"])):
 
     # TODO: is_nontriv property
-
-    # TODO: two polys eq if same edges
 
     @property
     def vertices(self):
         return (edge.start for edge in self.edges)
 
-    
     def __key(self):
         return tuple(sorted(self.vertices, key=lambda vertex: (vertex.is_infinity, vertex)))
 
@@ -129,7 +147,10 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         if isinstance(other, Polygon):
             return self.__key() == other.__key()
         return NotImplemented
-    
+
+    def contains_point(self, point):
+        return all(segment.halfplane.contains_point(point) for segment in self.edges)
+
     def intersect_with_halfplane(self, halfplane):
         intersection = itertools.chain.from_iterable(
             (halfplane.intersect_edge(edge) for edge in self.edges))
@@ -153,7 +174,6 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         edge_new = Edge(halfplane, edge_chain[-1].end, edge_chain[0].start)
 
         return Polygon([*edge_chain, edge_new])
-
 
     def plot(self):
         return sum(edge.plot() for edge in self.edges)
