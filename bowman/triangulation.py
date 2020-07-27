@@ -198,13 +198,18 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return dd
 
     def _triangles_after_flip(self, id_edge):
-        triangles_new = self.triangles.copy()
-
         hinge_flipped = Hinge._from_id_edge(self, id_edge).flip()
+        idx_tri_new = hinge_flipped.id_edge[0]
+        idx_tri_opp_new = hinge_flipped.id_edge_opp[0]
 
-        triangles_new[hinge_flipped.id_edge[0]] = hinge_flipped.triangle
-        triangles_new[hinge_flipped.id_edge_opp[
-            0]] = hinge_flipped.triangle_opp
+        triangles_new = []
+        for idx, triangle in enumerate(self.triangles):
+            if idx == idx_tri_new:
+                triangles_new.append(hinge_flipped.triangle)
+            elif idx == idx_tri_opp_new:
+                triangles_new.append(hinge_flipped.triangle_opp)
+            else:
+                triangles_new.append(triangle)
 
         return triangles_new
 

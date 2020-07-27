@@ -30,15 +30,20 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
             return self.A <= 0
         return self.A >= 0
 
+
     @property
     def _is_negative(self):
-        if self.C == 0:
-            return self.A < 0
-        elif self.B == 0:
-            return self.A < 0
-        elif self.B > 0:
-            return self.A <= 0 and (self.C * self.B**2 < self.A**2)
-        return self.A < 0 or (self.C * self.B**2 > self.A**2)
+        A, B, C = self
+        if B == 0:
+            return A < 0
+        elif not (B == QQ(1) or B == QQ(-1)):
+            if B > 0:
+                return Radical(A / B, QQ(1), C)._is_negative
+            return Radical(-A / B, QQ(-1), C)._is_negative
+        elif B == QQ(1):
+            return A <= 0 and C < A**2
+        else:                
+            return A < 0 or A**2 < C
 
     @property
     def value(self):
@@ -55,12 +60,16 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
         A, B, C = self
         D, E, F = other
 
-        if E == 0:
-            return Radical(A - D, B, C)._is_zero
-
-        G = (A - D) / E
-        H = B // E
-        return Radical(G**2 + H**2 * C - F, 2 * G * H, C)._is_zero and not Radical(G, H, C)._is_negative
+        if D != QQ(0):
+            return Radical(A - D, B, C) == Radical(QQ(0), E, F)
+        elif E == QQ(0):
+            return self._is_zero
+        elif E != QQ(1):
+            return Radical(A / E, B / E, C) == Radical(QQ(0), QQ(1), F)
+        elif self._is_negative:
+            return False
+        else:
+            return Radical(A**2 + B**2 * C - F, 2 * A * B, C)._is_zero
 
     def __lt__(self, other):
         A, B, C = self

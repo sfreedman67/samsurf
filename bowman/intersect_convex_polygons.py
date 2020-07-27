@@ -1,9 +1,13 @@
+import itertools
+
 import sage.all
 from sage.all import *
 
 from context import bowman
 import bowman.polygon
 from bowman import polygon
+import bowman.triangulation
+from bowman import triangulation
 
 
 def segments_real_intersect(s1, s2):
@@ -26,21 +30,41 @@ def segments_real_intersect(s1, s2):
     return intersection
 
 
-def cross(v1, v2):
-    return v1[0] * v2[1] - v2[0] * v1[1]
-
-
 def intersect_convex_polygons(P, Q):
-	count = 0
-	p = P.edges[0]
-	q = Q.edges[0]
-	while(count < 2 * (len(P.edges) + len(Q.edges))):
-		count += 1
-		
-	
-	if Q.contains_point(p.start):
-		return P
-	elif P.contains_point(q.start):
-		return Q
-	return None
+    edges_real_P = (edge for edge in P.edges if edge.halfplane is not None)
+    for edge_P in edges_real_P:
+        H = edge_P.halfplane
 
+        edges_new = [component
+                     for edge in Q.edges
+                     for component in H.intersect_edge(edge)
+                     if isinstance(component, polygon.Edge)]
+
+        Q = polygon.Polygon._close_edge_chain(edges_new, H)
+
+    return Q
+
+
+def intersect_halfplanes(halfplanes):
+    if not halfplanes:
+        return polygon.Polygon([])
+    elif len(halfplanes) == 1:
+        [curr] = halfplanes
+        return polygon.Polygon([polygon.Edge(curr, curr.start, curr.end),
+                                polygon.Edge(None, curr.end, curr.start)])
+
+    P = intersect_halfplanes(halfplanes[:len(halfplanes) // 2])
+    Q = intersect_halfplanes(halfplanes[len(halfplanes) // 2:])
+
+    if P is None or Q is None:
+        return None
+
+    return intersect_convex_polygons(P, Q)
+
+
+if __name__ == "__main__":
+    X = triangulation.Triangulation.arnoux_yoccoz(3)
+    H = X.halfplanes
+
+    P = intersect_halfplanes(H)
+    P.plot().save("test.png")

@@ -10,12 +10,15 @@ import bowman.radical
 from bowman import radical
 import bowman.polygon
 from bowman import polygon
+import bowman.intersect_convex_polygons
+from bowman import intersect_convex_polygons
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     __slots__ = ()
 
     @classmethod
+    @lru_cache(None)
     def from_ineq(cls, a, b, c):
         if b**2 - 4 * a * c <= 0:
             raise ValueError("Coeffs are degenerate")
@@ -85,6 +88,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         return self._intersect_line(other)
 
     def _intersect_edge_real(self, edge):
+        # TODO: there is some redudancy here: the previous end is the new start
         contains_start = self.contains_point(edge.start)
         contains_end = self.contains_point(edge.end)
 
@@ -102,6 +106,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
                              edge_intersect_boundary, edge.end),)
 
     def _intersect_edge_ideal(self, edge):
+        # TODO: this is an eyesore
         includes_edge_start = self.contains_point(edge.start)
         includes_edge_end = self.contains_point(edge.end)
 
@@ -122,7 +127,6 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def intersect_edge(self, edge):
         return self._intersect_edge_ideal(edge) if edge.is_ideal else self._intersect_edge_real(edge)
 
-    
     @staticmethod
     def intersect_halfplanes(halfplanes):
         if not halfplanes:
@@ -146,6 +150,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
                     current)
 
         return polygon_current
+
 
     def reverse(self):
         a, b, c = self
@@ -266,7 +271,8 @@ class Circle(HalfPlane):
         else:
             u = (c2 - c1) / (b1 - b2)
             v2 = -(b1 * u + c1 + u**2)
-            return polygon.Point(u, v2)
+
+            return None if v2 < QQ(0) else polygon.Point(u, v2)
 
     def _intersect_line(self, other):
         return other._intersect_circle(self)

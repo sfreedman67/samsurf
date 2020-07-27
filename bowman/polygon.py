@@ -12,7 +12,6 @@ from bowman import halfplane
 
 
 class Point:
-
     def __init__(self, u, v2):
         if not isinstance(u, radical.Radical) and u != oo:
             self.u = radical.Radical(u, QQ(0), QQ(0))
@@ -41,15 +40,15 @@ class Point:
             raise ValueError("Can only determine CCW for boundary points")
 
         if all(not pt.is_infinity for pt in (p1, p2, p3)):
-            return (p1 < p2 < p3) or (p2 < p3 < p1) or (p3 < p1 < p2)
+            return (p1.u < p2.u < p3.u) or (p2.u < p3.u < p1.u) or (p3.u < p1.u < p2.u)
 
         elif p1.is_infinity:
-            return p2 < p3
+            return p2.u < p3.u
 
         elif p2.is_infinity:
-            return p3 < p1
+            return p3.u < p1.u
 
-        return p1 < p2
+        return p1.u < p2.u
 
     @property
     def is_infinity(self):
@@ -61,11 +60,6 @@ class Point:
         elif other.is_infinity:
             return self.is_infinity
         return self.__key() == other.__key()
-
-    def __lt__(self, other):
-        if self.is_infinity or other.is_infinity:
-            raise ValueError("Can't compare infinity")
-        return (self.u, self.v2) < (other.u, other.v2)
 
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
@@ -138,7 +132,7 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         return (edge.start for edge in self.edges)
 
     def __key(self):
-        return tuple(sorted(self.vertices, key=lambda vertex: (vertex.is_infinity, vertex)))
+        return tuple(sorted(self.vertices, key=lambda vertex: (vertex.is_infinity, vertex.u, vertex.v2)))
 
     def __hash__(self):
         return hash(self.__key())
@@ -148,14 +142,28 @@ class Polygon(namedtuple("Polygon", ["edges"])):
             return self.__key() == other.__key()
         return NotImplemented
 
-    def contains_point(self, point):
-        return all(segment.halfplane.contains_point(point) for segment in self.edges)
+    @staticmethod
+    def _close_edge_chain(chain, halfplane):
+        def is_closed(chain):
+            return all(snd == fst for (_, _, snd), (_, fst, _) in zip(chain, chain[1:] + chain[:1]))
+
+        if is_closed(chain):
+            return Polygon(chain)
+
+        [head_idx] = [idx for idx, edge in enumerate(chain)
+                      if halfplane.contains_point_on_boundary(edge.start)]
+
+        chain_rotated = [*chain[head_idx:], *chain[:head_idx]]
+
+        edge_new = Edge(halfplane,
+                        chain_rotated[-1].end,
+                        chain_rotated[0].start)
+
+        return Polygon([*chain_rotated, edge_new])
 
     def intersect_with_halfplane(self, halfplane):
-        intersection = itertools.chain.from_iterable(
-            (halfplane.intersect_edge(edge) for edge in self.edges))
-
-        edges_new = [component for component in intersection
+        edges_new = [component for edge in self.edges
+                     for component in halfplane.intersect_edge(edge)
                      if isinstance(component, Edge)]
 
         if edges_new == self.edges:
@@ -163,17 +171,7 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         elif not edges_new:
             return None
 
-        [head_idx] = [idx for idx, edge in enumerate(edges_new)
-                      if halfplane.contains_point_on_boundary(edge.start)]
-
-        edge_chain = [*edges_new[head_idx:], *edges_new[:head_idx]]
-
-        if edge_chain[0].start == edge_chain[-1].end:
-            return Polygon(edge_chain)
-
-        edge_new = Edge(halfplane, edge_chain[-1].end, edge_chain[0].start)
-
-        return Polygon([*edge_chain, edge_new])
+        return Polygon._close_edge_chain(edges_new, halfplane)
 
     def plot(self):
         return sum(edge.plot() for edge in self.edges)
