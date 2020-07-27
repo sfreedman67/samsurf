@@ -64,7 +64,8 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     @lru_cache(maxsize=None)
     def _plug_in_point(self, A, B, C, v2):
         if B == 0:
-            return radical.Radical(self.a * (A**2 + v2) + self.b * A + self.c, 0, 0)
+            return radical.Radical(self.a * (A**2 + v2) + self.b * A + self.c,
+                                   0, 0)
         elif B == 1:
             return radical.Radical(self.a * (A**2 + C + v2) + self.b * A + self.c, 2 * self.a * A + self.b, C)
 
@@ -87,11 +88,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
         return self._intersect_line(other)
 
-    def _intersect_edge_real(self, edge):
-        # TODO: there is some redudancy here: the previous end is the new start
-        contains_start = self.contains_point(edge.start)
-        contains_end = self.contains_point(edge.end)
-
+    def _intersect_edge_real(self, edge, contains_start, contains_end):
         if contains_start and contains_end:
             return (edge,)
         elif not (contains_start or contains_end):
@@ -105,27 +102,26 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         return (polygon.Edge(edge.halfplane,
                              edge_intersect_boundary, edge.end),)
 
-    def _intersect_edge_ideal(self, edge):
-        # TODO: this is an eyesore
-        includes_edge_start = self.contains_point(edge.start)
-        includes_edge_end = self.contains_point(edge.end)
-
-        if includes_edge_start and includes_edge_end:
+    def _intersect_edge_ideal(self, edge, contains_start, contains_end):
+        if contains_start and contains_end:
             if polygon.Point.CCW(edge.start, edge.end, self._point_outside):
                 return (edge,)
             return (polygon.Edge(None, edge.start, self.start),
                     polygon.Edge(None, self.end, edge.end))
-        elif includes_edge_start != includes_edge_end:
-            if includes_edge_start:
-                return (polygon.Edge(None, edge.start, self.start),)
+        elif contains_start and not contains_end:
+            return (polygon.Edge(None, edge.start, self.start),)
+        elif not contains_start and contains_end:
             return (polygon.Edge(None, self.end, edge.end),)
         else:
             if polygon.Point.CCW(edge.start, edge.end, self._point_inside):
                 return ()
             return (polygon.Edge(None, self.end, self.start),)
 
-    def intersect_edge(self, edge):
-        return self._intersect_edge_ideal(edge) if edge.is_ideal else self._intersect_edge_real(edge)
+    def intersect_edge(self, edge, contains_start, contains_end):
+        if edge.is_ideal:
+            return self._intersect_edge_ideal(edge, contains_start, contains_end)
+
+        return self._intersect_edge_real(edge, contains_start, contains_end)
 
     @staticmethod
     def intersect_halfplanes(halfplanes):
@@ -150,7 +146,6 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
                     current)
 
         return polygon_current
-
 
     def reverse(self):
         a, b, c = self

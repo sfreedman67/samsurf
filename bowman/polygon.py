@@ -12,6 +12,7 @@ from bowman import halfplane
 
 
 class Point:
+
     def __init__(self, u, v2):
         if not isinstance(u, radical.Radical) and u != oo:
             self.u = radical.Radical(u, QQ(0), QQ(0))
@@ -161,10 +162,21 @@ class Polygon(namedtuple("Polygon", ["edges"])):
 
         return Polygon([*chain_rotated, edge_new])
 
+    def partition_edges(self, halfplane):
+        test_starts = [halfplane.contains_point(start)
+                       for _, start, _ in self.edges]
+
+        test_endpoints = list(zip(test_starts,
+                                  test_starts[1:] + test_starts[:1]))
+        edges_new = []
+        for edge, tested_endpoints in zip(self.edges, test_endpoints):
+            components_new = halfplane.intersect_edge(edge, *tested_endpoints)
+            edges_new.extend(component for component in components_new
+                             if isinstance(component, Edge))
+        return edges_new
+
     def intersect_with_halfplane(self, halfplane):
-        edges_new = [component for edge in self.edges
-                     for component in halfplane.intersect_edge(edge)
-                     if isinstance(component, Edge)]
+        edges_new = self.partition_edges(halfplane)
 
         if edges_new == self.edges:
             return self

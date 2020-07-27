@@ -35,7 +35,7 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
     @property
     def coords(self):
         return tuple(coord for vector in self.vectors for coord in vector)
-    
+
     def __hash__(self):
         return hash((self.coords,))
 
@@ -124,6 +124,7 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
 
 
 class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"])):
+
     @classmethod
     def _from_flatsurf(cls, X):
         # TODO: hardcode in the answers from sage so we can remove flatsurf
@@ -262,32 +263,25 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         return idr.IDR(P, labels_segment, self)
 
-
     def iso_delaunay_complex(self, limit):
         IDR_start = self.IDR
 
-        polygons_visited = set()
-        polygons_visited.add(IDR_start.polygon)
-
+        polygons_visited = {IDR_start.polygon}
         segments_crossed = set()
 
-        queue = deque()
-        queue.appendleft(IDR_start)
+        queue = deque([IDR_start])
 
-        while(len(polygons_visited) < limit and queue):
-            IDR = queue[-1]
+        while(len(polygons_visited) < limit):
+            IDR = queue.pop()
             segments_uncrossed = [segment for segment in IDR.polygon.edges
-                                  if not (segment.reverse() in segments_crossed
-                                          or segment in segments_crossed)]
+                                  if not segment in segments_crossed]
 
             for segment in segments_uncrossed:
                 IDR_new = IDR.cross_segment(segment)
-                segments_crossed.add(segment)
+                segments_crossed |= {segment, segment.reverse()}
 
                 if IDR_new.polygon not in polygons_visited:
                     polygons_visited.add(IDR_new.polygon)
                     queue.appendleft(IDR_new)
-
-            queue.pop()
 
         return list(polygons_visited)

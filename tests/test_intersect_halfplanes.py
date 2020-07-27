@@ -134,13 +134,13 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                               [polygon.Edge(h20, s20, e20), polygon.Edge(None, e20, s20)])
 
     def test_intersect_AY3(self):
+
         X = triangulation.Triangulation.arnoux_yoccoz(3)
         alpha = X.field.gen()
 
         H = X.halfplanes
 
         output_final = halfplane.HalfPlane.intersect_halfplanes(H)
-
 
 
         p16 = H[1].intersect_boundaries(H[6])
