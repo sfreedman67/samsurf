@@ -61,6 +61,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _point_outside(self):
         raise NotImplementedError
 
+    
     @lru_cache(maxsize=None)
     def _plug_in_point(self, A, B, C, v2):
         if B == 0:
@@ -72,13 +73,13 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         return radical.Radical(self.a * (A**2 + C + v2) + self.b * A + self.c, -2 * self.a * A - self.b, C)
 
     def contains_point(self, point):
-        if point.is_infinity:
+        if point == oo:
             return isinstance(self, Line) or (not self.is_oriented)
 
         return not self._plug_in_point(*point.u, point.v2)._is_negative
 
     def contains_point_on_boundary(self, point):
-        if point.is_infinity:
+        if point == oo:
             return isinstance(self, Line)
         return self._plug_in_point(*point.u, point.v2)._is_zero
 
@@ -156,8 +157,8 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         # For lines: Left bLue, Right oRange
         color_orientation = "blue" if self.is_oriented else "orange"
 
-        value_start = oo if self.start.is_infinity else self.start.u.value
-        value_end = oo if self.end.is_infinity else self.end.u.value
+        value_start = oo if self.start == oo else self.start.u.value
+        value_end = oo if self.end == oo else self.end.u.value
 
         boundary = HyperbolicPlane().UHP().get_geodesic(value_start, value_end)
         return boundary.plot(axes=True, color=color_orientation)
@@ -172,13 +173,15 @@ class Line(HalfPlane):
 
     @property
     def start(self):
-        A = -self.c / self.b if self.is_oriented else oo
-        return polygon.Point(A, QQ(0))
+        if self.is_oriented:
+            return polygon.Point(-self.c / self.b, QQ(0))
+        return oo
 
     @property
     def end(self):
-        A = oo if self.is_oriented else -self.c / self.b
-        return polygon.Point(A, QQ(0))
+        if self.is_oriented:
+            return oo
+        return polygon.Point(-self.c / self.b, QQ(0))
 
     @property
     def endpoint_real(self):

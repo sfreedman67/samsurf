@@ -12,9 +12,8 @@ from bowman import halfplane
 
 
 class Point(namedtuple("Point", ["u", "v2"])):
-
     def __new__(cls, u, v2):
-        if not isinstance(u, radical.Radical) and u != oo:
+        if not isinstance(u, radical.Radical):
             self = super(Point, cls).__new__(
                 cls, radical.Radical(u, QQ(0), QQ(0)), v2)
         else:
@@ -26,23 +25,17 @@ class Point(namedtuple("Point", ["u", "v2"])):
     def CCW(p1, p2, p3):
         if any((p1 == p2, p1 == p3, p2 == p3)):
             raise ValueError("Can only determine CCW for 3 distinct points")
-        elif any(getattr(pt, "v2") != QQ(0) for pt in (p1, p2, p3)):
-            raise ValueError("Can only determine CCW for boundary points")
 
-        if all(not pt.is_infinity for pt in (p1, p2, p3)):
+        elif all((p1 != oo, p2 != oo, p3 != oo)):
             return (p1.u < p2.u < p3.u) or (p2.u < p3.u < p1.u) or (p3.u < p1.u < p2.u)
 
-        elif p1.is_infinity:
+        elif p1 == oo:
             return p2.u < p3.u
 
-        elif p2.is_infinity:
+        elif p2 == oo:
             return p3.u < p1.u
 
         return p1.u < p2.u
-
-    @property
-    def is_infinity(self):
-        return not isinstance(self.u, radical.Radical) and self.u == oo and self.v2 == QQ(0)
 
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
@@ -72,12 +65,12 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         return Edge(self.halfplane.reorient(), self.end, self.start)
 
     def plot(self):
-        if self.start.is_infinity:
+        if self.start == oo:
             coord_start = oo
         else:
             coord_start = CC(self.start.u.value, QQbar(self.start.v2).sqrt())
 
-        if self.end.is_infinity:
+        if self.end == oo:
             coord_end = oo
         else:
             coord_end = CC(self.end.u.value, QQbar(self.end.v2).sqrt())
@@ -96,7 +89,7 @@ class Polygon(namedtuple("Polygon", ["edges"])):
     # TODO: clean
     def __key(self):
         def sorter_points(point):
-            return (point.is_infinity,
+            return (point == oo,
                     point.u,
                     point.v2)
         return tuple(sorted(self.vertices, key=sorter_points))

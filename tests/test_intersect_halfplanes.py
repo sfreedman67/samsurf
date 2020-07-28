@@ -29,7 +29,7 @@ class TestIntersectHalfPlanes(unittest.TestCase):
 
         self.pt_neg1 = polygon.Point(ZZ(-1), ZZ(0))
         self.pt_pos1 = polygon.Point(ZZ(1), ZZ(0))
-        self.pt_infty = polygon.Point(oo, ZZ(0))
+        self.pt_infty = oo
         self.pt_phi = polygon.Point(radical.Radical(
             QQ(1 / 2), QQ(1 / 2), QQ(5)), ZZ(0))
         self.pt_phibar = polygon.Point(

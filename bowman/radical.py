@@ -46,8 +46,28 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
             if B > zero:
                 return Radical(A / B, one, C)._is_negative
             return Radical(-A / B, -one, C)._is_negative
-                
 
+    @lru_cache(None)
+    def sign(A, B, C):
+        zero = A.parent().zero()
+        one = A.parent().one()
+
+        s_A = sign(A)
+        s_B = sign(B)
+
+        if s == 0:
+            return s_A
+        elif s == 1:
+            if B == one:
+                if s_A > 0:
+                    return -1
+                return sign(C - A**2)
+            return sign(A / B, one, C)
+
+        else:
+            return -sign(-A, -B, C)
+
+        
     @property
     def value(self):
         if self.B == 0 or self.C == 0:
@@ -81,7 +101,7 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
     def __lt__(self, other):
         if not isinstance(other, Radical):
             return NotImplemented
-            
+
         A, B, C = self
         D, E, F = other
 
