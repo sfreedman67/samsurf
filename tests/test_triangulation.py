@@ -164,10 +164,10 @@ class Test_Generate_IsoDelaunay_Complex(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    # unittest.main(verbosity=2)
 
     X = triangulation.Triangulation.arnoux_yoccoz(3)
     cProfile.run("X.iso_delaunay_complex(500)", "complex.profile")
     s = pstats.Stats("complex.profile")
     s.dump_stats("complex.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_callees("iso_delaunay_complex")
+    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats()

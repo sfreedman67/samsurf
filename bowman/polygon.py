@@ -79,17 +79,8 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
 
 class Polygon(namedtuple("Polygon", ["edges"])):
-    @property
-    def vertices(self):
-        return (edge.start for edge in self.edges)
-
-    # TODO: clean
     def __key(self):
-        def sorter_points(point):
-            return (point == oo,
-                    point.u,
-                    point.v2)
-        return tuple(sorted(self.vertices, key=sorter_points))
+        return tuple(sorted((edge.start for edge in self.edges)))
 
     def __hash__(self):
         return hash(self.__key())
