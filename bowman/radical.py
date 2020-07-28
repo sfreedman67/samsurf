@@ -60,6 +60,8 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
         return hash(self.value)
 
     def __eq__(self, other):
+        if not isinstance(other, Radical):
+            return NotImplemented
         A, B, C = self
         D, E, F = other
 
@@ -77,6 +79,9 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
             return Radical(A**2 + B**2 * C - F, 2 * A * B, C)._is_zero
 
     def __lt__(self, other):
+        if not isinstance(other, Radical):
+            return NotImplemented
+            
         A, B, C = self
         D, E, F = other
 

@@ -170,4 +170,4 @@ if __name__ == "__main__":
     cProfile.run("X.iso_delaunay_complex(500)", "complex.profile")
     s = pstats.Stats("complex.profile")
     s.dump_stats("complex.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(20)
+    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_callees("iso_delaunay_complex")

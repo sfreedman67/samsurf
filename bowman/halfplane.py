@@ -147,7 +147,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
         return polygon_current
 
-    def reverse(self):
+    def reorient(self):
         a, b, c = self
         return HalfPlane.from_ineq(-a, -b, -c)
 

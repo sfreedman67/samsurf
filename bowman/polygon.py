@@ -11,27 +11,16 @@ import bowman.halfplane
 from bowman import halfplane
 
 
-class Point:
+class Point(namedtuple("Point", ["u", "v2"])):
 
-    def __init__(self, u, v2):
+    def __new__(cls, u, v2):
         if not isinstance(u, radical.Radical) and u != oo:
-            self.u = radical.Radical(u, QQ(0), QQ(0))
-            self.v2 = v2
+            self = super(Point, cls).__new__(
+                cls, radical.Radical(u, QQ(0), QQ(0)), v2)
         else:
-            self.u = u
-            self.v2 = v2
+            self = super(Point, cls).__new__(cls, u, v2)
 
-    def __repr__(self):
-        return f"Point({self.u}, {self.v2})"
-
-    def __iter__(self):
-        return iter((self.u, self.v2))
-
-    def __key(self):
-        return (self.u, self.v2)
-
-    def __hash__(self):
-        return hash(self.__key())
+        return self
 
     @staticmethod
     def CCW(p1, p2, p3):
@@ -55,13 +44,6 @@ class Point:
     def is_infinity(self):
         return not isinstance(self.u, radical.Radical) and self.u == oo and self.v2 == QQ(0)
 
-    def __eq__(self, other):
-        if self.is_infinity:
-            return other.is_infinity
-        elif other.is_infinity:
-            return self.is_infinity
-        return self.__key() == other.__key()
-
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     __slots__ = ()
@@ -78,9 +60,6 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         Ideal_descriptor = "Ideal" if self.is_ideal else ""
         return Ideal_descriptor + f"Edge({self.start}->{self.end})"
 
-    def __hash__(self):
-        return hash((self.start, self.end))
-
     @property
     def is_ideal(self):
         return self.halfplane is None
@@ -90,25 +69,7 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         return (self.start, self.end)
 
     def reverse(self):
-        return Edge(self.halfplane.reverse(), self.end, self.start)
-
-    @property
-    def tangent_vector(self):
-        plane = self.halfplane
-
-        if plane is None:
-            return vector([1, 0])
-
-        elif isinstance(plane, halfplane.Circle):
-            b = plane.b / plane.a
-
-            u, v2 = self.start
-            return vector([radical.Radical(0, -1, v2), u + b / 2])
-
-        elif self.start.is_infinity:
-            return vector([1, 0])
-        else:
-            return vector([0, 1])
+        return Edge(self.halfplane.reorient(), self.end, self.start)
 
     def plot(self):
         if self.start.is_infinity:
@@ -132,8 +93,13 @@ class Polygon(namedtuple("Polygon", ["edges"])):
     def vertices(self):
         return (edge.start for edge in self.edges)
 
+    # TODO: clean
     def __key(self):
-        return tuple(sorted(self.vertices, key=lambda vertex: (vertex.is_infinity, vertex.u, vertex.v2)))
+        def sorter_points(point):
+            return (point.is_infinity,
+                    point.u,
+                    point.v2)
+        return tuple(sorted(self.vertices, key=sorter_points))
 
     def __hash__(self):
         return hash(self.__key())
