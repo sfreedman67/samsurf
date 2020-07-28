@@ -160,13 +160,18 @@ class TestIntersectHalfPlanes(unittest.TestCase):
         K = QuadraticField(2)
         a = K.gen()
 
-        ineqs39 = [(QQ(1 / 2) * a - 1, a - 2, QQ(-1 / 2) * a + 1),
+        ineqs39 = [(K(1 / 2) * a - 1, a - 2, K(-1 / 2) * a + 1),
                    (2 * a - 2, 4 * a - 6, 0),
                    (-a, -2 * a, a),
                    (0, 2 * a, 0),
                    (2 * a + 2, -2, 0),
                    (4 * a + 4, -4, 0),
                    (2 * a - 2, -4 * a + 6, 0)]
+
+        
+        R1 = radical.Radical(-K(1/2) * a + K(1/2), 1, -K(1/2) * a + K(3/4))
+        R2 = radical.Radical(K(1/2) * a - K(1/2), -1, -K(1/2) * a + K(3/4))
+        self.assertEqual(R1, R2)
 
         halfplanes39 = list(set(halfplane.HalfPlane.from_ineq(*ineq)
                                 for ineq in ineqs39))

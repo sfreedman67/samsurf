@@ -15,7 +15,7 @@ class Point(namedtuple("Point", ["u", "v2"])):
     def __new__(cls, u, v2):
         if not isinstance(u, radical.Radical):
             self = super(Point, cls).__new__(
-                cls, radical.Radical(u, QQ(0), QQ(0)), v2)
+                cls, radical.Radical(u, 0, 0), v2)
         else:
             self = super(Point, cls).__new__(cls, u, v2)
 
@@ -79,9 +79,6 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
 
 class Polygon(namedtuple("Polygon", ["edges"])):
-
-    # TODO: is_nontriv property
-
     @property
     def vertices(self):
         return (edge.start for edge in self.edges)
@@ -109,7 +106,7 @@ class Polygon(namedtuple("Polygon", ["edges"])):
 
         if is_closed(chain):
             return Polygon(chain)
-
+        
         [head_idx] = [idx for idx, edge in enumerate(chain)
                       if halfplane.contains_point_on_boundary(edge.start)]
 

@@ -17,57 +17,29 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
             return "0"
         return term_rational + term_radical
 
-    @property
-    def _is_zero(self):
-        A, B, C = self
-        zero, one = A.parent().zero(), A.parent().one()
-
-        if B == zero:
-            return A == zero
-        elif B == one:
-            return C == A**2 and A <= zero
-        else:
-            return Radical(A / B, one, C)._is_zero
-
-    @property
-    def _is_negative(self):
-        A, B, C = self
-
-        zero = A.parent().zero()
-        one = A.parent().one()
-
-        if B == zero:
-            return A < zero
-        elif B == one:
-            return A <= zero and C < A**2
-        elif B == -one:
-            return A < zero or A**2 < C
-        else:
-            if B > zero:
-                return Radical(A / B, one, C)._is_negative
-            return Radical(-A / B, -one, C)._is_negative
-
+    @staticmethod
     @lru_cache(None)
     def sign(A, B, C):
-        zero = A.parent().zero()
-        one = A.parent().one()
+        def sign_rational(A):
+            if A > 0:
+                return 1
+            elif A == 0:
+                return 0
+            return -1
 
-        s_A = sign(A)
-        s_B = sign(B)
+        if B == 0:
+            return sign_rational(A)
+        elif B == 1:
+            return 1 if sign_rational(A) > 0 else sign_rational(C - A**2)
 
-        if s == 0:
-            return s_A
-        elif s == 1:
-            if B == one:
-                if s_A > 0:
-                    return -1
-                return sign(C - A**2)
-            return sign(A / B, one, C)
+        elif B == -1:
+            return -1 if sign_rational(A) < 0 else sign_rational(A**2 - C)
 
+        elif B > 0:
+            return Radical.sign(A, 1, B**2 * C)
         else:
-            return -sign(-A, -B, C)
+            return Radical.sign(A, -1, B**2 * C)
 
-        
     @property
     def value(self):
         if self.B == 0 or self.C == 0:
@@ -82,21 +54,22 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
     def __eq__(self, other):
         if not isinstance(other, Radical):
             return NotImplemented
+
         A, B, C = self
         D, E, F = other
 
-        zero, one = A.parent().zero(), A.parent().one()
-
-        if D != zero:
-            return Radical(A - D, B, C) == Radical(zero, E, F)
-        elif E == zero:
-            return self._is_zero
-        elif E != one:
-            return Radical(A / E, B / E, C) == Radical(zero, one, F)
-        elif self._is_negative:
+        if D != 0:
+            return Radical(A - D, B, C) == Radical(0, E, F)
+        elif E == 0:
+            return Radical.sign(*self) == 0
+        elif E < 0:
+            return Radical(-A, -B, C) == Radical(0, -E, F)
+        elif E > 0 and E != 1:
+            return Radical(A, B, C) == Radical(0, 1, E**2 * F)
+        elif Radical.sign(*self) < 0:
             return False
         else:
-            return Radical(A**2 + B**2 * C - F, 2 * A * B, C)._is_zero
+            return Radical.sign(A**2 + B**2 * C - F, 2 * A * B, C) == 0
 
     def __lt__(self, other):
         if not isinstance(other, Radical):
@@ -105,18 +78,16 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
         A, B, C = self
         D, E, F = other
 
-        zero, one = A.parent().zero(), A.parent().one()
+        if D != 0:
+            return Radical(A - D, B, C) < Radical(0, E, F)
+        elif E == 0:
+            return Radical.sign(*self) < 0
 
-        if D != zero:
-            return Radical(A - D, B, C) < Radical(zero, E, F)
-        elif E == zero:
-            return self._is_negative
-
-        elif not (E == one or E == -one):
-            if E > zero:
-                return Radical(A / E, B / E, C) < Radical(zero, one, F)
-            return Radical(-A / E, -B / E, C) < Radical(zero, -one, F)
-        elif E == one:
-            return self._is_negative or Radical(A**2 + B**2 * C - F, 2 * A * B, C)._is_negative
+        elif not (E == 1 or E == -1):
+            if E > 0:
+                return Radical(A / E, B / E, C) < Radical(0, 1, F)
+            return Radical(-A / E, -B / E, C) < Radical(0, -1, F)
+        elif E == 1:
+            return Radical.sign(*self) < 0 or Radical.sign(A**2 + B**2 * C - F, 2 * A * B, C) < 0
         else:
-            return not Radical(-A, -B, C)._is_negative and Radical(F - A**2 - B**2 * C, -2 * A * B, C)._is_negative
+            return Radical.sign(-A, -B, C) >= 0 and Radical.sign(F - A**2 - B**2 * C, -2 * A * B, C) < 0

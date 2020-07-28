@@ -61,27 +61,28 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _point_outside(self):
         raise NotImplementedError
 
-    
     @lru_cache(maxsize=None)
     def _plug_in_point(self, A, B, C, v2):
-        if B == 0:
-            return radical.Radical(self.a * (A**2 + v2) + self.b * A + self.c,
-                                   0, 0)
-        elif B == 1:
-            return radical.Radical(self.a * (A**2 + C + v2) + self.b * A + self.c, 2 * self.a * A + self.b, C)
+        a, b, c = self
 
-        return radical.Radical(self.a * (A**2 + C + v2) + self.b * A + self.c, -2 * self.a * A - self.b, C)
+        A1 = a * (A**2 + B**2 * C + v2) + b * A + c
+        B1 = a * 2 * A * B + b * B
+        C1 = C
+
+        return radical.Radical(A1, B1, C1)
 
     def contains_point(self, point):
         if point == oo:
             return isinstance(self, Line) or (not self.is_oriented)
 
-        return not self._plug_in_point(*point.u, point.v2)._is_negative
+        output = self._plug_in_point(*point.u, point.v2)
+        return radical.Radical.sign(*output) >= 0
 
     def contains_point_on_boundary(self, point):
         if point == oo:
             return isinstance(self, Line)
-        return self._plug_in_point(*point.u, point.v2)._is_zero
+        output = self._plug_in_point(*point.u, point.v2)
+        return radical.Radical.sign(*output) == 0
 
     def intersect_boundaries(self, other):
         if isinstance(other, Circle):
@@ -169,19 +170,19 @@ class Line(HalfPlane):
 
     @property
     def is_oriented(self):
-        return bool(self.b < 0)
+        return self.b == -1
 
     @property
     def start(self):
         if self.is_oriented:
-            return polygon.Point(-self.c / self.b, QQ(0))
+            return polygon.Point(-self.c / self.b, 0)
         return oo
 
     @property
     def end(self):
         if self.is_oriented:
             return oo
-        return polygon.Point(-self.c / self.b, QQ(0))
+        return polygon.Point(-self.c / self.b, 0)
 
     @property
     def endpoint_real(self):
@@ -216,7 +217,7 @@ class Line(HalfPlane):
 
         if c1 == c2:
             return None
-        return polygon.Point(oo, QQ(0))
+        return oo
 
 
 class Circle(HalfPlane):
@@ -224,40 +225,44 @@ class Circle(HalfPlane):
 
     @property
     def center(self):
-        return polygon.Point(-self.b / (QQ(2) * self.a), QQ(0))
+        return polygon.Point(-self.b / (2 * self.a), 0)
 
     @property
     def radius2(self):
-        return (self.b**2 - 4 * self.a * self.c) / QQ(4)
+        return (self.b**2 - 4 * self.a * self.c) / 4
 
     @property
     def is_oriented(self):
-        return self.a < 0
+        return self.a == -1
 
     @property
     def start(self):
         coord_center = self.center.u.A
-        plus_or_minus = QQ(1) if self.is_oriented else QQ(-1)
-        return polygon.Point(radical.Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
+        if self.is_oriented:
+            return polygon.Point(
+                radical.Radical(coord_center, 1, self.radius2), 0)
+        else:
+            return polygon.Point(
+                radical.Radical(coord_center, -1, self.radius2), 0)
 
     @property
     def end(self):
         coord_center = self.center.u.A
-        plus_or_minus = QQ(-1) if self.is_oriented else QQ(1)
-        return polygon.Point(radical.Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
+        plus_or_minus = -1 if self.is_oriented else 1
+        return polygon.Point(radical.Radical(coord_center, plus_or_minus, self.radius2), 0)
 
     @property
     def _point_inside(self):
         if self.is_oriented:
             return self.center
         A, B, C = self.end.u
-        return polygon.Point(radical.Radical(A + 1, B, C), QQ(0))
+        return polygon.Point(radical.Radical(A + 1, B, C), 0)
 
     @property
     def _point_outside(self):
         if self.is_oriented:
             A, B, C = self.start.u
-            return polygon.Point(radical.Radical(A + 1, B, C), QQ(0))
+            return polygon.Point(radical.Radical(A + 1, B, C), 0)
         return self.center
 
     def _intersect_circle(self, other):
@@ -270,7 +275,7 @@ class Circle(HalfPlane):
             u = (c2 - c1) / (b1 - b2)
             v2 = -(b1 * u + c1 + u**2)
 
-            return None if v2 < QQ(0) else polygon.Point(u, v2)
+            return None if v2 < 0 else polygon.Point(u, v2)
 
     def _intersect_line(self, other):
         return other._intersect_circle(self)
