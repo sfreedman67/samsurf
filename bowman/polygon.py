@@ -98,6 +98,7 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         if is_closed(chain):
             return Polygon(chain)
         
+        # TODO: this line is always problematic
         [head_idx] = [idx for idx, edge in enumerate(chain)
                       if halfplane.contains_point_on_boundary(edge.start)]
 

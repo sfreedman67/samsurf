@@ -130,24 +130,20 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         if not halfplanes:
             return polygon.Polygon([])
 
-        polygon_current = polygon.Polygon([])
+        polygon_prev = HalfPlane.intersect_halfplanes(halfplanes[:-1])
+        halfplane_curr = halfplanes[-1]
 
-        for idx in range(len(halfplanes)):
-            current = halfplanes[idx]
+        if len(halfplanes) == 1:
+            return polygon.Polygon([polygon.Edge(halfplane_curr,
+                                                 halfplane_curr.start,
+                                                 halfplane_curr.end),
+                                    polygon.Edge(None,
+                                                 halfplane_curr.end,
+                                                 halfplane_curr.start)])
 
-            if polygon_current is None:
-                return None
-
-            elif idx == 0:
-                edges = [polygon.Edge(current, current.start, current.end),
-                         polygon.Edge(None, current.end, current.start)]
-                polygon_current = polygon.Polygon(edges)
-
-            else:
-                polygon_current = polygon_current.intersect_with_halfplane(
-                    current)
-
-        return polygon_current
+        elif polygon_prev is None:
+            return None
+        return polygon_prev.intersect_with_halfplane(halfplane_curr)
 
     def reorient(self):
         a, b, c = self
