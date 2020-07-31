@@ -12,6 +12,7 @@ from bowman import halfplane
 
 
 class Point(namedtuple("Point", ["u", "v2"])):
+
     def __new__(cls, u, v2):
         if not isinstance(u, radical.Radical):
             self = super(Point, cls).__new__(
@@ -77,8 +78,11 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
         return HyperbolicPlane().UHP().get_geodesic(coord_start, coord_end).plot(axes=True)
 
+class ChainHasMultipleHeadsError(Exception):
+    pass
 
 class Polygon(namedtuple("Polygon", ["edges"])):
+
     def __key(self):
         return tuple(sorted((edge.start for edge in self.edges)))
 
@@ -93,14 +97,20 @@ class Polygon(namedtuple("Polygon", ["edges"])):
     @staticmethod
     def _close_edge_chain(chain, halfplane):
         def is_closed(chain):
-            return all(snd == fst for (_, _, snd), (_, fst, _) in zip(chain, chain[1:] + chain[:1]))
+            return all(end == start
+                       for (_, _, end), (_, start, _) in zip(chain, chain[1:] + chain[:1]))
 
         if is_closed(chain):
             return Polygon(chain)
+
+        head_idxs = [idx for idx, edge in enumerate(chain)
+                    if halfplane.contains_point_on_boundary(edge.start)]
         
-        # TODO: this line is always problematic
-        [head_idx] = [idx for idx, edge in enumerate(chain)
-                      if halfplane.contains_point_on_boundary(edge.start)]
+        if len(head_idxs) != 1:
+            heads = [chain[idx] for idx in head_idxs]
+            raise ChainHasMultipleHeadsError(f"heads={heads}, chain={chain}")
+
+        [head_idx] = head_idxs
 
         chain_rotated = [*chain[head_idx:], *chain[:head_idx]]
 

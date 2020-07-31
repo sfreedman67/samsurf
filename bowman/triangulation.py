@@ -113,22 +113,25 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         return Triangle(*(vector for _, vector in sides_ordered))
 
     @property
-    def boundary_IDs(self):
+    def _IDs_boundary(self):
+        '''return the edge IDs of the boundary of the hinge
+        starting in the NE and moving Clockwise'''
+
         label_tri, label_edge = self.id_edge
         label_tri_opp, label_edge_opp = self.id_edge_opp
 
-        return ((label_tri, (label_edge + 1) % 3),
-                (label_tri, (label_edge + 2) % 3),
-                (label_tri_opp, (label_edge_opp + 1) % 3),
-                (label_tri_opp, (label_edge_opp + 2) % 3))
+        SE = (label_tri, (label_edge + 1) % 3)
+        NE = (label_tri, (label_edge + 2) % 3)
+        NW = (label_tri_opp, (label_edge_opp + 1) % 3)
+        SW = (label_tri_opp, (label_edge_opp + 2) % 3)
+
+        return (NE, SE, SW, NW)
 
 
 class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"])):
 
     @classmethod
     def _from_flatsurf(cls, X):
-        # TODO: hardcode in the answers from sage so we can remove flatsurf
-
         DT = X.delaunay_triangulation()
 
         DT_polygons = [DT.polygon(i) for i in range(DT.num_polygons())]
@@ -198,8 +201,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         return dd
 
-    def _triangles_after_flip(self, id_edge):
-        hinge_flipped = Hinge._from_id_edge(self, id_edge).flip()
+    def _triangles_after_flip(self, hinge_flipped):
         idx_tri_new = hinge_flipped.id_edge[0]
         idx_tri_opp_new = hinge_flipped.id_edge_opp[0]
 
@@ -214,23 +216,25 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         return triangles_new
 
-    def _gluings_after_flip(self, id_edge):
-        # TODO: fix this disaster
+    def _id_edge_after_flip(self, hinge_flipped, edge):
+        NE, SE, SW, NW = hinge_flipped._IDs_boundary
 
-        IDs = Hinge._from_id_edge(self, id_edge).boundary_IDs
-        new_name = {old_name: new_name
-                    for new_name, old_name in zip(IDs,
-                                                  IDs[1:] + IDs[:1])}
+        IDs_new = {NE: SE, SE: SW, SW: NW, NW: NE}
 
-        substitution = lambda edge: edge if edge not in new_name.keys() else new_name[
-            edge]
+        if edge in IDs_new:
+            return IDs_new[edge]
+        return edge
 
-        return {substitution(key): substitution(value)
+    def _gluings_after_flip(self, hinge_flipped):
+        return {self._id_edge_after_flip(hinge_flipped, key):
+                self._id_edge_after_flip(hinge_flipped, value)
                 for key, value in self.gluings.items()}
 
     def flip_hinge(self, id_edge):
-        return Triangulation(self._triangles_after_flip(id_edge),
-                             self._gluings_after_flip(id_edge),
+        hinge_flipped = Hinge._from_id_edge(self, id_edge).flip()
+
+        return Triangulation(self._triangles_after_flip(hinge_flipped),
+                             self._gluings_after_flip(hinge_flipped),
                              self.field)
 
     def flip_hinges(self, ids_edges):
@@ -240,7 +244,6 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return triangulation
 
     def plot_halfplanes(self, count=None):
-        # TODO: Labels?
         figure = sum(itertools.islice((halfplane.plot()
                                        for halfplane in self.halfplanes), count))
         if count is not None:
@@ -258,8 +261,8 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         P = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
 
-        labels_segment = {segment: halfplane_to_ids_hinge[segment.halfplane]
-                          for segment in P.edges}
+        labels_segment = {idx: halfplane_to_ids_hinge[segment.halfplane]
+                          for idx, segment in enumerate(P.edges)}
 
         return idr.IDR(P, labels_segment, self)
 
@@ -273,11 +276,12 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         while(len(polygons_visited) < limit):
             IDR = queue.pop()
-            segments_uncrossed = [segment for segment in IDR.polygon.edges
+            segments_uncrossed = [(idx, segment)
+                                  for idx, segment in enumerate(IDR.polygon.edges)
                                   if not segment in segments_crossed]
 
-            for segment in segments_uncrossed:
-                IDR_new = IDR.cross_segment(segment)
+            for idx_segment, segment in segments_uncrossed:
+                IDR_new = IDR.cross_segment(idx_segment)
                 segments_crossed |= {segment, segment.reverse()}
 
                 if IDR_new.polygon not in polygons_visited:

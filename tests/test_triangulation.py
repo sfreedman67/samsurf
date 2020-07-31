@@ -159,7 +159,7 @@ class Test_Generate_IsoDelaunay_Complex(unittest.TestCase):
         for num_regions, answer in zip([2**p for p in range(8)], answers):
             cx = X.iso_delaunay_complex(num_regions)
             self.assertEqual(len(cx), answer)
-            # fig = sum(IDR.plot() for IDR in cx)
+            # fig = sum(polygon.plot() for polygon in cx)
             # fig.save(f"iso_delaunay_complex_{num_regions}.png")
 
 

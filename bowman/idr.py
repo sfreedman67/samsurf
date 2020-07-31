@@ -11,10 +11,8 @@ from bowman import halfplane
 class IDR(namedtuple("IDR", ["polygon", "labels_segment", "triangulation"])):
     __slots__ = ()
 
-    # TODO: should labels_segment be a list?
-
-    def cross_segment(self, segment):
-        hinges_degenerated = self.labels_segment[segment]
+    def cross_segment(self, idx_segment):
+        hinges_degenerated = self.labels_segment[idx_segment]
 
         triangulation_new = self.triangulation.flip_hinges(hinges_degenerated)
 

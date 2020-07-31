@@ -262,8 +262,15 @@ class Circle(HalfPlane):
         return self.center
 
     def _intersect_circle(self, other):
-        b1, c1 = self.b / self.a, self.c / self.a
-        b2, c2 = other.b / other.a, other.c / other.a
+        if self.is_oriented:
+            b1, c1 = -self.b, -self.c
+        else:
+            b1, c1 = self.b, self.c
+        if other.is_oriented:
+            b2, c2 = -other.b, -other.c 
+        else:
+            b2, c2 = other.b, other.c
+
 
         if b1 == b2:
             return None
