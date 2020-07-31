@@ -1,16 +1,12 @@
-# N = number of triangles , numbered 0 \le i < N
-# j = 0,1,2 denotes side of triangle
-# Must have 2E = 3T
-
-# A combinatorial equivalence consists of a bijection on the triangles that respects edge gluings
-# When we biject triangles, we need a "shift" to tell how we glued
-
-
-import itertools as it
-import unittest
+import sage.all
 from sage.all import *
-import flatsurf
+
+import itertools
 from collections import deque
+
+from context import bowman
+import bowman.triangulation
+from bowman import triangulation
 
 
 def homeo_respects_gluings(equiv, t1, t2):
@@ -20,11 +16,11 @@ def homeo_respects_gluings(equiv, t1, t2):
         return (perm[edge[0]], (edge[1] + shift[edge[0]]) % 3)
 
     # for all gluings (e1,e2) in t1, want to see if (F(e1), F(e2)) glued in t2
-    for e1 in t1.edge_iterator():
-        e2 = t1.opposite_edge(e1)
+    for e1 in t1.edges:
+        e2 = t1.gluings[e1]
         f1 = image_edge(e1)
         f2 = image_edge(e2)
-        if t2.opposite_edge(f1) != f2:
+        if t2.gluings[f1] != f2:
             return False
 
     return True
@@ -41,13 +37,13 @@ def gen_p_map_from_edge(t1, t2, f):
 
     while tris_to_visit:
         curr_tri = tris_to_visit.pop()
-        if len(tris_visited) == t1.num_polygons():
+        if len(tris_visited) == len(t1.triangles):
             return partial_mapping
-        for nbr_edge in [t1.opposite_edge(curr_tri, k) for k in range(3)]:
+        for nbr_edge in [t1.gluings[(curr_tri, k)] for k in range(3)]:
             nbr_tri = nbr_edge[0]
             if nbr_tri not in tris_visited:
-                im_nbr_edge = t2.opposite_edge(
-                    partial_mapping[t1.opposite_edge(nbr_edge)])
+                im_nbr_edge = t2.gluings[(
+                    partial_mapping[t1.gluings[(nbr_edge)]])]
                 partial_mapping.update(
                     extend_map_to_nbrs(nbr_edge, im_nbr_edge))
                 tris_visited.add(nbr_tri)
@@ -79,56 +75,17 @@ def gen_homeo_from_p_map(p_map, num_tris):
 def gen_homeo_from_edge(t1, t2, e):
     partial_mapping = gen_p_map_from_edge(t1, t2, e)
 
-    return gen_homeo_from_p_map(partial_mapping, t1.num_polygons())
+    return gen_homeo_from_p_map(partial_mapping, len(t1.triangles))
 
 
 # Returns a set of all combinatorial equivalences
 def gen_comb_equivs(t1, t2):
-    num_tris = t1.num_polygons()
-    assert(num_tris == t2.num_polygons())
+    num_tris = len(t1.triangles)
+    assert(num_tris == len(t2.triangles))
 
     poss_homeos = [gen_homeo_from_edge(t1, t2, e)
-                   for e in it.product(range(num_tris), range(3))]
+                   for e in itertools.product(range(num_tris), range(3))]
 
     return set(filter(lambda x: homeo_respects_gluings(x, t1, t2),
                       poss_homeos))
 
-
-class CombEquivTests(unittest.TestCase):
-
-    #TODO take triangulated surface, then relabel everything 
-
-    def test_gen_homeo_from_edge(self):
-        sq_torus = flatsurf.translation_surfaces.square_torus()
-        t = sq_torus.delaunay_triangulation()
-
-        homeo1 = gen_homeo_from_edge(t, t, (0, 0))
-        homeo2 = gen_homeo_from_edge(t, t, (1, 1))
-
-        self.assertEqual(homeo1, ((0, 1), (0, 0)))
-        self.assertEqual(homeo2, ((1, 0), (1, 1)))
-
-    def test_torus_self_equivs(self):
-        t = flatsurf.translation_surfaces.square_torus()
-        DT_sq_torus = t.delaunay_triangulation()
-        equivs_two_tris = set(it.product([(1, 0), (0, 1)], [(i, i)
-                                                            for i in range(3)]))
-        self.assertEqual(gen_comb_equivs(
-            DT_sq_torus, DT_sq_torus), equivs_two_tris)
-
-    def test_veech_octagon_no_comb_autos(self):
-        v_oct = flatsurf.translation_surfaces.regular_octagon()
-        DT_v_oct = v_oct.delaunay_triangulation()
-        gen_comb_equivs(DT_v_oct, DT_v_oct)
-        self.assertEqual(gen_comb_equivs(DT_v_oct, DT_v_oct),
-                         {((0, 1, 2, 3, 4, 5), (0, 0, 0, 0, 0, 0))})
-
-
-
-
-unittest.main(verbosity=2)
-
-octagon_suite = unittest.TestSuite()
-octagon_suite.addTest(MyTests("test_veech_octagon_no_comb_autos"))
-runner = unittest.TextTestRunner()
-# runner.run(octagon_suite)
