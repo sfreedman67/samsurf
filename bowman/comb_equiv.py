@@ -1,91 +1,72 @@
-import sage.all
-from sage.all import *
-
-import itertools
-from collections import deque
-
-from context import bowman
-import bowman.triangulation
-from bowman import triangulation
+from collections import deque, namedtuple
 
 
-def homeo_respects_gluings(equiv, t1, t2):
-    def image_edge(edge):
-        perm = equiv[0]
-        shift = equiv[1]
-        return (perm[edge[0]], (edge[1] + shift[edge[0]]) % 3)
+class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
+    __slots__ = ()
 
-    # for all gluings (e1,e2) in t1, want to see if (F(e1), F(e2)) glued in t2
-    for e1 in t1.edges:
-        e2 = t1.gluings[e1]
-        f1 = image_edge(e1)
-        f2 = image_edge(e2)
-        if t2.gluings[f1] != f2:
-            return False
+    @classmethod
+    def _from_matching_partial(cls, matching_partial, source, target):
+        perm = []
+        shifts = []
 
-    return True
+        for edge in [(k, 0) for k in range(len(source.triangles))]:
+            lab_tri_im, lab_edge_im = matching_partial[edge]
+            perm.append(lab_tri_im)
+            shifts.append((lab_edge_im - edge[1]) % 3)
+
+        return CombEquiv(tuple(perm), tuple(shifts), source, target)
+
+    @classmethod
+    def from_edge(cls, t1, t2, e):
+        matching_partial = _get_matching_partial_from_edge(t1, t2, e)
+
+        return CombEquiv._from_matching_partial(*matching_partial)
+
+    def move(self, edge):
+        idx_tri, idx_edge = edge
+        return self.perm[idx_tri], (idx_edge + self.shift[idx_tri]) % 3
+
+    def respects_gluing(self, edge):
+        image = self.move(edge)
+        image_opp = self.target.gluings[image]
+        edge_opp = self.source.gluings[edge]
+        edge_opp_image = self.move(edge_opp)
+        return image_opp == edge_opp_image
+
+    @property
+    def respects_gluings(self):
+        '''Check if e1~e2 in t1 implies F(e1) ~ F(e2) in t2'''
+        return all(self.respects_gluing(edge) for edge in self.source.edges)
 
 
-def gen_p_map_from_edge(t1, t2, f):
-    def extend_map_to_nbrs(e, f):
-        return {(e[0], (e[1] + k) % 3): (f[0], (f[1] + k) % 3) for k in range(3)}
+def _get_matching_partial_from_edge(t1, t2, edge_00_im):
+    def extend_to_nbrs(e, f):
+        return {(e[0], (e[1] + k) % 3):
+                    (f[0], (f[1] + k) % 3) for k in range(3)}
 
     tris_to_visit = deque([0])
-    partial_mapping = extend_map_to_nbrs((0, 0), f)
-    # extend p_map to triangle 0, then mark it
+    matching_partial = extend_to_nbrs((0, 0), edge_00_im)
+
     tris_visited = {0}
+    while len(tris_visited) != len(t1.triangles):
+        tri_curr = tris_to_visit.pop()
+        edges_curr = [(tri_curr, k) for k in range(3)]
+        for edge in edges_curr:
+            edge_nbr = t1.gluings[edge]
+            edge_im = matching_partial[edge]
+            edge_im_nbr = t2.gluings[edge_im]
+            tri_nbr = edge_nbr[0]
+            if tri_nbr not in tris_visited:
+                matching_partial.update(extend_to_nbrs(edge_nbr, edge_im_nbr))
+                tris_visited.add(tri_nbr)
+                tris_to_visit.appendleft(tri_nbr)
 
-    while tris_to_visit:
-        curr_tri = tris_to_visit.pop()
-        if len(tris_visited) == len(t1.triangles):
-            return partial_mapping
-        for nbr_edge in [t1.gluings[(curr_tri, k)] for k in range(3)]:
-            nbr_tri = nbr_edge[0]
-            if nbr_tri not in tris_visited:
-                im_nbr_edge = t2.gluings[(
-                    partial_mapping[t1.gluings[(nbr_edge)]])]
-                partial_mapping.update(
-                    extend_map_to_nbrs(nbr_edge, im_nbr_edge))
-                tris_visited.add(nbr_tri)
-                tris_to_visit.appendleft(nbr_tri)
-
-    return None
+    return matching_partial, t1, t2
 
 
-def gen_homeo_from_p_map(p_map, num_tris):
-    # A P-map tells you, for each triangle, where *at least one* edge is mapped
-    perm = []
-    shifts = []
-
-    for n in range(num_tris):
-        edge = (0, 0)
-        im_edge = (0, 0)
-        # So: find an edge on tri n in the p_map
-        for k in range(2):
-            if (n, k) in p_map:
-                edge = (n, k)
-                im_edge = p_map[(n, k)]
-
-        perm.append(im_edge[0])
-        shifts.append((im_edge[1] - edge[1]) % 3)
-
-    return (tuple(perm), tuple(shifts))
-
-
-def gen_homeo_from_edge(t1, t2, e):
-    partial_mapping = gen_p_map_from_edge(t1, t2, e)
-
-    return gen_homeo_from_p_map(partial_mapping, len(t1.triangles))
-
-
-# Returns a set of all combinatorial equivalences
 def gen_comb_equivs(t1, t2):
-    num_tris = len(t1.triangles)
-    assert(num_tris == len(t2.triangles))
+    poss_matchings = [CombEquiv.from_edge(t1, t2, (idx_tri, idx_edge))
+                      for idx_tri in range(len(t1.triangles))
+                      for idx_edge in range(3)]
 
-    poss_homeos = [gen_homeo_from_edge(t1, t2, e)
-                   for e in itertools.product(range(num_tris), range(3))]
-
-    return set(filter(lambda x: homeo_respects_gluings(x, t1, t2),
-                      poss_homeos))
-
+    return [x for x in poss_matchings if x.respects_gluings]

@@ -271,7 +271,6 @@ class Circle(HalfPlane):
         else:
             b2, c2 = other.b, other.c
 
-
         if b1 == b2:
             return None
         else:

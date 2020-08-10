@@ -274,7 +274,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         queue = deque([IDR_start])
 
-        while(len(polygons_visited) < limit):
+        while len(polygons_visited) < limit:
             IDR = queue.pop()
             segments_uncrossed = [(idx, segment)
                                   for idx, segment in enumerate(IDR.polygon.edges)
