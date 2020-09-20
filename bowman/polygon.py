@@ -22,6 +22,18 @@ class Point(namedtuple("Point", ["u", "v2"])):
 
         return self
 
+    def __repr__(self):
+        str_real = "" if self.u.value == 0 else f"({self.u})"
+        str_imag = "" if self.v2 == 0 else f"(sqrt({self.v2}))j"
+
+        if str_real == "" and str_imag == "":
+            return str(0)
+        elif str_real == "" and str_imag != "":
+            return str_imag
+        elif str_real != "" and str_imag == "":
+            return str_real
+        return str_real + " + " + str_imag
+
     @staticmethod
     def CCW(p1, p2, p3):
         if any((p1 == p2, p1 == p3, p2 == p3)):
@@ -37,7 +49,7 @@ class Point(namedtuple("Point", ["u", "v2"])):
             return p3.u < p1.u
 
         return p1.u < p2.u
-
+    
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     __slots__ = ()
@@ -51,8 +63,8 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         return self
 
     def __repr__(self):
-        Ideal_descriptor = "Ideal" if self.is_ideal else ""
-        return Ideal_descriptor + f"Edge({self.start}->{self.end})"
+        ideal_descriptor = "Ideal" if self.is_ideal else ""
+        return ideal_descriptor + f"Edge({self.start}->{self.end})"
 
     @property
     def is_ideal(self):
@@ -60,7 +72,7 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
     @property
     def endpoints(self):
-        return (self.start, self.end)
+        return self.start, self.end
 
     def reverse(self):
         return Edge(self.halfplane.reorient(), self.end, self.start)
@@ -78,13 +90,15 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
         return HyperbolicPlane().UHP().get_geodesic(coord_start, coord_end).plot(axes=True)
 
+
 class ChainHasMultipleHeadsError(Exception):
     pass
+
 
 class Polygon(namedtuple("Polygon", ["edges"])):
 
     def __key(self):
-        return tuple(sorted((edge.start for edge in self.edges)))
+        return tuple(sorted(((edge.start == oo, edge.start) for edge in self.edges)))
 
     def __hash__(self):
         return hash(self.__key())
@@ -93,6 +107,10 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         if isinstance(other, Polygon):
             return self.__key() == other.__key()
         return NotImplemented
+
+    @property
+    def vertices(self):
+        return tuple(edge.start for edge in self.edges)
 
     @staticmethod
     def _close_edge_chain(chain, halfplane):
@@ -104,8 +122,8 @@ class Polygon(namedtuple("Polygon", ["edges"])):
             return Polygon(chain)
 
         head_idxs = [idx for idx, edge in enumerate(chain)
-                    if halfplane.contains_point_on_boundary(edge.start)]
-        
+                     if halfplane.contains_point_on_boundary(edge.start)]
+
         if len(head_idxs) != 1:
             heads = [chain[idx] for idx in head_idxs]
             raise ChainHasMultipleHeadsError(f"heads={heads}, chain={chain}")

@@ -4,6 +4,9 @@ from collections import deque, namedtuple
 class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
     __slots__ = ()
 
+    def __repr__(self):
+        return f"CombEquiv(perm={self.perm}, shift={self.shift})"
+
     @classmethod
     def _from_matching_partial(cls, matching_partial, source, target):
         perm = []
@@ -35,14 +38,14 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
 
     @property
     def respects_gluings(self):
-        '''Check if e1~e2 in t1 implies F(e1) ~ F(e2) in t2'''
+        """Check if e1~e2 in t1 implies F(e1) ~ F(e2) in t2"""
         return all(self.respects_gluing(edge) for edge in self.source.edges)
 
 
 def _get_matching_partial_from_edge(t1, t2, edge_00_im):
     def extend_to_nbrs(e, f):
-        return {(e[0], (e[1] + k) % 3):
-                    (f[0], (f[1] + k) % 3) for k in range(3)}
+        return {(e[0], (e[1] + k) % 3): (f[0], (f[1] + k) % 3)
+                for k in range(3)}
 
     tris_to_visit = deque([0])
     matching_partial = extend_to_nbrs((0, 0), edge_00_im)

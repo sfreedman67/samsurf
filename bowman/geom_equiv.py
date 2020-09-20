@@ -2,7 +2,7 @@ import sage.all
 from sage.all import *
 
 
-def is_geom_equiv(trin1, trin2, ce):
+def gen_geom_equiv(trin1, trin2, ce):
     m = _get_matrix_from_tris(trin1.triangles[0],
                               trin2.triangles[ce.perm[0]],
                               ce.shift[0])

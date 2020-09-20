@@ -2,14 +2,10 @@ import itertools
 from collections import defaultdict, namedtuple, deque
 from functools import lru_cache
 
-import sage.all
 from sage.all import *
 import flatsurf
 
-from context import bowman
-import bowman.halfplane
 from bowman import halfplane
-import bowman.idr
 from bowman import idr
 
 
@@ -17,9 +13,9 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
     __slots__ = ()
 
     def __new__(cls, v0, v1, v2):
-        if sum((v0, v1, v2)) != vector([0, 0]):
+        if sum((v0, v1, v2)) != sage.all.vector([0, 0]):
             raise ValueError("sides do not close up")
-        elif matrix([v0, -v2]).determinant() <= 0:
+        elif sage.all.matrix([v0, -v2]).determinant() <= 0:
             raise ValueError("sides are not oriented correctly")
 
         self = super(Triangle, cls).__new__(cls, v0, v1, v2)
@@ -33,11 +29,11 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
     __slots__ = ()
 
     @property
-    def coords(self):
+    def coordinates(self):
         return tuple(coord for vector in self.vectors for coord in vector)
 
     def __hash__(self):
-        return hash((self.coords,))
+        return hash((self.coordinates,))
 
     @classmethod
     def _from_id_edge(cls, trin, id_edge):
@@ -69,7 +65,7 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
     @property
     def incircle_det(self):
         """(p2 is inside/on/outisde oriented circle 0-P0-P1) iff (det </==/> 0) """
-        return matrix([[x, y, x**2 + y**2] for x, y in self.vectors]).determinant()
+        return sage.all.matrix([[x, y, x ** 2 + y ** 2] for x, y in self.vectors]).determinant()
 
     @property
     @lru_cache(None)
@@ -80,11 +76,11 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         m12 = x0 * y2 - x2 * y0
         m22 = x0 * y1 - x1 * y0
 
-        a = y0**2 * m02 - y1**2 * m12 + y2**2 * m22
+        a = y0 ** 2 * m02 - y1 ** 2 * m12 + y2 ** 2 * m22
         b = 2 * (x0 * y0 * m02 - x1 * y1 * m12 + x2 * y2 * m22)
-        c = x0**2 * m02 - x1**2 * m12 + x2**2 * m22
+        c = x0 ** 2 * m02 - x1 ** 2 * m12 + x2 ** 2 * m22
 
-        return (a, b, c)
+        return a, b, c
 
     @property
     def halfplane(self):
@@ -113,9 +109,9 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         return Triangle(*(vector for _, vector in sides_ordered))
 
     @property
-    def _IDs_boundary(self):
-        '''return the edge IDs of the boundary of the hinge
-        starting in the NE and moving Clockwise'''
+    def _ids_boundary(self):
+        """return the edge IDs of the boundary of the hinge
+        starting in the NE and moving Clockwise"""
 
         label_tri, label_edge = self.id_edge
         label_tri_opp, label_edge_opp = self.id_edge_opp
@@ -125,7 +121,7 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         NW = (label_tri_opp, (label_edge_opp + 1) % 3)
         SW = (label_tri_opp, (label_edge_opp + 2) % 3)
 
-        return (NE, SE, SW, NW)
+        return NE, SE, SW, NW
 
 
 class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"])):
@@ -136,7 +132,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         DT_polygons = [DT.polygon(i) for i in range(DT.num_polygons())]
 
-        triangles = [Triangle(*[vector(edge) for edge in polygon.edges()])
+        triangles = [Triangle(*[sage.all.vector(edge) for edge in polygon.edges()])
                      for polygon in DT_polygons]
 
         gluings = {edge[0]: edge[1] for edge in DT.edge_iterator(gluings=True)}
@@ -163,6 +159,9 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     def octagon_and_squares(cls):
         return cls._from_flatsurf(flatsurf.translation_surfaces.octagon_and_squares())
 
+    def neighbors(self, idx_tri):
+        return [self.gluings[(idx_tri, k)][0] for k in range(3)]
+
     @property
     def edges(self):
         num_triangles = len(self.triangles)
@@ -176,6 +175,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     def hinges(self):
         return [Hinge._from_id_edge(self, edge) for edge in self.edges]
 
+    @property
     def is_delaunay(self, non_degenerate=False):
         return all(hinge.incircle_det > 0
                    if non_degenerate
@@ -217,7 +217,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return triangles_new
 
     def _id_edge_after_flip(self, hinge_flipped, edge):
-        NE, SE, SW, NW = hinge_flipped._IDs_boundary
+        NE, SE, SW, NW = hinge_flipped._ids_boundary
 
         IDs_new = {NE: SE, SE: SW, SW: NW, NW: NE}
 
@@ -227,7 +227,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
     def _gluings_after_flip(self, hinge_flipped):
         return {self._id_edge_after_flip(hinge_flipped, key):
-                self._id_edge_after_flip(hinge_flipped, value)
+                    self._id_edge_after_flip(hinge_flipped, value)
                 for key, value in self.gluings.items()}
 
     def flip_hinge(self, id_edge):
@@ -255,30 +255,33 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return figure
 
     @property
-    def IDR(self):
+    def get_idr(self):
         halfplane_to_ids_hinge = self._halfplanes_to_hinges_degen
         halfplanes = list(halfplane_to_ids_hinge.keys())
 
-        P = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
+        p = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
+
+        if p is None:
+            return idr.IDR(p, {}, self)
 
         labels_segment = {idx: halfplane_to_ids_hinge[segment.halfplane]
-                          for idx, segment in enumerate(P.edges)}
+                          for idx, segment in enumerate(p.edges)}
 
-        return idr.IDR(P, labels_segment, self)
+        return idr.IDR(p, labels_segment, self)
 
-    def iso_delaunay_complex(self, limit):
-        IDR_start = self.IDR
+    def iso_delaunay_complex(self, upper_bound):
+        idr_start = self.get_idr
 
-        polygons_visited = {IDR_start.polygon}
+        polygons_visited = {idr_start.polygon}
         segments_crossed = set()
 
-        queue = deque([IDR_start])
+        queue = deque([idr_start])
 
-        while len(polygons_visited) < limit:
+        while len(polygons_visited) < upper_bound:
             IDR = queue.pop()
             segments_uncrossed = [(idx, segment)
                                   for idx, segment in enumerate(IDR.polygon.edges)
-                                  if not segment in segments_crossed]
+                                  if segment not in segments_crossed]
 
             for idx_segment, segment in segments_uncrossed:
                 IDR_new = IDR.cross_segment(idx_segment)
