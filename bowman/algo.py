@@ -5,6 +5,7 @@ import sage.all
 from bowman.triangulation import Triangulation
 from bowman.comb_equiv import gen_comb_equivs
 from bowman.geom_equiv import gen_geom_equiv
+from bowman.mobius import apply_mobius
 
 '''
 Compute R0 from T0
@@ -42,22 +43,32 @@ def generators_veech(trin: Triangulation) -> sage.all.MatrixGroup:
     """
     r0 = trin.get_idr
     polygons_visited = {r0.polygon}
-    queue = deque([r0])
+    edges_crossed = set()
+    edges_zipped = set()
+    idrs_to_visit = deque([r0])
     fund_dom = [r0]
     gens = []
 
-    while queue:
-        idr_curr = queue.pop()
-        for neighbor in (x for x in idr_curr.neighbors
-                         if x.polygon not in polygons_visited):
-            polygons_visited.add(neighbor.polygon)
-            ves = [ve for r in fund_dom
-                   for ve in get_veech_equivs(neighbor, r)]
-            if ves:
-                gens.append(sigma(ves[0]))
-            else:
-                fund_dom.append(neighbor)
-                queue.appendleft(neighbor)
+    while idrs_to_visit:
+        idr_curr = idrs_to_visit.pop()
+        for idx, edge in enumerate(idr_curr.polygon.edges):
+            if edge not in edges_crossed and edge.endpoints not in edges_zipped:
+                edges_crossed |= {edge, edge.reverse()}
+                neighbor = idr_curr.cross_segment(idx)
+                if neighbor.polygon not in polygons_visited:
+                    polygons_visited.add(neighbor.polygon)
+                    ves = [ve for r in fund_dom
+                           for ve in get_veech_equivs(neighbor, r)]
+                    if ves:
+                        m = sigma(ves[0])
+                        edges_zipped |= {(apply_mobius(m, edge.start),
+                                         apply_mobius(m, edge.end)),
+                                         (apply_mobius(m,  edge.end),
+                                          apply_mobius(m, edge.start))}
+                        gens.append(m)
+                    else:
+                        fund_dom.append(neighbor)
+                        idrs_to_visit.appendleft(neighbor)
     print(f"len(fund_dom)={len(fund_dom)}")
     print(f"num_gens = {len(gens)}")
     return sage.all.MatrixGroup(gens)

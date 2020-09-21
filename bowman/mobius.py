@@ -26,7 +26,8 @@ def _apply_mobius_rational(m, pt):
 def _apply_mobius_endpoint(m, pt):
     [[a, b], [c, d]] = m
     (A, B, C), _ = pt
-
+    if c != 0 and pt.u == Radical(-d/c, 0, 0):
+        return oo
     num = Radical(a * A + b, a * B, C)
     denom = Radical(c * A + d, c * B, C)
     return Point(Radical.simplify_fraction(num, denom), 0)
