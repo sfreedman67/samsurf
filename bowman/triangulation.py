@@ -7,6 +7,7 @@ import flatsurf
 
 from bowman import halfplane
 from bowman import idr
+from bowman import algo
 
 
 class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
@@ -159,6 +160,36 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     def octagon_and_squares(cls):
         return cls._from_flatsurf(flatsurf.translation_surfaces.octagon_and_squares())
 
+    @classmethod
+    def mcmullen_l(cls, a, b):
+        def triangulate_rectangle(base, height):
+            triangle_lower = Triangle(sage.all.vector([0, height]),
+                                      sage.all.vector([-base, -height]),
+                                      sage.all.vector([base, 0]))
+            triangle_upper = Triangle(sage.all.vector([0, -height]),
+                                      sage.all.vector([base, height]),
+                                      sage.all.vector([-base, 0]))
+            return [triangle_lower, triangle_upper]
+
+        if not (a > 1 and b > 1):
+            raise ValueError("Need to have a, b > 1")
+        elif a.parent() != b.parent():
+            raise ValueError("a, b need to come from same field")
+        triangles = [*triangulate_rectangle(2, 2),
+                     *triangulate_rectangle(b - 1, 2),
+                     *triangulate_rectangle(2, a - 1),
+                     *triangulate_rectangle(b - 1, 2),
+                     *triangulate_rectangle(2, a - 1)]
+
+        gluings = {(0, 0): (3, 0), (0, 1): (1, 1), (0, 2): (9, 2),
+                   (1, 0): (6, 0), (1, 2): (4, 2), (2, 0): (7, 0),
+                   (2, 1): (3, 1), (2, 2): (3, 2), (4, 0): (5, 0),
+                   (4, 1): (5, 1), (5, 2): (8, 2), (6, 1): (7, 1),
+                   (6, 2): (7, 2), (8, 0): (9, 0), (8, 1): (9, 1)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(triangles, gluings, a.parent())
+
     def neighbors(self, idx_tri):
         return [self.gluings[(idx_tri, k)][0] for k in range(3)]
 
@@ -175,7 +206,6 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     def hinges(self):
         return [Hinge._from_id_edge(self, edge) for edge in self.edges]
 
-    @property
     def is_delaunay(self, non_degenerate=False):
         return all(hinge.incircle_det > 0
                    if non_degenerate
@@ -292,3 +322,31 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                     queue.appendleft(IDR_new)
 
         return list(polygons_visited)
+
+    @property
+    def generators_veech(self):
+        return algo.generators_veech(self)
+
+
+if __name__ == "__main__":
+    X = Triangulation.mcmullen_l(QQ(4), QQ(4))
+    r = X.get_idr
+    r0, r1, r2 = r.neighbors
+    r10, r11, r12 = r1.neighbors
+    r100, r101, r102 = r10.neighbors
+
+    # sum(j.plot() for j in [r, r1, r10]).show()
+    # import cProfile
+    # cProfile.run('X.generators_veech', 'stats_generators_veech')
+    import pstats
+    from pstats import SortKey
+    p = pstats.Stats('stats_generators_veech')
+    p.strip_dirs().sort_stats(SortKey.TIME).print_stats(10)
+    p.dump_stats('stats_generators_veech')
+    # cx = X.iso_delaunay_complex(500)
+    # sum(p.plot() for p in cx).show(xmin=-2, xmax=0, ymax=2)
+
+    # from bowman import mobius
+    # m = sage.all.matrix([[5, 9], [-4, -7]])
+    # print([p for p in r101.polygon.vertices])
+    # print([mobius.apply_mobius(m, p) for p in r101.polygon.vertices])

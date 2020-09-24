@@ -5,13 +5,11 @@ from functools import lru_cache
 import sage.all
 from sage.all import *
 
-from context import bowman
+
 import bowman.radical
 from bowman import radical
 import bowman.polygon
 from bowman import polygon
-import bowman.intersect_convex_polygons
-from bowman import intersect_convex_polygons
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
@@ -20,7 +18,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     @classmethod
     @lru_cache(None)
     def from_ineq(cls, a, b, c):
-        if b**2 - 4 * a * c <= 0:
+        if b ** 2 - 4 * a * c <= 0:
             raise ValueError("Coeffs are degenerate")
         elif a == 0 and b > 0:
             return Line(0, 1, c / b)
@@ -65,7 +63,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def _plug_in_point(self, A, B, C, v2):
         a, b, c = self
 
-        A1 = a * (A**2 + B**2 * C + v2) + b * A + c
+        A1 = a * (A ** 2 + B ** 2 * C + v2) + b * A + c
         B1 = a * 2 * A * B + b * B
         C1 = C
 
@@ -203,7 +201,7 @@ class Line(HalfPlane):
         b2, c2 = other.b / other.a, other.c / other.a
 
         u = -c1
-        v2 = -(u**2 + b2 * u + c2)
+        v2 = -(u ** 2 + b2 * u + c2)
 
         return None if v2 < 0 else polygon.Point(u, v2)
 
@@ -225,7 +223,7 @@ class Circle(HalfPlane):
 
     @property
     def radius2(self):
-        return (self.b**2 - 4 * self.a * self.c) / 4
+        return (self.b ** 2 - 4 * self.a * self.c) / 4
 
     @property
     def is_oriented(self):
@@ -267,7 +265,7 @@ class Circle(HalfPlane):
         else:
             b1, c1 = self.b, self.c
         if other.is_oriented:
-            b2, c2 = -other.b, -other.c 
+            b2, c2 = -other.b, -other.c
         else:
             b2, c2 = other.b, other.c
 
@@ -275,7 +273,7 @@ class Circle(HalfPlane):
             return None
         else:
             u = (c2 - c1) / (b1 - b2)
-            v2 = -(b1 * u + c1 + u**2)
+            v2 = -(b1 * u + c1 + u ** 2)
 
             return None if v2 < 0 else polygon.Point(u, v2)
 

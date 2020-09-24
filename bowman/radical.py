@@ -74,8 +74,13 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
 
         if c != f:
             raise ValueError("Radicals are not equal")
+        elif Radical.sign(*r2) == 0:
+            raise ValueError("Denominator is zero")
 
-        denom = d**2 - (ee**2)*c
-        a1 = (a * d - b * ee * c) / denom
-        b1 = (b * d - a * ee) / denom
-        return Radical(a1, b1, c)
+        if Radical.sign(d, -ee, c) == 0:
+            return Radical(a / (2 * d), b / (2 * d), c)
+        else:
+            denom = d**2 - (ee**2)*c
+            a1 = (a * d - b * ee * c) / denom
+            b1 = (b * d - a * ee) / denom
+            return Radical(a1, b1, c)

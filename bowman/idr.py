@@ -18,3 +18,6 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
     @property
     def neighbors(self):
         return [self.cross_segment(k) for k in range(len(self.polygon.edges))]
+
+    def plot(self):
+        return self.polygon.plot()
