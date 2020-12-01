@@ -1,6 +1,7 @@
 import unittest
 import cProfile
 import pstats
+from unittest import TestCase
 
 import sage.all
 from sage.all import *
@@ -46,7 +47,7 @@ class TestEdgeReps(unittest.TestCase):
 
         T2 = triangulation.Triangulation.regular_octagon()
         self.assertEqual(T2.edges, [
-                         (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)])
+            (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)])
 
 
 class TestEdgeInequality(unittest.TestCase):
@@ -122,8 +123,13 @@ class TestFlipHinge(unittest.TestCase):
 
         self.assertEqual(X_flipped.triangles, answer_triangles)
 
-        gluings_new = {(0, 0): (4, 2), (0, 1): (10, 2), (0, 2): (8, 2), (1, 0): (5, 2), (1, 1): (4, 1), (1, 2): (11, 2), (2, 0): (8, 0), (2, 1): (3, 1), (2, 2): (6, 0), (3, 0): (9, 0), (3, 1): (2, 1), (3, 2): (7, 0), (4, 0): (5, 1), (4, 1): (1, 1), (4, 2): (0, 0), (5, 0): (9, 2), (5, 1): (4, 0), (5, 2): (
-            1, 0), (6, 0): (2, 2), (6, 1): (7, 1), (6, 2): (10, 0), (7, 0): (3, 2), (7, 1): (6, 1), (7, 2): (11, 0), (8, 0): (2, 0), (8, 1): (9, 1), (8, 2): (0, 2), (9, 0): (3, 0), (9, 1): (8, 1), (9, 2): (5, 0), (10, 0): (6, 2), (10, 1): (11, 1), (10, 2): (0, 1), (11, 0): (7, 2), (11, 1): (10, 1), (11, 2): (1, 2)}
+        gluings_new = {(0, 0): (4, 2), (0, 1): (10, 2), (0, 2): (8, 2), (1, 0): (5, 2), (1, 1): (4, 1), (1, 2): (11, 2),
+                       (2, 0): (8, 0), (2, 1): (3, 1), (2, 2): (6, 0), (3, 0): (9, 0), (3, 1): (2, 1), (3, 2): (7, 0),
+                       (4, 0): (5, 1), (4, 1): (1, 1), (4, 2): (0, 0), (5, 0): (9, 2), (5, 1): (4, 0), (5, 2): (
+                1, 0), (6, 0): (2, 2), (6, 1): (7, 1), (6, 2): (10, 0), (7, 0): (3, 2), (7, 1): (6, 1), (7, 2): (11, 0),
+                       (8, 0): (2, 0), (8, 1): (9, 1), (8, 2): (0, 2), (9, 0): (3, 0), (9, 1): (8, 1), (9, 2): (5, 0),
+                       (10, 0): (6, 2), (10, 1): (11, 1), (10, 2): (0, 1), (11, 0): (7, 2), (11, 1): (10, 1),
+                       (11, 2): (1, 2)}
 
         self.assertEqual(X_flipped.gluings, gluings_new)
 
@@ -156,7 +162,7 @@ class Test_Generate_IsoDelaunay_Complex(unittest.TestCase):
 
         answers = [1, 5, 5, 11, 16, 32, 66, 128]
 
-        for num_regions, answer in zip([2**p for p in range(8)], answers):
+        for num_regions, answer in zip([2 ** p for p in range(8)], answers):
             cx = X.iso_delaunay_complex(num_regions)
             self.assertEqual(len(cx), answer)
             # fig = sum(polygon.plot() for polygon in cx)
@@ -171,3 +177,13 @@ if __name__ == "__main__":
     s = pstats.Stats("complex.profile")
     s.dump_stats("complex.pstats")
     s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(.05)
+
+
+class TestHinge(TestCase):
+    def test_is_convex(self):
+        h1 = triangulation.Hinge([vector([1, 0]), vector([1, 1]), vector([0, 1])], (0, 0), (0, 0))
+        self.assertTrue(h1.is_convex)
+
+        h2 = triangulation.Hinge([vector([1, -1]), vector([0, 1]), vector([-1, -1])], (0, 0), (0, 0))
+        self.assertFalse(h2.is_convex)
+

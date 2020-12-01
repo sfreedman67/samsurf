@@ -5,10 +5,7 @@ from functools import lru_cache
 import sage.all
 from sage.all import *
 
-
-import bowman.radical
 from bowman import radical
-import bowman.polygon
 from bowman import polygon
 
 
@@ -21,13 +18,13 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         if b ** 2 - 4 * a * c <= 0:
             raise ValueError("Coeffs are degenerate")
         elif a == 0 and b > 0:
-            return Line(0, 1, c / b)
+            return Line(QQ(0), QQ(1), c / b)
         elif a == 0 and b < 0:
-            return Line(0, -1, -c / b)
+            return Line(QQ(0), QQ(-1), -c / b)
         elif a > 0:
-            return Circle(1, b / a, c / a)
+            return Circle(QQ(1), b / a, c / a)
         else:
-            return Circle(-1, -b / a, -c / a)
+            return Circle(QQ(-1), -b / a, -c / a)
 
     def __repr__(self):
         term_quadratic = f"[{self.a}](u^2 + v^2)+" if self.a != 0 else ""
@@ -49,7 +46,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
     @property
     def endpoints(self):
-        return (self.start, self.end)
+        return self.start, self.end
 
     @property
     def _point_inside(self):
@@ -146,6 +143,16 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     def reorient(self):
         a, b, c = self
         return HalfPlane.from_ineq(-a, -b, -c)
+
+    def apply_mobius(self, m):
+        [[a, b], [c, d]] = m
+        u, v, w = self
+
+        u1 = (c ** 2) * w - c * d * v + (d ** 2) * u
+        v1 = -2 * a * c * w + a * d * v + b * c * v - 2 * b * d * u
+        w1 = (a ** 2) * w - a * b * v + (b ** 2) * u
+
+        return HalfPlane.from_ineq(u1, v1, w1)
 
     def plot(self):
         # For circles: Below Blue, Above Orange

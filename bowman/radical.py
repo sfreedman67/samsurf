@@ -21,17 +21,16 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
 
     @property
     def value(self):
-        if self.B == 0 or self.C == 0:
-            return self.A
-        elif self.C.is_square():
-            return self.A + self.B * self.C.sqrt()
         return QQbar(self.A) + QQbar(self.B) * QQbar(self.C).sqrt()
+
+    def __repr__(self):
+        return f"{self.value}"
 
     def __hash__(self):
         return hash(self.value)
 
     def __eq__(self, other):
-        ''' Checks whether A + B sqrt(C) == D + E sqrt(F)'''
+        """ Checks whether A + B sqrt(C) == D + E sqrt(F)"""
         if not isinstance(other, Radical):
             return NotImplemented
         A, B, C = self
@@ -80,7 +79,7 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
         if Radical.sign(d, -ee, c) == 0:
             return Radical(a / (2 * d), b / (2 * d), c)
         else:
-            denom = d**2 - (ee**2)*c
+            denom = d ** 2 - (ee ** 2) * c
             a1 = (a * d - b * ee * c) / denom
             b1 = (b * d - a * ee) / denom
             return Radical(a1, b1, c)

@@ -17,16 +17,16 @@ def _apply_mobius_rational(m, pt):
     if c != 0 and v2 == 0 and u == -d / c:
         return oo
     num_real = (a * u + b) * (c * u + d) + a * c * v2
-    num_imag2 = v2 * (a*d - b*c)
-    denom = c**2 * v2 + (c * u + d)**2
+    num_imag2 = v2 * (a * d - b * c)
+    denom = c ** 2 * v2 + (c * u + d) ** 2
 
-    return Point(num_real/denom, num_imag2/denom**2)
+    return Point(num_real / denom, num_imag2 / denom ** 2)
 
 
 def _apply_mobius_endpoint(m, pt):
     [[a, b], [c, d]] = m
     (A, B, C), _ = pt
-    if c != 0 and pt.u == Radical(-d/c, 0, 0):
+    if c != 0 and pt.u == Radical(-d / c, 0, 0):
         return oo
     num = Radical(a * A + b, a * B, C)
     denom = Radical(c * A + d, c * B, C)
@@ -36,7 +36,6 @@ def _apply_mobius_endpoint(m, pt):
 def apply_mobius(m, pt):
     if pt == oo:
         return _apply_mobius_infinity(m)
-    # TODO I hate this conditional
     elif pt.u.B == pt.u.C == 0:
         return _apply_mobius_rational(m, pt)
     return _apply_mobius_endpoint(m, pt)

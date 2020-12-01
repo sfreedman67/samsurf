@@ -19,7 +19,6 @@ from bowman import triangulation
 class TestIntersectHalfPlanes(unittest.TestCase):
 
     def setUp(self):
-
         self.circle_neg1_pos1 = halfplane.HalfPlane.from_ineq(
             ZZ(1), ZZ(0), ZZ(-1))
         self.circle_phi_phibar = halfplane.HalfPlane.from_ineq(
@@ -134,14 +133,12 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                               [polygon.Edge(h20, s20, e20), polygon.Edge(None, e20, s20)])
 
     def test_intersect_AY3(self):
-
         X = triangulation.Triangulation.arnoux_yoccoz(3)
         alpha = X.field.gen()
 
         H = X.halfplanes
 
         output_final = halfplane.HalfPlane.intersect_halfplanes(H)
-
 
         p16 = H[1].intersect_boundaries(H[6])
         p6_11 = H[6].intersect_boundaries(H[11])
@@ -153,7 +150,6 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                         polygon.Edge(H[13], p11_13, p13_1),
                         polygon.Edge(H[1], p13_1, p16)]
 
-        
         self.assertCountEqual(output_final.edges, answer_final)
 
     def test_regular_octagon(self):
@@ -168,9 +164,8 @@ class TestIntersectHalfPlanes(unittest.TestCase):
                    (4 * a + 4, -4, 0),
                    (2 * a - 2, -4 * a + 6, 0)]
 
-        
-        R1 = radical.Radical(-K(1/2) * a + K(1/2), 1, -K(1/2) * a + K(3/4))
-        R2 = radical.Radical(K(1/2) * a - K(1/2), -1, -K(1/2) * a + K(3/4))
+        R1 = radical.Radical(-K(1 / 2) * a + K(1 / 2), 1, -K(1 / 2) * a + K(3 / 4))
+        R2 = radical.Radical(K(1 / 2) * a - K(1 / 2), -1, -K(1 / 2) * a + K(3 / 4))
         self.assertEqual(R1, R2)
 
         halfplanes39 = list(set(halfplane.HalfPlane.from_ineq(*ineq)
@@ -194,6 +189,7 @@ def run_only_one_test(name):
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
+
 
 if __name__ == "__main__":
     unittest.main(failfast=False, verbosity=2)

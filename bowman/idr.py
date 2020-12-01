@@ -5,15 +5,15 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
     __slots__ = ()
 
     @property
-    def is_nontrivial(self):
-        return self.polygon is not None and len(self.polygon.edges) > 2
+    def is_trivial(self):
+        return self.polygon is None or len(self.polygon.edges) <= 2
 
     def cross_segment(self, idx_segment):
         hinges_degenerated = self.labels_segment[idx_segment]
 
         triangulation_new = self.triangulation.flip_hinges(hinges_degenerated)
 
-        return triangulation_new.get_idr
+        return triangulation_new.idr
 
     @property
     def neighbors(self):

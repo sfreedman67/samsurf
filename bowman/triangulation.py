@@ -7,6 +7,7 @@ import flatsurf
 
 from bowman import halfplane
 from bowman import idr
+from bowman import comb_equiv
 from bowman import algo
 
 
@@ -14,7 +15,7 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
     __slots__ = ()
 
     def __new__(cls, v0, v1, v2):
-        if sum((v0, v1, v2)) != sage.all.vector([0, 0]):
+        if sum((v0, v1, v2)) != 0:
             raise ValueError("sides do not close up")
         elif sage.all.matrix([v0, -v2]).determinant() <= 0:
             raise ValueError("sides are not oriented correctly")
@@ -22,8 +23,27 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
         self = super(Triangle, cls).__new__(cls, v0, v1, v2)
         return self
 
-    def apply_matrix(self, M):
-        return Triangle(*(M * side for side in self))
+    def reflect(self, idx):
+        def reflect_vector(v, w):
+            w_parallel = (v.dot_product(w) / v.dot_product(v)) * v
+            w_perp = w - w_parallel
+            return w - 2 * w_perp
+
+        v_axis = self[idx]
+        v_succ = self[(idx + 1) % 3]
+        v_pred = self[(idx + 2) % 3]
+        sides_new = {idx: -v_axis,
+                     (idx + 1) % 3: reflect_vector(v_axis, -v_pred),
+                     (idx + 2) % 3: reflect_vector(v_axis, -v_succ)}
+        return Triangle(sides_new[0], sides_new[1], sides_new[2])
+
+    def plot(self):
+        coords = [(0, 0), self.v0, -self.v2]
+        return sage.all.polygon2d(coords).plot()
+
+    def __hash__(self):
+        coords = tuple(coord for v in self for coord in v)
+        return hash(coords)
 
 
 class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
@@ -58,6 +78,19 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         v2 = -tri_opp[(label_edge_opp - 1) % 3]
 
         return Hinge((v0, v1, v2), id_edge, id_edge_opp)
+
+    @property
+    def is_convex(self):
+        v0, v1, v2 = self.vectors
+        boundary = [v0, v1 - v0, v2 - v1, -v2]
+        crosses = [w0x * w1y - w1x * w0y
+                   for (w0x, w0y), (w1x, w1y)
+                   in zip(boundary, boundary[1:] + boundary[:1])]
+
+        all_positive = all(bool(cross > 0) for cross in crosses)
+        all_negative = all(bool(cross < 0) for cross in crosses)
+
+        return all_positive or all_negative
 
     def flip(self):
         v0, v1, v2 = self.vectors
@@ -125,7 +158,7 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         return NE, SE, SW, NW
 
 
-class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"])):
+class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
 
     @classmethod
     def _from_flatsurf(cls, X):
@@ -138,9 +171,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
         gluings = {edge[0]: edge[1] for edge in DT.edge_iterator(gluings=True)}
 
-        field = DT.base_ring()
-
-        return Triangulation(triangles, gluings, field)
+        return Triangulation(triangles, gluings)
 
     @classmethod
     def square_torus(cls):
@@ -148,7 +179,36 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
 
     @classmethod
     def regular_octagon(cls):
-        return cls._from_flatsurf(flatsurf.translation_surfaces.regular_octagon())
+        k = QuadraticField(2)
+        a = k.gen()
+
+        triangles = [Triangle(sage.all.vector([QQ(1 / 2) * a - 1, QQ(1 / 2) * a]),
+                              sage.all.vector([-a, 0]),
+                              sage.all.vector([QQ(1 / 2) * a + 1, -QQ(1 / 2) * a])),
+                     Triangle(sage.all.vector([-QQ(1 / 2) * a - 1, QQ(1 / 2) * a]),
+                              sage.all.vector([QQ(1 / 2) * a - 1, -QQ(1 / 2) * a]),
+                              sage.all.vector([2, 0])),
+                     Triangle(sage.all.vector([-2, 0]),
+                              sage.all.vector([QQ(1 / 2) * a + 1, -QQ(1 / 2) * a]),
+                              sage.all.vector([-QQ(1 / 2) * a + 1, QQ(1 / 2) * a])),
+                     Triangle(sage.all.vector([-QQ(1 / 2) * a, -QQ(1 / 2) * a + 1]),
+                              sage.all.vector([-QQ(1 / 2) * a, QQ(1 / 2) * a - 1]),
+                              sage.all.vector([a, 0])),
+                     Triangle(sage.all.vector([-QQ(1 / 2) * a + 1, -QQ(1 / 2) * a]),
+                              sage.all.vector([a, 0]),
+                              sage.all.vector([-QQ(1 / 2) * a - 1, QQ(1 / 2) * a])),
+                     Triangle(sage.all.vector([QQ(1 / 2) * a, QQ(1 / 2) * a - 1]),
+                              sage.all.vector([QQ(1 / 2) * a, -QQ(1 / 2) * a + 1]),
+                              sage.all.vector([-a, 0]))]
+
+        gluings = {(0, 0): (4, 0), (0, 1): (3, 2), (0, 2): (1, 0),
+                   (1, 0): (0, 2), (1, 1): (2, 2), (1, 2): (2, 0),
+                   (2, 0): (1, 2), (2, 1): (4, 2), (2, 2): (1, 1),
+                   (3, 0): (5, 0), (3, 1): (5, 1), (3, 2): (0, 1),
+                   (4, 0): (0, 0), (4, 1): (5, 2), (4, 2): (2, 1),
+                   (5, 0): (3, 0), (5, 1): (3, 1), (5, 2): (4, 1)}
+
+        return Triangulation(triangles, gluings)
 
     @classmethod
     def arnoux_yoccoz(cls, g):
@@ -160,26 +220,27 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
     def octagon_and_squares(cls):
         return cls._from_flatsurf(flatsurf.translation_surfaces.octagon_and_squares())
 
+    @staticmethod
+    def _triangulate_rectangle(base, height):
+        triangle_lower = Triangle(sage.all.vector([0, height]),
+                                  sage.all.vector([-base, -height]),
+                                  sage.all.vector([base, 0]))
+        triangle_upper = Triangle(sage.all.vector([0, -height]),
+                                  sage.all.vector([base, height]),
+                                  sage.all.vector([-base, 0]))
+        return [triangle_lower, triangle_upper]
+
     @classmethod
     def mcmullen_l(cls, a, b):
-        def triangulate_rectangle(base, height):
-            triangle_lower = Triangle(sage.all.vector([0, height]),
-                                      sage.all.vector([-base, -height]),
-                                      sage.all.vector([base, 0]))
-            triangle_upper = Triangle(sage.all.vector([0, -height]),
-                                      sage.all.vector([base, height]),
-                                      sage.all.vector([-base, 0]))
-            return [triangle_lower, triangle_upper]
-
         if not (a > 1 and b > 1):
             raise ValueError("Need to have a, b > 1")
         elif a.parent() != b.parent():
             raise ValueError("a, b need to come from same field")
-        triangles = [*triangulate_rectangle(2, 2),
-                     *triangulate_rectangle(b - 1, 2),
-                     *triangulate_rectangle(2, a - 1),
-                     *triangulate_rectangle(b - 1, 2),
-                     *triangulate_rectangle(2, a - 1)]
+        triangles = [*Triangulation._triangulate_rectangle(2, 2),
+                     *Triangulation._triangulate_rectangle(b - 1, 2),
+                     *Triangulation._triangulate_rectangle(2, a - 1),
+                     *Triangulation._triangulate_rectangle(b - 1, 2),
+                     *Triangulation._triangulate_rectangle(2, a - 1)]
 
         gluings = {(0, 0): (3, 0), (0, 1): (1, 1), (0, 2): (9, 2),
                    (1, 0): (6, 0), (1, 2): (4, 2), (2, 0): (7, 0),
@@ -188,19 +249,54 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                    (6, 2): (7, 2), (8, 0): (9, 0), (8, 1): (9, 1)}
         gluings.update({v: k for k, v in gluings.items()})
 
-        return Triangulation(triangles, gluings, a.parent())
+        return Triangulation(triangles, gluings)
+
+    @classmethod
+    def mcmullen_s(cls, a):
+        triangles = [tri for dimensions in [(1, 1), (1 + a, 1), (1 + a, a), (a, a)]
+                     for tri in Triangulation._triangulate_rectangle(*dimensions)]
+        gluings = {(0, 0): (3, 0), (0, 1): (1, 1), (0, 2): (1, 2),
+                   (1, 0): (2, 0), (3, 2): (4, 2), (2, 1): (3, 1),
+                   (2, 2): (5, 2), (4, 0): (7, 0), (4, 1): (5, 1),
+                   (5, 0): (6, 0), (6, 1): (7, 1), (6, 2): (7, 2)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(triangles, gluings)
+
+    @classmethod
+    def ronen_l(cls, d):
+        if d < 5 or d % 4 not in [0, 1]:
+            raise ValueError("Must have d = 0 or 1 mod 4, d >= 5")
+        c = 0 if d % 2 == 0 else -1
+        length_rectangle = (d - c * c) // 4
+
+        if not ZZ(d).is_square():
+            k_rootd = QuadraticField(d)
+            rootd = k_rootd.gen()
+        else:
+            rootd = sqrt(ZZ(d))
+
+        side_square = (c + rootd) / 2
+
+        dimensions = [(side_square, 1), (length_rectangle - side_square, 1), (side_square, side_square)]
+        triangles = [tri for dims in dimensions for tri in Triangulation._triangulate_rectangle(*dims)]
+
+        gluings_boundary = {(0, 2): (5, 2), (2, 2): (3, 2), (2, 0): (1, 0), (4, 0): (5, 0)}
+        gluings_interior = {(0, 1): (1, 1), (2, 1): (3, 1), (4, 1): (5, 1),
+                            (0, 0): (3, 0), (1, 2): (4, 2)}
+
+        gluings = {**gluings_interior, **gluings_boundary}
+        gluings.update({val: key for key, val in gluings.items()})
+
+        return Triangulation(triangles, gluings)
 
     def neighbors(self, idx_tri):
         return [self.gluings[(idx_tri, k)][0] for k in range(3)]
 
     @property
     def edges(self):
-        num_triangles = len(self.triangles)
-        edges = itertools.product(range(num_triangles), range(3))
-        return [edge for edge in edges if edge < self.gluings[edge]]
-
-    def apply_matrix(self, M):
-        return Triangulation([triangle.apply_matrix(M) for triangle in self.triangles], self.gluings, self.field)
+        return [edge for edge in itertools.product(range(len(self.triangles)), range(3))
+                if edge < self.gluings[edge]]
 
     @property
     def hinges(self):
@@ -211,6 +307,17 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                    if non_degenerate
                    else hinge.incircle_det >= 0
                    for hinge in self.hinges)
+
+    def change_delaunay_triangulation(self):
+        if not self.is_delaunay():
+            raise ValueError("Starting triangulation isn't Delaunay")
+        elif self.is_delaunay(non_degenerate=True):
+            return self
+        while True:
+            idx = randint(0, len(self.hinges) - 1)
+            h = self.hinges[idx]
+            if h.is_convex and h.incircle_det == 0:
+                return self.flip_hinge(h.id_edge)
 
     @property
     def halfplanes(self):
@@ -261,11 +368,13 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
                 for key, value in self.gluings.items()}
 
     def flip_hinge(self, id_edge):
-        hinge_flipped = Hinge._from_id_edge(self, id_edge).flip()
+        hinge = Hinge._from_id_edge(self, id_edge)
+        if not hinge.is_convex:
+            raise ValueError("Cannot flip concave hinge")
+        hinge_flipped = hinge.flip()
 
         return Triangulation(self._triangles_after_flip(hinge_flipped),
-                             self._gluings_after_flip(hinge_flipped),
-                             self.field)
+                             self._gluings_after_flip(hinge_flipped))
 
     def flip_hinges(self, ids_edges):
         triangulation = self
@@ -285,7 +394,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return figure
 
     @property
-    def get_idr(self):
+    def idr(self):
         halfplane_to_ids_hinge = self._halfplanes_to_hinges_degen
         halfplanes = list(halfplane_to_ids_hinge.keys())
 
@@ -300,7 +409,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return idr.IDR(p, labels_segment, self)
 
     def iso_delaunay_complex(self, upper_bound):
-        idr_start = self.get_idr
+        idr_start = self.idr
 
         polygons_visited = {idr_start.polygon}
         segments_crossed = set()
@@ -324,29 +433,16 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings", "field"
         return list(polygons_visited)
 
     @property
+    def code_comb(self):
+        return min(comb_equiv.generate_code_marked(self, tri, edge)
+                   for tri in range(len(self.triangles))
+                   for edge in range(3))
+
+    @property
     def generators_veech(self):
         return algo.generators_veech(self)
 
 
 if __name__ == "__main__":
-    X = Triangulation.mcmullen_l(QQ(4), QQ(4))
-    r = X.get_idr
-    r0, r1, r2 = r.neighbors
-    r10, r11, r12 = r1.neighbors
-    r100, r101, r102 = r10.neighbors
-
-    # sum(j.plot() for j in [r, r1, r10]).show()
-    # import cProfile
-    # cProfile.run('X.generators_veech', 'stats_generators_veech')
-    import pstats
-    from pstats import SortKey
-    p = pstats.Stats('stats_generators_veech')
-    p.strip_dirs().sort_stats(SortKey.TIME).print_stats(10)
-    p.dump_stats('stats_generators_veech')
-    # cx = X.iso_delaunay_complex(500)
-    # sum(p.plot() for p in cx).show(xmin=-2, xmax=0, ymax=2)
-
-    # from bowman import mobius
-    # m = sage.all.matrix([[5, 9], [-4, -7]])
-    # print([p for p in r101.polygon.vertices])
-    # print([mobius.apply_mobius(m, p) for p in r101.polygon.vertices])
+    X = Triangulation.ronen_l(44)
+    print(X.generators_veech)

@@ -8,22 +8,9 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
         return f"CombEquiv(perm={self.perm}, shift={self.shift})"
 
     @classmethod
-    def _from_matching_partial(cls, matching_partial, source, target):
-        perm = []
-        shifts = []
-
-        for edge in [(k, 0) for k in range(len(source.triangles))]:
-            lab_tri_im, lab_edge_im = matching_partial[edge]
-            perm.append(lab_tri_im)
-            shifts.append((lab_edge_im - edge[1]) % 3)
-
-        return CombEquiv(tuple(perm), tuple(shifts), source, target)
-
-    @classmethod
     def from_edge(cls, t1, t2, e):
-        matching_partial = _get_matching_partial_from_edge(t1, t2, e)
-
-        return CombEquiv._from_matching_partial(*matching_partial)
+        perm, shifts = _get_equiv_from_edge_initial(t1, t2, e)
+        return CombEquiv(tuple(perm), tuple(shifts), t1, t2)
 
     def move(self, edge):
         idx_tri, idx_edge = edge
@@ -42,29 +29,27 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
         return all(self.respects_gluing(edge) for edge in self.source.edges)
 
 
-def _get_matching_partial_from_edge(t1, t2, edge_00_im):
-    def extend_to_nbrs(e, f):
-        return {(e[0], (e[1] + k) % 3): (f[0], (f[1] + k) % 3)
-                for k in range(3)}
+def _get_equiv_from_edge_initial(t1, t2, edge_00_im):
+    perm = [0] * len(t1.triangles)
+    shifts = [0] * len(t1.triangles)
+    perm[0], shifts[0] = edge_00_im
+    return _develop_matching(perm, shifts, t1, t2)
 
+
+def _develop_matching(perm, shifts, t1, t2):
     tris_to_visit = deque([0])
-    matching_partial = extend_to_nbrs((0, 0), edge_00_im)
-
     tris_visited = {0}
-    while len(tris_visited) != len(t1.triangles):
-        tri_curr = tris_to_visit.pop()
-        edges_curr = [(tri_curr, k) for k in range(3)]
-        for edge in edges_curr:
-            edge_nbr = t1.gluings[edge]
-            edge_im = matching_partial[edge]
-            edge_im_nbr = t2.gluings[edge_im]
-            tri_nbr = edge_nbr[0]
+    while tris_to_visit:
+        tri = tris_to_visit.pop()
+        for edge in range(3):
+            tri_nbr, edge_nbr = t1.gluings[(tri, edge)]
             if tri_nbr not in tris_visited:
-                matching_partial.update(extend_to_nbrs(edge_nbr, edge_im_nbr))
                 tris_visited.add(tri_nbr)
+                tri_im, edge_im = perm[tri], (edge + shifts[tri]) % 3
+                tri_im_nbr, edge_im_nbr = t2.gluings[(tri_im, edge_im)]
+                perm[tri_nbr], shifts[tri_nbr] = tri_im_nbr, (edge_im_nbr - edge_nbr) % 3
                 tris_to_visit.appendleft(tri_nbr)
-
-    return matching_partial, t1, t2
+    return tuple(perm), tuple(shifts)
 
 
 def gen_comb_equivs(t1, t2):
@@ -73,3 +58,28 @@ def gen_comb_equivs(t1, t2):
                       for idx_edge in range(3)]
 
     return [x for x in poss_matchings if x.respects_gluings]
+
+
+def canonical_relabel(t, tri, edge):
+    relabeling = {(tri, (edge + k) % 3): (0, k) for k in range(3)}
+    tris_marked_to_visit = deque([(tri, edge)])
+    tris_visited = {tri}
+    while len(tris_visited) < len(t.triangles):
+        tri, edge = tris_marked_to_visit.pop()
+        for edge in [(edge + k) % 3 for k in range(3)]:
+            tri_nbr, edge_nbr = t.gluings[(tri, edge)]
+            if tri_nbr not in tris_visited:
+                relabeling.update({
+                    (tri_nbr, (edge_nbr + k) % 3): (len(tris_visited), (relabeling[(tri, edge)][1] + k) % 3)
+                    for k in range(3)})
+                tris_visited.add(tri_nbr)
+                tris_marked_to_visit.appendleft((tri_nbr, (edge_nbr + 1) % 3))
+    return relabeling
+
+
+def generate_code_marked(t, tri, edge):
+    relabeling = canonical_relabel(t, tri, edge)
+    gluings_new = [(relabeling[edge], relabeling[t.gluings[edge]])
+                   for edge in t.edges]
+    gluings_new_ordered = [tuple(sorted(t)) for t in gluings_new]
+    return hash(tuple(sorted(gluings_new_ordered)))

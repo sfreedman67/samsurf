@@ -2,13 +2,8 @@ import sage.all
 from sage.all import *
 
 from collections import namedtuple
-import itertools
 
-from context import bowman
-import bowman.radical
 from bowman import radical
-import bowman.halfplane
-from bowman import halfplane
 
 
 class Point(namedtuple("Point", ["u", "v2"])):
@@ -21,18 +16,6 @@ class Point(namedtuple("Point", ["u", "v2"])):
             self = super(Point, cls).__new__(cls, u, v2)
 
         return self
-
-    def __repr__(self):
-        str_real = "" if self.u.value == 0 else f"({self.u})"
-        str_imag = "" if self.v2 == 0 else f"(sqrt({self.v2}))j"
-
-        if str_real == "" and str_imag == "":
-            return str(0)
-        elif str_real == "" and str_imag != "":
-            return str_imag
-        elif str_real != "" and str_imag == "":
-            return str_real
-        return str_real + " + " + str_imag
 
     @staticmethod
     def CCW(p1, p2, p3):
@@ -49,7 +32,7 @@ class Point(namedtuple("Point", ["u", "v2"])):
             return p3.u < p1.u
 
         return p1.u < p2.u
-    
+
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     __slots__ = ()
@@ -77,7 +60,52 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     def reverse(self):
         return Edge(self.halfplane.reorient(), self.end, self.start)
 
+    def angle(self, e2):
+        """
+        Compute the angle between two consecutive edges e1 and e2
+        If their common endpoint is ideal, return 0
+        :param e1: Edge
+        :param e2: Edge
+        """
+        if self.end != e2.start:
+            raise ValueError("self and e2 are not consecutive")
+        elif self.end == oo or self.end.v2 == 0:
+            return 0
+        px, py = self.end.u.value, QQbar(self.end.v2).sqrt()
+
+        v0x, v0y = e2.tangent_vector(px, py)
+        v1x, v1y = self.reverse().tangent_vector(px, py)
+
+        angle = atan2(v1y * v0x - v0y * v1x, v0x * v1x + v0y * v1y)
+        if angle < 0:
+            angle += 2 * pi
+        return angle
+
+    def tangent_vector(self, u, v):
+        a, b, _ = self.halfplane
+        if v == 0:
+            raise ValueError("tangent vector not defined for endpoints")
+        elif a == 0:
+            return sage.all.vector([0, -b])
+        else:
+            a, b = QQbar(a), QQbar(b)
+            num = -b - 2 * a * QQbar(u)
+            denom = 2 * v
+            dv_du = num / denom
+            return sage.all.vector([a, dv_du])
+
+    def apply_mobius(self, m):
+        from bowman.mobius import apply_mobius
+
+        return Edge(self.halfplane.apply_mobius(m),
+                    apply_mobius(m, self.start),
+                    apply_mobius(m, self.end))
+
     def plot(self):
+        return HyperbolicPlane().UHP().get_geodesic(*self.coordinates).plot(axes=True)
+
+    @property
+    def coordinates(self):
         if self.start == oo:
             coord_start = oo
         else:
@@ -87,8 +115,7 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
             coord_end = oo
         else:
             coord_end = CC(self.end.u.value, QQbar(self.end.v2).sqrt())
-
-        return HyperbolicPlane().UHP().get_geodesic(coord_start, coord_end).plot(axes=True)
+        return coord_start, coord_end
 
 
 class ChainHasMultipleHeadsError(Exception):
@@ -160,6 +187,12 @@ class Polygon(namedtuple("Polygon", ["edges"])):
             return None
 
         return Polygon._close_edge_chain(edges_new, halfplane)
+
+    @property
+    def area(self):
+        angle_sum = sum(Edge.angle(*es)
+                        for es in zip(self.edges, self.edges[1:] + self.edges[:1]))
+        return pi * (len(self.edges) - 2) - angle_sum
 
     def plot(self):
         return sum(edge.plot() for edge in self.edges)

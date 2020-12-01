@@ -26,7 +26,7 @@ def gen_mcmullen_l(a, b):
                (2, 2): (3, 2), (4, 0): (5, 0), (4, 1): (5, 1)}
     gluings.update({v: k for k, v in gluings.items()})
 
-    return Triangulation(triangles, gluings, a.parent())
+    return Triangulation(triangles, gluings)
 
 
 if __name__ == "__main__":
