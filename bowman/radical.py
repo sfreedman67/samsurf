@@ -4,6 +4,7 @@ from collections import namedtuple
 from functools import lru_cache
 
 
+# TODO: OK...how much speedup is *actually* coming from radical vs QQbar?
 class Radical(namedtuple("Radical", ["A", "B", "C"])):
     @staticmethod
     @lru_cache(None)

@@ -5,11 +5,16 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
     __slots__ = ()
 
     def __repr__(self):
-        return f"CombEquiv(perm={self.perm}, shift={self.shift})"
+        reps = {(idx, 0): (self.perm[idx], self.shift[idx]) for idx in range(len(self.perm))}
+        return f"CombEquiv({reps})"
 
     @classmethod
     def from_edge(cls, t1, t2, e):
-        perm, shifts = _get_equiv_from_edge_initial(t1, t2, e)
+        perm = [0] * len(t1.triangles)
+        shifts = [0] * len(t1.triangles)
+        perm[0], shifts[0] = e
+        perm, shifts = _develop_matching(perm, shifts, t1, t2)
+
         return CombEquiv(tuple(perm), tuple(shifts), t1, t2)
 
     def move(self, edge):
@@ -27,13 +32,6 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
     def respects_gluings(self):
         """Check if e1~e2 in t1 implies F(e1) ~ F(e2) in t2"""
         return all(self.respects_gluing(edge) for edge in self.source.edges)
-
-
-def _get_equiv_from_edge_initial(t1, t2, edge_00_im):
-    perm = [0] * len(t1.triangles)
-    shifts = [0] * len(t1.triangles)
-    perm[0], shifts[0] = edge_00_im
-    return _develop_matching(perm, shifts, t1, t2)
 
 
 def _develop_matching(perm, shifts, t1, t2):
@@ -57,10 +55,11 @@ def gen_comb_equivs(t1, t2):
                       for idx_tri in range(len(t1.triangles))
                       for idx_edge in range(3)]
 
-    return [x for x in poss_matchings if x.respects_gluings]
+    ces = [x for x in poss_matchings if x.respects_gluings]
+    return ces
 
 
-def canonical_relabel(t, tri, edge):
+def canonical_relabel(t, tri=0, edge=0):
     relabeling = {(tri, (edge + k) % 3): (0, k) for k in range(3)}
     tris_marked_to_visit = deque([(tri, edge)])
     tris_visited = {tri}
@@ -79,7 +78,7 @@ def canonical_relabel(t, tri, edge):
 
 def generate_code_marked(t, tri, edge):
     relabeling = canonical_relabel(t, tri, edge)
-    gluings_new = [(relabeling[edge], relabeling[t.gluings[edge]])
-                   for edge in t.edges]
+    gluings_new = [(relabeling[e], relabeling[f])
+                   for e, f in t.gluings.items()]
     gluings_new_ordered = [tuple(sorted(t)) for t in gluings_new]
     return hash(tuple(sorted(gluings_new_ordered)))

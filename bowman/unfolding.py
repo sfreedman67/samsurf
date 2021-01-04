@@ -1,7 +1,6 @@
 from sage.all import *
 
 from collections import deque
-from itertools import product
 from enum import Enum
 
 from bowman.triangulation import Triangulation, Triangle
@@ -80,7 +79,10 @@ def build_unfolding(t0):
 
         gluings.update({val: key for key, val in gluings.items()})
 
-    return Triangulation(triangles, gluings)
+    unfolding = Triangulation(triangles, gluings).make_delaunay()
+    while unfolding.idr.is_trivial:
+        unfolding = unfolding.change_delaunay_triangulation()
+    return unfolding
 
 
 def get_triangle_type_angles(angles):
@@ -102,9 +104,21 @@ def get_triangle_type_sides(angles):
         return Sides.scalene
 
 
-if __name__ == "__main__":
-    X = build_unfolding(get_triangle_from_parameters(1, 1, 3))
-    while X.idr.is_trivial:
-        X = X.change_delaunay_triangulation()
+def get_genus(a, b, c):
+    d = a + b + c
+    alpha, beta, gamma = QQ(a/d), QQ(b/d), QQ(c/d)
+    return 1 + d/2 * (1 - sum(1/q.denominator() for q in [alpha, beta, gamma]))
 
-    print(X.generators_veech)
+
+if __name__ == "__main__":
+    N = 10
+    for (a, b, c) in [(a, b, c) for a in range(1, N) for b in range(a, N) for c in range(b, N)
+                      if gcd(a, gcd(b, c)) == 1 and a <= b <= c and get_genus(a, b, c) >= 2 and a + b + c <= N]:
+        d = a + b + c
+        q0, q1, q2 = QQ(a / d), QQ(b / d), QQ(c / d)
+        if not any(q.numerator() == 1 for q in [q0, q1, q2]):
+            print(a, b, c)
+            # print([f"{d // q.denominator()} point(s) of order {q.numerator()}" for q in [q0, q1, q2]])
+            X = build_unfolding(get_triangle_from_parameters(a, b, c))
+            print(X.idr.has_self_equivalences)
+            # X.plot().show()

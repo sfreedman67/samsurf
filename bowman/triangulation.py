@@ -37,13 +37,14 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
                      (idx + 2) % 3: reflect_vector(v_axis, -v_succ)}
         return Triangle(sides_new[0], sides_new[1], sides_new[2])
 
-    def plot(self):
-        coords = [(0, 0), self.v0, -self.v2]
-        return sage.all.polygon2d(coords).plot()
+    def plot(self, basepoint=sage.all.zero_vector(2)):
+        return sage.all.polygon2d(self.vertices(basepoint)).plot()
+
+    def vertices(self, basepoint=sage.all.zero_vector(2)):
+        return [basepoint, basepoint + self.v0, basepoint - self.v2]
 
     def __hash__(self):
-        coords = tuple(coord for v in self for coord in v)
-        return hash(coords)
+        return hash(tuple(coord for vertex in self.vertices() for coord in vertex))
 
 
 class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
@@ -157,6 +158,12 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
 
         return NE, SE, SW, NW
 
+    def plot(self):
+        v0, v1, v2 = self.vectors
+        vertices_t1 = [sage.all.zero_vector(2), v0, v1]
+        vertices_t2 = [sage.all.zero_vector(2), v1, v2]
+        return sage.all.polygon2d(vertices_t1, fill=False).plot() + sage.all.polygon2d(vertices_t2, fill=False).plot()
+
 
 class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
 
@@ -180,33 +187,23 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
     @classmethod
     def regular_octagon(cls):
         k = QuadraticField(2)
-        a = k.gen()
+        sqrt2 = k.gen()
 
-        triangles = [Triangle(sage.all.vector([QQ(1 / 2) * a - 1, QQ(1 / 2) * a]),
-                              sage.all.vector([-a, 0]),
-                              sage.all.vector([QQ(1 / 2) * a + 1, -QQ(1 / 2) * a])),
-                     Triangle(sage.all.vector([-QQ(1 / 2) * a - 1, QQ(1 / 2) * a]),
-                              sage.all.vector([QQ(1 / 2) * a - 1, -QQ(1 / 2) * a]),
-                              sage.all.vector([2, 0])),
-                     Triangle(sage.all.vector([-2, 0]),
-                              sage.all.vector([QQ(1 / 2) * a + 1, -QQ(1 / 2) * a]),
-                              sage.all.vector([-QQ(1 / 2) * a + 1, QQ(1 / 2) * a])),
-                     Triangle(sage.all.vector([-QQ(1 / 2) * a, -QQ(1 / 2) * a + 1]),
-                              sage.all.vector([-QQ(1 / 2) * a, QQ(1 / 2) * a - 1]),
-                              sage.all.vector([a, 0])),
-                     Triangle(sage.all.vector([-QQ(1 / 2) * a + 1, -QQ(1 / 2) * a]),
-                              sage.all.vector([a, 0]),
-                              sage.all.vector([-QQ(1 / 2) * a - 1, QQ(1 / 2) * a])),
-                     Triangle(sage.all.vector([QQ(1 / 2) * a, QQ(1 / 2) * a - 1]),
-                              sage.all.vector([QQ(1 / 2) * a, -QQ(1 / 2) * a + 1]),
-                              sage.all.vector([-a, 0]))]
+        a = sage.all.vector([1, 0])
+        b = sage.all.vector([1 / sqrt2, 1 / sqrt2])
+        c = sage.all.vector([0, 1])
+        d = sage.all.vector([-1 / sqrt2, 1 / sqrt2])
 
-        gluings = {(0, 0): (4, 0), (0, 1): (3, 2), (0, 2): (1, 0),
-                   (1, 0): (0, 2), (1, 1): (2, 2), (1, 2): (2, 0),
-                   (2, 0): (1, 2), (2, 1): (4, 2), (2, 2): (1, 1),
-                   (3, 0): (5, 0), (3, 1): (5, 1), (3, 2): (0, 1),
-                   (4, 0): (0, 0), (4, 1): (5, 2), (4, 2): (2, 1),
-                   (5, 0): (3, 0), (5, 1): (3, 1), (5, 2): (4, 1)}
+        triangles = [Triangle(a, b, -a - b),
+                     Triangle(-a, -b, a + b),
+                     Triangle(c, -c - b - a, a + b),
+                     Triangle(-c, c + b + a, -a - b),
+                     Triangle(-d, a + b + c, -c - b - a + d),
+                     Triangle(d, -a - b - c, c + b + a - d)]
+
+        gluings = {(0, 0): (1, 0), (0, 1): (1, 1), (0, 2): (2, 2), (1, 2): (3, 2),
+                   (2, 0): (3, 0), (2, 1): (4, 1), (3, 1): (5, 1), (4, 0): (5, 0), (4, 2): (5, 2)}
+        gluings.update({v: k for k, v in gluings.items()})
 
         return Triangulation(triangles, gluings)
 
@@ -308,6 +305,15 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
                    else hinge.incircle_det >= 0
                    for hinge in self.hinges)
 
+    def make_delaunay(self):
+        while not self.is_delaunay():
+            idx = randint(0, len(self.hinges) - 1)
+            h = self.hinges[idx]
+            if h.is_convex and h.incircle_det < 0:
+                return self.flip_hinge(h.id_edge).make_delaunay()
+
+        return self
+
     def change_delaunay_triangulation(self):
         if not self.is_delaunay():
             raise ValueError("Starting triangulation isn't Delaunay")
@@ -400,6 +406,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
 
         p = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
 
+        # TODO: I'm excluding degenerate polygons as IDR due to this
         if p is None:
             return idr.IDR(p, {}, self)
 
@@ -434,6 +441,7 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
 
     @property
     def code_comb(self):
+        # TODO: What's the best notion of a comb_code
         return min(comb_equiv.generate_code_marked(self, tri, edge)
                    for tri in range(len(self.triangles))
                    for edge in range(3))
@@ -442,7 +450,105 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
     def generators_veech(self):
         return algo.generators_veech(self)
 
+    def get_vertices_neighbor(self, vertices_tri, idx_tri, idx_edge):
+        vertex_start = vertices_tri[idx_edge]
+        vertex_end = vertices_tri[(idx_edge + 1) % 3]
+
+        idx_tri_opp, idx_edge_opp = self.gluings[(idx_tri, idx_edge)]
+        tri_opp = self.triangles[idx_tri_opp]
+        vertices_tri_opp = {idx_edge_opp: vertex_end,
+                            (idx_edge_opp + 1) % 3: vertex_start,
+                            (idx_edge_opp + 2) % 3: vertex_start + tri_opp[(idx_edge_opp + 1) % 3]}
+        return [vertices_tri_opp[k] for k in range(3)]
+
+    def plot(self):
+        # TODO: CLEAN + separate each part of plot into separate methods
+        # TODO: How to represent edge gluings? Labels on outer edges?
+        # TODO: Re-rendering when triangles intersect?
+
+        tris_seen = {0: self.triangles[0].vertices()}
+        tris_to_visit = deque([0])
+
+        while tris_to_visit:
+            idx_tri_curr = tris_to_visit.pop()
+            for idx_edge in range(3):
+                idx_tri_nbr, idx_edge_nbr = self.gluings[(idx_tri_curr, idx_edge)]
+                if idx_tri_nbr not in tris_seen:
+                    vertices_curr = tris_seen[idx_tri_curr]
+                    tris_seen[idx_tri_nbr] = self.get_vertices_neighbor(vertices_curr, idx_tri_curr, idx_edge)
+                    tris_to_visit.appendleft(idx_tri_nbr)
+
+        def center(vertices):
+            x = sum(vx for vx, vy in vertices) / 3
+            y = sum(vy for vx, vy in vertices) / 3
+            return x, y
+
+        def midpoint(v1, v2):
+            v1x, v1y = v1
+            v2x, v2y = v2
+            return sage.all.vector([(v1x + v2x) / 2, (v1y + v2y) / 2])
+
+        def displacement(v1, v2):
+            a, b = v1
+            c, d = v2
+            return 1 / 30 * sage.all.vector([b - d, c - a])
+
+        plots_labels_tri = sum(sage.all.text(str(idx), center(vertices), fontsize=14, color='orange').plot()
+                               for idx, vertices in tris_seen.items())
+
+        plots_labels_edge = sum(sage.all.text(str(idx), midpoint(v1, v2) + displacement(v1, v2)).plot()
+                                for (a, b, c) in tris_seen.values()
+                                for idx, (v1, v2) in [(0, (a, b)), (1, (b, c)), (2, (c, a))])
+
+        plots_tris = sum(sage.all.polygon2d(vertices, fill=False).plot() for vertices in tris_seen.values())
+
+        return plots_tris + plots_labels_tri + plots_labels_edge
+
+    @property
+    def dual_graph(self):
+        return Graph({idx: self.neighbors(idx) for idx in range(len(self.triangles))})
+
 
 if __name__ == "__main__":
-    X = Triangulation.ronen_l(44)
-    print(X.generators_veech)
+    import itertools
+    import bowman.comb_equiv as ce
+    import bowman.geom_equiv as ge
+
+    # fund_dom = Triangulation.ronen_l(13).generators_veech
+    # trins_ce = [idr.triangulation for idr in next(iter(fund_dom.codes_to_idrs.values()))]
+
+    X = Triangulation.arnoux_yoccoz(3)
+    idr0 = X.idr
+    t0 = idr0.triangulation
+    # for idx, neighbor in enumerate(idr0.neighbors):
+    #     for idx1, neighbor1 in enumerate(neighbor.neighbors):
+    #         t = neighbor1.triangulation
+    #         print(idx, idx1, ce.gen_comb_equivs(t0, t))
+    trins_ce = [t0, idr0.neighbors[1].neighbors[5].triangulation]
+
+    for trin1, trin2 in itertools.combinations(trins_ce, r=2):
+        ces = ce.gen_comb_equivs(trin1, trin2)
+        print(*ces, sep='\n')
+        print([ge.gen_geom_equiv(trin1, trin2, x) for x in ces])
+        edges_total = list(itertools.product(range(len(trin1.triangles)), range(3)))
+        codes1 = [(ce.generate_code_marked(trin1, label_tri, label_edge), (label_tri, label_edge))
+                  for label_tri, label_edge in edges_total]
+        codes2 = [(ce.generate_code_marked(trin2, label_tri, label_edge), (label_tri, label_edge))
+                  for label_tri, label_edge in edges_total]
+
+        _, (label_t1, label_e1) = min(codes1, key=lambda x: x[0])
+        _, (label_t2, label_e2) = min(codes2, key=lambda x: x[0])
+
+        cr1 = ce.canonical_relabel(trin1, label_t1, label_e1)
+        cr2 = ce.canonical_relabel(trin2, label_t2, label_e2)
+
+        cr1inv = {v: k for k, v in cr1.items()}
+        cr2inv = {v: k for k, v in cr2.items()}
+
+        ce_fixed = {(k, 0): cr2inv[cr1[(k, 0)]] for k in range(len(trin1.triangles))}
+        for label_t_other, label_e_other in edges_total:
+            cr_other = ce.canonical_relabel(trin2, label_t_other, label_e_other)
+            composition = {(k, 0): cr_other[ce_fixed[(k, 0)]] for k in range(len(trin1.triangles))}
+            print(composition)
+
+

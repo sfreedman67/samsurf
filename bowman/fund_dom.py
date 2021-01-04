@@ -11,7 +11,7 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
 
     @property
     def boundary(self):
-        edges_total = {edge for idr in self.fund_dom for edge in idr.polygon.edges}
+        edges_total = {edge for idr in self.idrs for edge in idr.polygon.edges}
         boundary_unordered = {edge for edge in edges_total if edge.reverse() not in edges_total}
         return _order_boundary(boundary_unordered)
 
@@ -45,7 +45,8 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
 
     @property
     def points_orbifold(self):
-        return [pi] * self.num_edges_folded + [angle for angle in self.cone_angles if RR(angle) not in {0, 2 * pi}]
+        return [pi] * self.num_edges_folded + [angle for angle in self.cone_angles
+                                               if RR(angle) != 0 and RR(angle / pi).round() != 2]
 
     @property
     def chi_top(self):
@@ -63,13 +64,19 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
         return (2 - self.chi_top) / 2
 
     @property
-    def proportions(self):
+    def codes_to_idrs(self):
         codes_to_idrs = defaultdict(list)
         for idr in self.idrs:
-            codes_to_idrs[idr.triangulation.code_comb].append(idr.triangulation)
+            codes_to_idrs[idr.triangulation.code_comb].append(idr)
+        return codes_to_idrs
 
+    @property
+    def proportions(self):
         return {code: RR(sum(idr.polygon.area for idr in idrs) / self.area)
-                for code, idrs in codes_to_idrs.items()}
+                for code, idrs in self.codes_to_idrs.items()}
+
+    def plot(self):
+        return sum(r.plot() for r in self.idrs)
 
 
 def _order_boundary(boundary):

@@ -12,6 +12,7 @@ from bowman import polygon
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
     __slots__ = ()
 
+    # TODO: Why am I making these monic? Is that assumption used?
     @classmethod
     @lru_cache(None)
     def from_ineq(cls, a, b, c):

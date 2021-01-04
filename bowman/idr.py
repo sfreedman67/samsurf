@@ -1,8 +1,16 @@
+import sage.all
+from sage.all import *
+
 import collections
+
+from bowman.algo import get_veech_equivs
 
 
 class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangulation"])):
     __slots__ = ()
+
+    def __repr__(self):
+        return f"IDR with {len(self.polygon.edges)} sides"
 
     @property
     def is_trivial(self):
@@ -16,8 +24,13 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
         return triangulation_new.idr
 
     @property
+    def has_self_equivalences(self):
+        return get_veech_equivs(self, self) != [sage.all.identity_matrix(2)]
+
+    @property
     def neighbors(self):
         return [self.cross_segment(k) for k in range(len(self.polygon.edges))]
 
     def plot(self):
+        # TODO: add edge labels
         return self.polygon.plot()
