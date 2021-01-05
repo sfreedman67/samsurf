@@ -167,6 +167,12 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
 
 class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
 
+    def __hash__(self):
+        tris_safe = tuple(self.triangles)
+        gluings_ordered = {(e1, e2) for e1, e2 in self.gluings.items() if e1 < e2}
+        gluings_safe = tuple(sorted(gluings_ordered))
+        return hash((tris_safe, gluings_safe))
+
     @classmethod
     def _from_flatsurf(cls, X):
         DT = X.delaunay_triangulation()
@@ -447,6 +453,13 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
                    for edge in range(3))
 
     @property
+    @lru_cache(None)
+    def codes_comb(self):
+        return {(tri, edge): comb_equiv.generate_code_marked(self, tri, edge)
+                for tri in range(len(X.triangles))
+                for edge in range(3)}
+
+    @property
     def generators_veech(self):
         return algo.generators_veech(self)
 
@@ -510,45 +523,33 @@ class Triangulation(namedtuple("Triangulation", ["triangles", "gluings"])):
 
 
 if __name__ == "__main__":
-    import itertools
+    import cProfile
+    import pstats
     import bowman.comb_equiv as ce
-    import bowman.geom_equiv as ge
-
-    # fund_dom = Triangulation.ronen_l(13).generators_veech
-    # trins_ce = [idr.triangulation for idr in next(iter(fund_dom.codes_to_idrs.values()))]
 
     X = Triangulation.arnoux_yoccoz(3)
     idr0 = X.idr
-    t0 = idr0.triangulation
-    # for idx, neighbor in enumerate(idr0.neighbors):
-    #     for idx1, neighbor1 in enumerate(neighbor.neighbors):
-    #         t = neighbor1.triangulation
-    #         print(idx, idx1, ce.gen_comb_equivs(t0, t))
-    trins_ce = [t0, idr0.neighbors[1].neighbors[5].triangulation]
-
-    for trin1, trin2 in itertools.combinations(trins_ce, r=2):
-        ces = ce.gen_comb_equivs(trin1, trin2)
-        print(*ces, sep='\n')
-        print([ge.gen_geom_equiv(trin1, trin2, x) for x in ces])
-        edges_total = list(itertools.product(range(len(trin1.triangles)), range(3)))
-        codes1 = [(ce.generate_code_marked(trin1, label_tri, label_edge), (label_tri, label_edge))
-                  for label_tri, label_edge in edges_total]
-        codes2 = [(ce.generate_code_marked(trin2, label_tri, label_edge), (label_tri, label_edge))
-                  for label_tri, label_edge in edges_total]
-
-        _, (label_t1, label_e1) = min(codes1, key=lambda x: x[0])
-        _, (label_t2, label_e2) = min(codes2, key=lambda x: x[0])
-
-        cr1 = ce.canonical_relabel(trin1, label_t1, label_e1)
-        cr2 = ce.canonical_relabel(trin2, label_t2, label_e2)
-
-        cr1inv = {v: k for k, v in cr1.items()}
-        cr2inv = {v: k for k, v in cr2.items()}
-
-        ce_fixed = {(k, 0): cr2inv[cr1[(k, 0)]] for k in range(len(trin1.triangles))}
-        for label_t_other, label_e_other in edges_total:
-            cr_other = ce.canonical_relabel(trin2, label_t_other, label_e_other)
-            composition = {(k, 0): cr_other[ce_fixed[(k, 0)]] for k in range(len(trin1.triangles))}
-            print(composition)
+    idr00 = X.idr.cross_segment(0).cross_segment(0)
+    X00 = idr00.triangulation
 
 
+    def gen_comb_equivs(X, Y):
+        ces = []
+        for (tri, edge), code2 in Y.codes_comb.items():
+            if X.codes_comb[(0, 0)] == code2:
+                print(tri, edge)
+                d1 = ce.canonical_relabel(X)
+                d2 = ce.canonical_relabel(Y, tri, edge)
+                d2inv = {v: k for k, v in d2.items()}
+                equiv = {(k, 0): d2inv[d1[(k, 0)]] for k in range(len(X.triangles))}
+                perm, shift = zip(*tuple(equiv[(k, 0)] for k in range(len(X.triangles))))
+                ces.append(ce.CombEquiv(perm, shift, X, Y))
+        return ces
+
+    print(sorted(gen_comb_equivs(X, X00)))
+    print(sorted(ce.gen_comb_equivs(X, X00)))
+    assert sorted(gen_comb_equivs(X, X00)) == sorted(ce.gen_comb_equivs(X, X00))
+
+    # cProfile.run('fund_dom = X.generators_veech', 'veechstats')
+    # p = pstats.Stats('veechstats')
+    # p.strip_dirs().sort_stats("cumtime").print_stats(.2)

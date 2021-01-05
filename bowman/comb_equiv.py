@@ -10,12 +10,11 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
 
     @classmethod
     def from_edge(cls, t1, t2, e):
-        perm = [0] * len(t1.triangles)
-        shifts = [0] * len(t1.triangles)
-        perm[0], shifts[0] = e
-        perm, shifts = _develop_matching(perm, shifts, t1, t2)
-
-        return CombEquiv(tuple(perm), tuple(shifts), t1, t2)
+        matching = _develop_matching(t1, t2, e)
+        if matching is not None:
+            perm = tuple(matching[(k, 0)][0] for k in range(len(t1.triangles)))
+            shifts = tuple(matching[(k, 0)][1] for k in range(len(t1.triangles)))
+            return CombEquiv(perm, shifts, t1, t2)
 
     def move(self, edge):
         idx_tri, idx_edge = edge
@@ -34,20 +33,28 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
         return all(self.respects_gluing(edge) for edge in self.source.edges)
 
 
-def _develop_matching(perm, shifts, t1, t2):
-    tris_to_visit = deque([0])
-    tris_visited = {0}
-    while tris_to_visit:
-        tri = tris_to_visit.pop()
-        for edge in range(3):
-            tri_nbr, edge_nbr = t1.gluings[(tri, edge)]
-            if tri_nbr not in tris_visited:
-                tris_visited.add(tri_nbr)
-                tri_im, edge_im = perm[tri], (edge + shifts[tri]) % 3
-                tri_im_nbr, edge_im_nbr = t2.gluings[(tri_im, edge_im)]
-                perm[tri_nbr], shifts[tri_nbr] = tri_im_nbr, (edge_im_nbr - edge_nbr) % 3
-                tris_to_visit.appendleft(tri_nbr)
-    return tuple(perm), tuple(shifts)
+def _develop_matching(t1, t2, im00):
+    queue = deque([(0, 0)])
+    matching = {(0, 0): im00}
+
+    while queue:
+        tri, edge = queue.pop()
+        edge_succ = (edge + 1) % 3
+        edge_pred = (edge + 2) % 3
+        tri_opp, edge_opp = t1.gluings[(tri, edge)]
+        tri_im, edge_im = matching[(tri, edge)]
+
+        for e1, e2 in [((tri, edge_succ), (tri_im, (edge_im + 1) % 3)),
+                       ((tri, edge_pred), (tri_im, (edge_im + 2) % 3)),
+                       ((tri_opp, edge_opp), t2.gluings[(tri_im, edge_im)])]:
+            if e1 in matching:
+                if matching[e1] != e2:
+                    return None
+            else:
+                matching[e1] = e2
+                queue.appendleft(e1)
+
+    return matching
 
 
 def gen_comb_equivs(t1, t2):
@@ -55,7 +62,7 @@ def gen_comb_equivs(t1, t2):
                       for idx_tri in range(len(t1.triangles))
                       for idx_edge in range(3)]
 
-    ces = [x for x in poss_matchings if x.respects_gluings]
+    ces = [x for x in poss_matchings if x is not None]
     return ces
 
 

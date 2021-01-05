@@ -12,6 +12,7 @@ def sigma(mat):
     return sage.all.matrix([[a, -b], [-c, d]])
 
 
+# TODO: elimiate redundancy between following two functions
 def get_veech_equivs(ri, rj):
     ti, tj = ri.triangulation, rj.triangulation
     ces_ij = gen_comb_equivs(ti, tj)
@@ -21,16 +22,13 @@ def get_veech_equivs(ri, rj):
     for x in [x for x in ges_total if x is not None]:
         if x not in ges and -x not in ges:
             ges.append(x)
-    # TODO: How many ges do we "typically" see here?
-    assert len(ges) in [0, 1]
+
     return ges
 
 
 def _find_veech_equiv(idr0, idrs):
     for idr in idrs:
         t0, t = idr0.triangulation, idr.triangulation
-        # TODO: Do I have to generate all possible CEs?
-        # TODO: How many CEs are actually GE?
         ces = gen_comb_equivs(t0, t)
 
         # Stop after finding one GE

@@ -30,7 +30,6 @@ class TestCombEquiv(TestCase):
 
     def test_octagon_self_equivs(self):
         octagon = triangulation.Triangulation.regular_octagon()
-        print(octagon.gluings)
         identity, rotate = comb_equiv.gen_comb_equivs(octagon, octagon)
         self.assertEqual(identity[:2], ((0, 1, 2, 3, 4, 5), (0, 0, 0, 0, 0, 0)))
         self.assertEqual(rotate[:2], ((1, 0, 3, 2, 5, 4), (0, 0, 0, 0, 0, 0)))
