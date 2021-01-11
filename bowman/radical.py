@@ -5,7 +5,17 @@ from functools import lru_cache
 
 
 # TODO: OK...how much speedup is *actually* coming from radical vs QQbar?
-class Radical(namedtuple("Radical", ["A", "B", "C"])):
+class Radical:
+    def __init__(self, A, B, C):
+        self.A = A
+        self.B = B
+        self.C = C
+
+        self._hash = None
+
+    def __iter__(self):
+        return iter((self.A, self.B, self.C))
+
     @staticmethod
     @lru_cache(None)
     def sign(A, B, C):
@@ -28,7 +38,9 @@ class Radical(namedtuple("Radical", ["A", "B", "C"])):
         return f"{self.value}"
 
     def __hash__(self):
-        return hash(self.value)
+        if self._hash is None:
+            self._hash = hash(self.value)
+        return self._hash
 
     def __eq__(self, other):
         """ Checks whether A + B sqrt(C) == D + E sqrt(F)"""

@@ -111,14 +111,14 @@ def get_genus(a, b, c):
 
 
 if __name__ == "__main__":
-    N = 10
+    N = 15
     for (a, b, c) in [(a, b, c) for a in range(1, N) for b in range(a, N) for c in range(b, N)
-                      if gcd(a, gcd(b, c)) == 1 and a <= b <= c and get_genus(a, b, c) >= 2 and a + b + c <= N]:
+                      if all([gcd(a, gcd(b, c)) == 1, a <= b <= c, get_genus(a, b, c) >= 2, a + b + c <= N])]:
         d = a + b + c
         q0, q1, q2 = QQ(a / d), QQ(b / d), QQ(c / d)
-        if not any(q.numerator() == 1 for q in [q0, q1, q2]):
+        if any(q.numerator() == 1 for q in [q0, q1, q2]):
             print(a, b, c)
-            # print([f"{d // q.denominator()} point(s) of order {q.numerator()}" for q in [q0, q1, q2]])
-            X = build_unfolding(get_triangle_from_parameters(a, b, c))
-            print(X.idr.has_self_equivalences)
-            # X.plot().show()
+            print([f"{d // q.denominator()} point(s) of order {q.numerator()}" for q in [q0, q1, q2]])
+    # t = get_triangle_from_parameters(2, 3, 4)
+    # X = build_unfolding(t)
+    # X.plot().show()

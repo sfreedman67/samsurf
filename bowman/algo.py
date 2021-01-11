@@ -12,31 +12,22 @@ def sigma(mat):
     return sage.all.matrix([[a, -b], [-c, d]])
 
 
-# TODO: elimiate redundancy between following two functions
-def get_veech_equivs(ri, rj):
-    ti, tj = ri.triangulation, rj.triangulation
-    ces_ij = gen_comb_equivs(ti, tj)
-    ges_total = [gen_geom_equiv(ti, tj, ce) for ce in ces_ij]
-
-    ges = []
-    for x in [x for x in ges_total if x is not None]:
-        if x not in ges and -x not in ges:
-            ges.append(x)
-
-    return ges
-
-
 def _find_veech_equiv(idr0, idrs):
     for idr in idrs:
         t0, t = idr0.triangulation, idr.triangulation
-        ces = gen_comb_equivs(t0, t)
-
-        # Stop after finding one GE
-        for ce in ces:
-            ge = gen_geom_equiv(t0, t, ce)
-            if ge is not None:
-                return ge
+        if t0.code_comb == t.code_comb and t0.code_geom == t.code_geom:
+            return gen_geom_equiv(t0, t)
     return None
+
+
+def _find_veech_equivs(idr0, idr1):
+    ces = gen_comb_equivs(idr0.triangulation, idr1.triangulation)
+    ges = []
+    if ces:
+        ge = gen_geom_equiv(idr0.triangulation, idr1.triangulation)
+        if ge is not None and -ge not in ges:
+            ges.append(ge)
+    return ges
 
 
 def generators_veech(trin):
@@ -62,9 +53,6 @@ def generators_veech(trin):
             if edge not in edges_crossed and edge not in edges_zipped:
                 edges_crossed |= {edge, edge.reverse()}
                 idr_neighbor = idr_curr.cross_segment(idx)
-
-                if idr_neighbor.has_self_equivalences:
-                    raise ValueError("Neighbor IDR has self-equivalences")
 
                 code_neighbor = idr_neighbor.triangulation.code_comb
                 if code_neighbor not in codes_to_idrs:

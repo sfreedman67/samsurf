@@ -3,7 +3,7 @@ from sage.all import *
 
 import collections
 
-from bowman.algo import get_veech_equivs
+from bowman.algo import _find_veech_equivs
 
 
 class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangulation"])):
@@ -25,7 +25,7 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
 
     @property
     def has_self_equivalences(self):
-        return get_veech_equivs(self, self) != [sage.all.identity_matrix(2)]
+        return _find_veech_equivs(self, self) != [sage.all.identity_matrix(2)]
 
     @property
     def neighbors(self):

@@ -2,10 +2,8 @@ import collections
 
 import sage.all
 from sage.all import *
-from sage.groups.matrix_gps.finitely_generated import MatrixGroup
 
 from bowman import triangulation
-from bowman import algo
 
 K = QuadraticField(2)
 A = K.gen()

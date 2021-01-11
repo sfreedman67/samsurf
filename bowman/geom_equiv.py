@@ -1,42 +1,40 @@
 import sage.all
 from sage.all import *
 
-
-def gen_geom_equiv(trin1, trin2, ce):
-    m = _get_matrix_from_tris(trin1.triangles[0],
-                              trin2.triangles[ce.perm[0]],
-                              ce.shift[0])
-
-    return m if _agrees_on_tris(m, ce) else None
+from bowman.comb_equiv import canonical_relabel
 
 
-def _get_matrix_from_tris(tri1, tri2, shift):
-    vs = (tri1[0], -tri1[2])
-    ws = (tri2[shift], -tri2[(shift + 2) % 3])
-    return _get_matrix_from_vectors(vs, ws)
+def gen_geom_equiv(trin1, trin2):
+    if trin1.code_geom != trin2.code_geom:
+        return None
+
+    _, (tri1, edge1) = next(iter(trin1.codes_geom))
+    _, (tri2, edge2) = next(iter(trin2.codes_geom))
+
+    m1 = get_normalization_matrix(trin1, tri1, edge1)
+    m2 = get_normalization_matrix(trin2, tri2, edge2)
+
+    return m2.inverse() * m1
 
 
-def _get_matrix_from_vectors(pair1, pair2):
-    """get matrix sending (v1, v2) to (w1, w2)"""
-    (a1, a2), (b1, b2) = pair1
-    (c1, c2), (d1, d2) = pair2
-
-    m1 = 1/(a1 * b2 - a2 * b1) * sage.all.matrix([[b2, -b1], [-a2, a1]])
-    m2 = sage.all.matrix([[c1, d1], [c2, d2]])
-
-    return m2 * m1
+def get_normalization_matrix(t, tri, edge):
+    v1 = t.triangles[tri][edge]
+    v2 = -t.triangles[tri][(edge + 2) % 3]
+    return sage.all.matrix([v1, v2]).transpose().inverse()
 
 
-def _agrees_on_tris(m, ce):
-    return all(_agrees_on_tri(m, ce, idx)
-               for idx in range(len(ce.source.triangles)))
+def generate_code_marked(t, tri, edge):
+    relabel = canonical_relabel(t, tri, edge)
+    relabel_inv = {v: k for k, v in relabel.items()}
 
+    m = get_normalization_matrix(t, tri, edge)
+    tris_new = [x.apply_matrix(m) for x in t.triangles]
 
-def _agrees_on_tri(m, ce, idx):
-    tri1 = ce.source.triangles[idx]
-    perm, shift = ce.perm[idx], ce.shift[idx]
-    tri2 = ce.target.triangles[perm]
+    code = []
+    for k in range(len(t.triangles)):
+        tri1, edge1 = relabel_inv[(k, 0)]
+        v1 = tris_new[tri1][edge1]
+        v2 = -tris_new[tri1][(edge1 + 2) % 3]
+        code.append((tuple(v1), tuple(v2)))
 
-    v1, v2 = tri1[0], -tri1[2]
-    w1, w2 = tri2[shift], -tri2[(shift + 2) % 3]
-    return m * v1 == w1 and m * v2 == w2
+    return hash(tuple(code)), (tri, edge)
