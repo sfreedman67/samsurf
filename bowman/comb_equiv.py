@@ -1,4 +1,4 @@
-from collections import deque, namedtuple
+from collections import namedtuple
 
 
 class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
@@ -9,6 +9,7 @@ class CombEquiv(namedtuple("CombEquiv", ["perm", "shift", "source", "target"])):
         return f"CombEquiv({reps})"
 
 
+# TODO: Wow, do I really not need this anymore?
 def gen_comb_equivs(t1, t2):
     if t1.code_comb != t2.code_comb:
         return []
@@ -25,22 +26,17 @@ def gen_comb_equivs(t1, t2):
     return ces
 
 
-# TODO: Move to triangulation?
-def canonical_relabel(t, tri=0, edge=0):
-    relabeling = {(tri, (edge + k) % 3): (0, k) for k in range(3)}
-    tris_marked_to_visit = deque([(tri, edge)])
-    tris_visited = {tri}
-    while len(tris_visited) < len(t.triangles):
-        tri, edge = tris_marked_to_visit.pop()
-        for edge in [(edge + k) % 3 for k in range(3)]:
-            tri_nbr, edge_nbr = t.gluings[(tri, edge)]
-            if tri_nbr not in tris_visited:
-                relabeling.update({
-                    (tri_nbr, (edge_nbr + k) % 3): (len(tris_visited), (relabeling[(tri, edge)][1] + k) % 3)
-                    for k in range(3)})
-                tris_visited.add(tri_nbr)
-                tris_marked_to_visit.appendleft((tri_nbr, (edge_nbr + 1) % 3))
-    return relabeling
+# TODO: Move to triangulation as a method?
+def canonical_relabel(trin, tri_init, edge_init):
+    flags_to_visit = [(tri_init, edge_init)]
+    relabelling = {}
+    while flags_to_visit:
+        (s, t) = flags_to_visit.pop()
+        if (s, t) not in relabelling:
+            relabelling[(s, t)] = divmod(len(relabelling), 3)
+            neighbors = [trin.gluings[(s, t)], (s, (t + 2) % 3), (s, (t + 1) % 3)]
+            flags_to_visit.extend(neighbors)
+    return relabelling
 
 
 def generate_code_marked(t, tri, edge):

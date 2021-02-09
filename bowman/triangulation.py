@@ -146,6 +146,10 @@ class Triangulation:
 
         return Triangulation(triangles, gluings)
 
+    def apply_matrix(self, m):
+        tris_new = [tri.apply_matrix(m) for tri in self.triangles]
+        return Triangulation(tris_new, self.gluings)
+
     @property
     def edges(self):
         return [edge for edge in itertools.product(range(len(self.triangles)), range(3))
@@ -167,7 +171,6 @@ class Triangulation:
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
                 return self.flip_hinge(h.id_edge).make_delaunay()
-
         return self
 
     def change_delaunay_triangulation(self):
@@ -342,8 +345,6 @@ class Triangulation:
 
     def plot(self):
         # TODO: CLEAN + separate each part of plot into separate methods
-        # TODO: How to represent edge gluings? Labels on outer edges?
-        # TODO: Re-rendering when triangles intersect?
 
         tris_seen = {0: self.triangles[0].vertices()}
         tris_to_visit = deque([0])
@@ -351,7 +352,7 @@ class Triangulation:
         while tris_to_visit:
             idx_tri_curr = tris_to_visit.pop()
             for idx_edge in range(3):
-                idx_tri_nbr, idx_edge_nbr = self.gluings[(idx_tri_curr, idx_edge)]
+                idx_tri_nbr, _ = self.gluings[(idx_tri_curr, idx_edge)]
                 if idx_tri_nbr not in tris_seen:
                     vertices_curr = tris_seen[idx_tri_curr]
                     tris_seen[idx_tri_nbr] = self.get_vertices_neighbor(vertices_curr, idx_tri_curr, idx_edge)
@@ -385,12 +386,12 @@ class Triangulation:
 
 
 if __name__ == "__main__":
-    import cProfile
-
-    X = Triangulation.ronen_l(44)
-    fund_dom = X.generators_veech
-    assert fund_dom.genus == 1 and fund_dom.num_cusps == 9 and fund_dom.points_orbifold == [pi, pi, pi]
-
-    Y = Triangulation.mcmullen_l(QQ(3), QQ(4))
-    f = Y.generators_veech
-    cProfile.run('fund_dom = Y.generators_veech', 'veechstats.prof')
+    X = Triangulation.regular_octagon()
+    X.plot().show()
+    F = X.generators_veech
+    g1, g2 = F.gens
+    print(g2)
+    # import cProfile
+    #
+    # Y = Triangulation.mcmullen_l(QQ(6), QQ(6))
+    # cProfile.run('fund_dom = Y.generators_veech', 'veechstats.prof')

@@ -65,6 +65,7 @@ def build_unfolding(t0):
             if reflection_elt in group_elements:
                 tri_prev_lab = group_elements.index(reflection_elt)
                 tri_prev = triangles[tri_prev_lab]
+                edge_lab_prev = None
                 for idx, edge_prev in enumerate(tri_prev):
                     if edge_prev == -tri_curr[edge_lab]:
                         edge_lab_prev = idx
@@ -106,19 +107,22 @@ def get_triangle_type_sides(angles):
 
 def get_genus(a, b, c):
     d = a + b + c
-    alpha, beta, gamma = QQ(a/d), QQ(b/d), QQ(c/d)
-    return 1 + d/2 * (1 - sum(1/q.denominator() for q in [alpha, beta, gamma]))
+    alpha, beta, gamma = QQ(a / d), QQ(b / d), QQ(c / d)
+    return 1 + d / 2 * (1 - sum(1 / q.denominator() for q in [alpha, beta, gamma]))
 
 
 if __name__ == "__main__":
-    N = 15
-    for (a, b, c) in [(a, b, c) for a in range(1, N) for b in range(a, N) for c in range(b, N)
-                      if all([gcd(a, gcd(b, c)) == 1, a <= b <= c, get_genus(a, b, c) >= 2, a + b + c <= N])]:
+    N = 20
+    for (a, b, c) in [(a, b, c)
+                      for a in range(1, N)
+                      for b in range(a, N)
+                      for c in range(b, N)
+                      if a <= b <= c
+                      if a + b + c <= N
+                      if gcd(a, gcd(b, c)) == 1
+                      if get_genus(a, b, c) >= 2]:
         d = a + b + c
         q0, q1, q2 = QQ(a / d), QQ(b / d), QQ(c / d)
-        if any(q.numerator() == 1 for q in [q0, q1, q2]):
-            print(a, b, c)
-            print([f"{d // q.denominator()} point(s) of order {q.numerator()}" for q in [q0, q1, q2]])
-    # t = get_triangle_from_parameters(2, 3, 4)
-    # X = build_unfolding(t)
-    # X.plot().show()
+        if sum(q.numerator() == 1 for q in [q0, q1, q2]) == 1:
+            print(f"{2 * d} triangles", (a, b, c), [q0, q1, q2],
+                  [f"{d // q.denominator()} points of multiplicity {q.numerator()}" for q in [q0, q1, q2]])

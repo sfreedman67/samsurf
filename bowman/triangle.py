@@ -1,4 +1,5 @@
 from collections import namedtuple
+import functools
 
 from sage.all import *
 

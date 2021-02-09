@@ -1,9 +1,6 @@
 import unittest
-import cProfile
-import pstats
 from unittest import TestCase
 
-import sage.all
 from sage.all import *
 
 from context import bowman
@@ -169,16 +166,6 @@ class Test_Generate_IsoDelaunay_Complex(unittest.TestCase):
             # fig.save(f"iso_delaunay_complex_{num_regions}.png")
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
-    X = triangulation.Triangulation.arnoux_yoccoz(3)
-    cProfile.run("X.iso_delaunay_complex(500)", "complex.profile")
-    s = pstats.Stats("complex.profile")
-    s.dump_stats("complex.pstats")
-    s.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(.05)
-
-
 class TestHinge(TestCase):
     def test_is_convex(self):
         h1 = triangulation.Hinge([vector([1, 0]), vector([1, 1]), vector([0, 1])], (0, 0), (0, 0))
@@ -187,3 +174,12 @@ class TestHinge(TestCase):
         h2 = triangulation.Hinge([vector([1, -1]), vector([0, 1]), vector([-1, -1])], (0, 0), (0, 0))
         self.assertFalse(h2.is_convex)
 
+
+class TestTriangulation(TestCase):
+    def test_generators_veech(self):
+        X = triangulation.Triangulation.ronen_l(44)
+        fund_dom = X.generators_veech
+        self.assertEqual(fund_dom.genus, 1)
+        self.assertEqual(fund_dom.num_cusps, 9)
+        self.assertEqual(fund_dom.points_orbifold, [pi, pi, pi])
+        self.assertEqual(RR(fund_dom.chi_orb), RR(-21/2))

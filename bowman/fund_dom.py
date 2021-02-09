@@ -64,7 +64,7 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
         return (2 - self.chi_top) / 2
 
     @property
-    def codes_to_idrs(self):
+    def codes_comb_to_idrs(self):
         codes_to_idrs = defaultdict(list)
         for idr in self.idrs:
             codes_to_idrs[idr.triangulation.code_comb].append(idr)
@@ -73,7 +73,7 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
     @property
     def proportions(self):
         return {code: RR(sum(idr.polygon.area for idr in idrs) / self.area)
-                for code, idrs in self.codes_to_idrs.items()}
+                for code, idrs in self.codes_comb_to_idrs.items()}
 
     def plot(self):
         return sum(r.plot() for r in self.idrs)

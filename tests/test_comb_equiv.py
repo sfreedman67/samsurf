@@ -1,4 +1,3 @@
-import sage.all
 from sage.all import *
 
 import itertools
@@ -23,7 +22,7 @@ class TestCombEquiv(TestCase):
     def test_torus_self_equivs(self):
         sq_torus = triangulation.Triangulation.square_torus()
         answer = list(itertools.product([(1, 0), (0, 1)],
-                                        [(i, i) for i in range(3)]))
+                                        [(k, k) for k in range(3)]))
         output = [x[:2] for x in
                   comb_equiv.gen_comb_equivs(sq_torus, sq_torus)]
         self.assertCountEqual(output, answer)
@@ -37,11 +36,11 @@ class TestCombEquiv(TestCase):
     def test_canonical_relabel(self):
         octagon = triangulation.Triangulation.regular_octagon()
         answer = {(1, 1): (0, 0), (1, 2): (0, 1), (1, 0): (0, 2),
-                  (0, 1): (1, 0), (0, 2): (1, 1), (0, 0): (1, 2),
-                  (3, 2): (2, 1), (3, 0): (2, 2), (3, 1): (2, 0),
-                  (2, 2): (3, 1), (2, 0): (3, 2), (2, 1): (3, 0),
-                  (5, 1): (4, 0), (5, 2): (4, 1), (5, 0): (4, 2),
-                  (4, 1): (5, 0), (4, 2): (5, 1), (4, 0): (5, 2)}
+                  (0, 0): (1, 0), (0, 1): (1, 1), (0, 2): (1, 2),
+                  (2, 2): (2, 0), (2, 0): (2, 1), (2, 1): (2, 2),
+                  (4, 1): (3, 0), (4, 2): (3, 1), (4, 0): (3, 2),
+                  (5, 0): (4, 0), (5, 1): (4, 1), (5, 2): (4, 2),
+                  (3, 1): (5, 0), (3, 2): (5, 1), (3, 0): (5, 2)}
         self.assertEqual(comb_equiv.canonical_relabel(octagon, *(1, 1)), answer)
 
     def test_generate_code(self):
