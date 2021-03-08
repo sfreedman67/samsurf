@@ -36,6 +36,7 @@ def generators_veech(trin):
     code_to_idr = {r0.triangulation.code: r0}
 
     while idrs_to_visit:
+        print(len(fund_dom))
         idr_curr = idrs_to_visit.pop()
         for idx, edge in enumerate(idr_curr.polygon.edges):
             if edge not in edges_crossed and edge not in edges_zipped:

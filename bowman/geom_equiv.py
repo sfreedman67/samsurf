@@ -44,7 +44,6 @@ def generate_code_marked(t, tri, edge):
     relabel = canonical_relabel(t, tri, edge)
     relabel_inv = {v: k for k, v in relabel.items()}
 
-    m = get_normalization_matrix(t, tri, edge)
     frames = []
     for k in range(len(t.triangles)):
         tri1, edge1 = relabel_inv[(k, 0)]
@@ -52,10 +51,10 @@ def generate_code_marked(t, tri, edge):
         w = -t.triangles[tri1][(edge1 + 2) % 3]
         frames.append(sage.all.matrix([v, w]).transpose())
 
-    frames_new = [m * frame for frame in frames]
+    m = get_normalization_matrix(t, tri, edge)
+    frames_new = [m * frame for frame in frames]  # TODO: The bottleneck
     for frame in frames_new:
         frame.set_immutable()
 
     code = tuple(frame for frame in frames_new)
-
     return hash(code), (tri, edge)

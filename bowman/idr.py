@@ -1,4 +1,3 @@
-import sage.all
 from sage.all import *
 
 import collections
@@ -25,7 +24,8 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
 
     @property
     def has_self_equivalences(self):
-        return _find_veech_equivs(self, self) != [sage.all.identity_matrix(2)]
+        identity = ((QQ(1), QQ(0)), (QQ(0), QQ(1)))
+        return {tuple(tuple(row) for row in x) for x in _find_veech_equivs(self, self)} != {identity}
 
     @property
     def neighbors(self):

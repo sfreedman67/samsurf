@@ -15,9 +15,9 @@ from bowman.hinge import Hinge
 
 
 class Triangulation:
-    def __init__(self, triangles, gluings):
-        self.triangles = triangles
-        self.gluings = gluings
+    def __init__(self, triangles=None, gluings=None):
+        self.triangles = triangles if triangles is not None else []
+        self.gluings = gluings if gluings is not None else {}
 
         self._hash = hash(self.__key())
 
@@ -173,16 +173,13 @@ class Triangulation:
                 return self.flip_hinge(h.id_edge).make_delaunay()
         return self
 
-    def change_delaunay_triangulation(self):
-        if not self.is_delaunay():
-            raise ValueError("Starting triangulation isn't Delaunay")
-        elif self.is_delaunay(non_degenerate=True):
-            return self
-        while True:
-            idx = randint(0, len(self.hinges) - 1)
-            h = self.hinges[idx]
-            if h.is_convex and h.incircle_det == 0:
-                return self.flip_hinge(h.id_edge)
+    def make_nontrivial(self):
+        shear = sage.all.matrix([[1, QQ(1/2)], [0, 1]])
+        t = self.apply_matrix(shear)
+        t = t.make_delaunay()
+        if not t.is_delaunay(non_degenerate=True):
+            raise ValueError("You picked an unlucky shear!")
+        return t.apply_matrix(shear.inverse())
 
     @property
     def halfplanes(self):
@@ -308,7 +305,7 @@ class Triangulation:
         codes = {comb_equiv.generate_code_marked(self, tri, edge)
                  for tri in range(len(self.triangles))
                  for edge in range(3)}
-        code_min = min({code[0] for code in codes})
+        code_min = min(code[0] for code in codes)
         return {(code, edge) for code, edge in codes if code == code_min}
 
     @property
@@ -321,7 +318,7 @@ class Triangulation:
         codes = {geom_equiv.generate_code_marked(self, tri, edge)
                  for tri in range(len(self.triangles))
                  for edge in range(3)}
-        code_min = min({code[0] for code in codes})
+        code_min = min(code[0] for code in codes)
         return {(code, edge) for code, edge in codes if code == code_min}
 
     @property
@@ -384,14 +381,49 @@ class Triangulation:
 
         return plots_tris + plots_labels_tri + plots_labels_edge
 
+    @staticmethod
+    def union(tn1, tn2):
+        ts = tn1.triangles + tn2.triangles
+        tn2_gluings_shifted = {(i1 + len(tn1.triangles), j1): (i2 + len(tn1.triangles), j2)
+                               for (i1, j1), (i2, j2) in tn2.gluings.items()}
+        gluings = {**tn1.gluings, **tn2_gluings_shifted}
+        return Triangulation(ts, gluings)
 
-if __name__ == "__main__":
-    X = Triangulation.regular_octagon()
-    X.plot().show()
-    F = X.generators_veech
-    g1, g2 = F.gens
-    print(g2)
-    # import cProfile
-    #
-    # Y = Triangulation.mcmullen_l(QQ(6), QQ(6))
-    # cProfile.run('fund_dom = Y.generators_veech', 'veechstats.prof')
+    @staticmethod
+    def merge(tn1, tn2):
+        tn = Triangulation.union(tn1, tn2)
+
+        edges_right = {}
+        for idx_p, t in enumerate(tn.triangles[len(tn1.triangles):]):
+            for idx_e, x in enumerate(t):
+                x.set_immutable()
+                if x not in tn.gluings:
+                    edges_right[x] = (idx_p + len(tn1.triangles), idx_e)
+
+        gluings_new = {}
+        for idx_p, t in enumerate(tn.triangles[:len(tn1.triangles)]):
+            for idx_e, edge in enumerate(t):
+                if (idx_p, idx_e) not in tn.gluings:
+                    edge_opp = -edge
+                    edge_opp.set_immutable()
+                    gluings_new[(idx_p, idx_e)] = edges_right[edge_opp]
+                    gluings_new[edges_right[edge_opp]] = (idx_p, idx_e)
+
+        return Triangulation(tn.triangles, {**tn.gluings, **gluings_new})
+
+    @classmethod
+    def convex_polygon(cls, edges):
+        if len(edges) == 3:
+            return Triangulation([Triangle(edges[0], edges[1], edges[2])], gluings={})
+
+        tris = [Triangle(edges[0], edges[1], -(edges[0] + edges[1]))]
+
+        for k in range(2, len(edges) - 2):
+            tris.append(Triangle(-tris[-1][2], edges[k], -edges[k] + tris[-1][2]))
+
+        tris.append(Triangle(-(edges[-2] + edges[-1]), edges[-2], edges[-1]))
+
+        gluings = {(k, 2): (k + 1, 0) for k in range(len(edges) - 3)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(tris, gluings)
