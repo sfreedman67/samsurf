@@ -31,7 +31,7 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
         return Triangle(sides_new[0], sides_new[1], sides_new[2])
 
     def plot(self, basepoint=sage.all.zero_vector(2)):
-        return sage.all.polygon2d(self.vertices(basepoint)).plot()
+        return sage.all.polygon2d(self.vertices(basepoint), fill=False).plot()
 
     def vertices(self, basepoint=sage.all.zero_vector(2)):
         return [basepoint, basepoint + self.v0, basepoint - self.v2]
@@ -44,3 +44,7 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
 
     def __hash__(self):
         return hash(tuple(coord for vertex in self.vertices() for coord in vertex))
+
+    @property
+    def area(self):
+        return QQ(1/2) * abs(sage.all.matrix([self.v0, -self.v2]).determinant())

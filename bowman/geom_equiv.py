@@ -1,11 +1,11 @@
 import sage.all
 from sage.all import *
 
-from bowman.comb_equiv import canonical_relabel
+import bowman.comb_equiv as ce
 
 
 def gen_geom_equiv(trin1, trin2):
-    if trin1.code_geom != trin2.code_geom:
+    if trin1.code != trin2.code:
         return None
 
     _, (tri1, edge1) = next(iter(trin1.codes_geom))
@@ -18,7 +18,7 @@ def gen_geom_equiv(trin1, trin2):
 
 
 def gen_geom_equivs(trin1, trin2):
-    if trin1.code_geom != trin2.code_geom:
+    if trin1.code != trin2.code:
         return []
 
     _, (tri1, edge1) = next(iter(trin1.codes_geom))
@@ -30,7 +30,6 @@ def gen_geom_equivs(trin1, trin2):
         ge = m2.inverse() * m1
         if -ge not in ges:
             ges.append(ge)
-
     return ges
 
 
@@ -41,7 +40,7 @@ def get_normalization_matrix(t, tri, edge):
 
 
 def generate_code_marked(t, tri, edge):
-    relabel = canonical_relabel(t, tri, edge)
+    relabel = ce.canonical_relabel(t, tri, edge)
     relabel_inv = {v: k for k, v in relabel.items()}
 
     frames = []
@@ -52,7 +51,7 @@ def generate_code_marked(t, tri, edge):
         frames.append(sage.all.matrix([v, w]).transpose())
 
     m = get_normalization_matrix(t, tri, edge)
-    frames_new = [m * frame for frame in frames]  # TODO: The bottleneck
+    frames_new = [m * frame for frame in frames]
     for frame in frames_new:
         frame.set_immutable()
 

@@ -1,23 +1,34 @@
-from collections import namedtuple, defaultdict
+from collections import defaultdict, Counter
 
 from sage.all import *
 
 
-class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
-    __slots__ = ()
+class FundDom:
+    def __init__(self, idrs, gens, pairings):
+        self.idrs = idrs
+        self.gens = gens
+        self.pairings = pairings
+
+        self._boundary = None
 
     def __repr__(self):
         return f"FundDom with {len(self.idrs)} idrs and {len(self.gens)} gens"
 
+    def __len__(self):
+        return len(self.idrs)
+
     @property
     def boundary(self):
+        if self._boundary is not None:
+            return self._boundary
         edges_total = {edge for idr in self.idrs for edge in idr.polygon.edges}
         boundary_unordered = {edge for edge in edges_total if edge.reverse() not in edges_total}
-        return _order_boundary(boundary_unordered)
+        self._boundary = _order_boundary(boundary_unordered)
+        return self._boundary
 
     @property
     def num_edges_folded(self):
-        return sum(self.edges_zipped[edge] == edge.reverse()
+        return sum(self.pairings[edge] == edge
                    for edge in self.boundary)
 
     @property
@@ -26,9 +37,7 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
 
     @property
     def cone_angles(self):
-        matchings_edge = {edge: self.edges_zipped[edge] for edge in self.boundary}
-        matchings_vertex = {e1.end: e2.end for e1, e2 in matchings_edge.items()}
-
+        matchings_vertex = {edge.start: self.pairings[edge].end for edge in self.boundary}
         angles_boundary = {e1.end: e1.angle(e2)
                            for e1, e2 in zip(self.boundary,
                                              self.boundary[1:] + self.boundary[:1])}
@@ -36,17 +45,13 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
                 for orbit in _get_orbits(matchings_vertex)]
 
     @property
-    def area(self):
-        return pi * (len(self.boundary) - 2) - sum(self.cone_angles)
-
-    @property
-    def num_cusps(self):
+    def cusps(self):
         return sum(bool(angle == 0) for angle in self.cone_angles)
 
     @property
     def points_orbifold(self):
-        return [pi] * self.num_edges_folded + [angle for angle in self.cone_angles
-                                               if RR(angle) != 0 and RR(angle / pi).round() != 2]
+        orders = [RR(RR(2 * pi) / angle).round() for angle in self.cone_angles if angle != RR(0)]
+        return [2] * self.num_edges_folded + [x for x in orders if x != 1]
 
     @property
     def chi_top(self):
@@ -54,10 +59,10 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
 
     @property
     def chi_orb(self):
-        num_vertices = sum(a / (2 * pi) for a in self.cone_angles) + QQ(1 / 2) * self.num_edges_folded
+        num_vertices = sum(a for a in self.cone_angles) / (2 * RR(pi)) + QQ(1 / 2) * self.num_edges_folded
         num_edges = self.num_edges_folded + self.num_edges_normal
 
-        return num_vertices - num_edges + 1
+        return RR(num_vertices - num_edges + 1).nearby_rational(max_error=0.00001)
 
     @property
     def genus(self):
@@ -72,11 +77,17 @@ class FundDom(namedtuple("FundDom", ["idrs", "gens", "edges_zipped"])):
 
     @property
     def proportions(self):
-        return {code: RR(sum(idr.polygon.area for idr in idrs) / self.area)
-                for code, idrs in self.codes_comb_to_idrs.items()}
+        areas = Counter()
+        for idr in self.idrs:
+            areas[idr.triangulation.code_comb] += (idr.area / self.area)
+        return areas
 
     def plot(self):
-        return sum(r.plot() for r in self.idrs)
+        return sum(x.plot() for x in self.idrs)
+
+    @property
+    def area(self):
+        return sum(p.area for p in self.idrs)
 
 
 def _order_boundary(boundary):

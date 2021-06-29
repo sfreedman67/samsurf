@@ -49,17 +49,16 @@ class Radical:
         A, B, C = self
         D, E, F = other
 
-        if D != 0:
-            return Radical(A - D, B, C) == Radical(0, E, F)
-        elif E == 1:
-            return Radical.sign(*self) >= 0 and Radical.sign(A ** 2 + B ** 2 * C - F, 2 * A * B, C) == 0
-        elif E < 0:
-            return Radical(-A, -B, C) == Radical(0, 1, E ** 2 * F)
-        else:
-            return self == Radical(0, 1, E ** 2 * F)
+        if Radical.sign(A - D, B, C) != Radical.sign(0, E, F):
+            return False
+
+        A1 = (A - D)**2 + B**2 * C - E**2 * F
+        B1 = 2 * (A - D) * B
+
+        return Radical.sign(A1, B1, C) == 0
 
     def __lt__(self, other):
-        '''Checks whether A + B sqrt(C) < D + E sqrt(F)'''
+        """Checks whether A + B sqrt(C) < D + E sqrt(F)"""
         if not isinstance(other, Radical):
             return NotImplemented
 

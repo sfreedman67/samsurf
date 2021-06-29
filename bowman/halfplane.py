@@ -150,7 +150,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         u, v, w = self
 
         u1 = (c ** 2) * w - c * d * v + (d ** 2) * u
-        v1 = -2 * a * c * w + a * d * v + b * c * v - 2 * b * d * u
+        v1 = QQ(-2) * a * c * w + a * d * v + b * c * v - QQ(2) * b * d * u
         w1 = (a ** 2) * w - a * b * v + (b ** 2) * u
 
         return HalfPlane.from_ineq(u1, v1, w1)
@@ -163,7 +163,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         value_start = oo if self.start == oo else self.start.u.value
         value_end = oo if self.end == oo else self.end.u.value
 
-        boundary = HyperbolicPlane().UHP().get_geodesic(value_start, value_end)
+        boundary = sage.all.HyperbolicPlane().UHP().get_geodesic(value_start, value_end)
         return boundary.plot(axes=True, color=color_orientation)
 
 

@@ -52,7 +52,7 @@ def from_permutation(vectors: typing.Sequence, permutation: typing.Mapping[int, 
     for (s, t), pt in vertex_to_pt_boundary.items():
         gluings[(s, t)] = pt_boundary_to_vertex[pt_opposite[pt]]
 
-    return triangulation.Triangulation(tris, gluings)
+    return triangulation.Triangulation(tris, gluings).make_nontrivial()
 
 
 def regular_2kgon(k: int) -> triangulation.Triangulation:

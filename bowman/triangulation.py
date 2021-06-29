@@ -3,7 +3,7 @@ from collections import defaultdict, deque
 from functools import lru_cache
 
 from sage.all import *
-import flatsurf
+# import flatsurf
 
 from bowman import halfplane
 from bowman import idr
@@ -30,6 +30,12 @@ class Triangulation:
     def __hash__(self):
         return self._hash
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.__key() == other.__key()
+        else:
+            return False
+
     @classmethod
     def _from_flatsurf(cls, trin):
         DT = trin.delaunay_triangulation()
@@ -45,7 +51,13 @@ class Triangulation:
 
     @classmethod
     def square_torus(cls):
-        return cls._from_flatsurf(flatsurf.translation_surfaces.square_torus())
+        e0 = sage.all.vector([1, 0])
+        e1 = sage.all.vector([0, 1])
+        t0 = Triangle(-e0 - e1, e0, e1)
+        t1 = Triangle(e0 + e1, -e0, -e1)
+        gluings = {(0, 0): (1, 0), (0, 1): (1, 1), (0, 2): (1, 2)}
+        gluings.update({v: k for k, v in gluings.items()})
+        return Triangulation([t0, t1], gluings)
 
     @classmethod
     def regular_octagon(cls):
@@ -69,12 +81,6 @@ class Triangulation:
         gluings.update({v: k for k, v in gluings.items()})
 
         return Triangulation(triangles, gluings)
-
-    @classmethod
-    def arnoux_yoccoz(cls, g):
-        if g < 3:
-            raise ValueError("g must be >= 3")
-        return cls._from_flatsurf(flatsurf.translation_surfaces.arnoux_yoccoz(g))
 
     @staticmethod
     def _triangulate_rectangle(base, height):
@@ -109,7 +115,7 @@ class Triangulation:
 
     @classmethod
     def mcmullen_s(cls, a):
-        triangles = [tri for dimensions in [(1, 1), (1 + a, 1), (1 + a, a), (a, a)]
+        triangles = [tri for dimensions in [(QQ(1), QQ(1)), (QQ(1) + a, QQ(1)), (QQ(1) + a, a), (a, a)]
                      for tri in Triangulation._triangulate_rectangle(*dimensions)]
         gluings = {(0, 0): (3, 0), (0, 1): (1, 1), (0, 2): (1, 2),
                    (1, 0): (2, 0), (3, 2): (4, 2), (2, 1): (3, 1),
@@ -159,14 +165,16 @@ class Triangulation:
     def hinges(self):
         return [Hinge.from_id_edge(self, edge) for edge in self.edges]
 
-    def is_delaunay(self, non_degenerate=False):
-        return all(hinge.incircle_det > 0
-                   if non_degenerate
-                   else hinge.incircle_det >= 0
-                   for hinge in self.hinges)
+    @property
+    def is_delaunay(self):
+        return all(hinge.incircle_det >= 0 for hinge in self.hinges)
+
+    @property
+    def is_delaunay_strict(self):
+        return all(hinge.incircle_det > 0 for hinge in self.hinges)
 
     def make_delaunay(self):
-        while not self.is_delaunay():
+        while not self.is_delaunay:
             idx = randint(0, len(self.hinges) - 1)
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
@@ -174,10 +182,10 @@ class Triangulation:
         return self
 
     def make_nontrivial(self):
-        shear = sage.all.matrix([[1, QQ(1/2)], [0, 1]])
+        shear = sage.all.matrix([[QQ(1), QQ(0.1)], [QQ(0), QQ(1)]])
         t = self.apply_matrix(shear)
         t = t.make_delaunay()
-        if not t.is_delaunay(non_degenerate=True):
+        if not t.is_delaunay_strict:
             raise ValueError("You picked an unlucky shear!")
         return t.apply_matrix(shear.inverse())
 
@@ -256,6 +264,7 @@ class Triangulation:
         return figure
 
     @property
+    @lru_cache(None)
     def idr(self):
         halfplane_to_ids_hinge = self._halfplanes_to_hinges_degenerate
         halfplanes = list(halfplane_to_ids_hinge.keys())
@@ -274,39 +283,40 @@ class Triangulation:
     def iso_delaunay_complex(self, upper_bound):
         idr_start = self.idr
 
-        polygons_visited = {idr_start.polygon}
+        idrs_visited = {idr_start}
         segments_crossed = set()
 
         queue = deque([idr_start])
 
-        while len(polygons_visited) < upper_bound:
+        while len(idrs_visited) < upper_bound:
             IDR = queue.pop()
             segments_uncrossed = [(idx, segment)
                                   for idx, segment in enumerate(IDR.polygon.edges)
                                   if segment not in segments_crossed]
 
             for idx_segment, segment in segments_uncrossed:
-                IDR_new = IDR.cross_segment(idx_segment)
+                idr_new = IDR.cross_segment(idx_segment)
                 segments_crossed |= {segment, segment.reverse()}
 
-                if IDR_new.polygon not in polygons_visited:
-                    polygons_visited.add(IDR_new.polygon)
-                    queue.appendleft(IDR_new)
+                if idr_new.polygon not in idrs_visited:
+                    idrs_visited.add(idr_new)
+                    queue.appendleft(idr_new)
 
-        return list(polygons_visited)
+        return idrs_visited
 
     @property
     def code_comb(self):
         return next(iter(self.codes_comb))[0]
 
+    # TODO: model as dictionary (tri, edge) --> code_comb?
     @property
     @lru_cache(None)
     def codes_comb(self):
         codes = {comb_equiv.generate_code_marked(self, tri, edge)
                  for tri in range(len(self.triangles))
                  for edge in range(3)}
-        code_min = min(code[0] for code in codes)
-        return {(code, edge) for code, edge in codes if code == code_min}
+        h_min = min(code[0] for code in codes)
+        return {code for code in codes if code[0] == h_min}
 
     @property
     def code_geom(self):
@@ -315,13 +325,13 @@ class Triangulation:
     @property
     @lru_cache(None)
     def codes_geom(self):
-        codes = {geom_equiv.generate_code_marked(self, tri, edge)
-                 for tri in range(len(self.triangles))
-                 for edge in range(3)}
-        code_min = min(code[0] for code in codes)
-        return {(code, edge) for code, edge in codes if code == code_min}
+        codes = {geom_equiv.generate_code_marked(self, edge[0], edge[1])
+                 for _, edge in self.codes_comb}
+        h_min = min(code[0] for code in codes)
+        return {code for code in codes if code[0] == h_min}
 
     @property
+    @lru_cache(None)
     def code(self):
         return self.code_comb, self.code_geom
 
@@ -427,3 +437,12 @@ class Triangulation:
         gluings.update({v: k for k, v in gluings.items()})
 
         return Triangulation(tris, gluings)
+
+    @property
+    def area(self):
+        return sum(t.area for t in self.triangles)
+
+
+if __name__ == "__main__":
+    X = Triangulation.regular_octagon()
+    r = X.idr

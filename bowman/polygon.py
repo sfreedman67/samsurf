@@ -17,6 +17,9 @@ class Point(namedtuple("Point", ["u", "v2"])):
 
         return self
 
+    def __repr__(self):
+        return f"Point(u={QQbar(self.u.value)}, v2={QQbar(self.v2)})"
+
     @staticmethod
     def CCW(p1, p2, p3):
         if any((p1 == p2, p1 == p3, p2 == p3)):
@@ -64,21 +67,21 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         """
         Compute the angle between two consecutive edges e1 and e2
         If their common endpoint is ideal, return 0
-        :param e1: Edge
+        :param self: Edge
         :param e2: Edge
         """
         if self.end != e2.start:
             raise ValueError("self and e2 are not consecutive")
         elif self.end == oo or self.end.v2 == 0:
             return 0
-        px, py = self.end.u.value, QQbar(self.end.v2).sqrt()
+        px, py = RR(self.end.u.value), RR(self.end.v2).sqrt()
 
         v0x, v0y = e2.tangent_vector(px, py)
         v1x, v1y = self.reverse().tangent_vector(px, py)
 
-        angle = atan2(v1y * v0x - v0y * v1x, v0x * v1x + v0y * v1y)
+        angle = RR(atan2(v1y * v0x - v0y * v1x, v0x * v1x + v0y * v1y))
         if angle < 0:
-            angle += 2 * pi
+            angle += RR(2 * pi)
         return angle
 
     def tangent_vector(self, u, v):
@@ -88,8 +91,8 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
         elif a == 0:
             return sage.all.vector([0, -b])
         else:
-            a, b = QQbar(a), QQbar(b)
-            num = -b - 2 * a * QQbar(u)
+            a, b = RR(a), RR(b)
+            num = -b - 2 * a * RR(u)
             denom = 2 * v
             dv_du = num / denom
             return sage.all.vector([a, dv_du])
@@ -106,16 +109,17 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
     @property
     def coordinates(self):
-        if self.start == oo:
-            coord_start = oo
-        else:
-            coord_start = CC(self.start.u.value, QQbar(self.start.v2).sqrt())
+        coordinates = []
+        for endpoint in [self.start, self.end]:
+            if endpoint == oo:
+                coordinate = oo
+            else:
+                x_val = 0 if QQbar(endpoint.u.value).is_zero() else QQbar(endpoint.u.value)
+                y_val = 0 if QQbar(endpoint.v2).is_zero() else QQbar(sqrt(endpoint.v2))
+                coordinate = CC(x_val, y_val)
+            coordinates.append(coordinate)
 
-        if self.end == oo:
-            coord_end = oo
-        else:
-            coord_end = CC(self.end.u.value, QQbar(self.end.v2).sqrt())
-        return coord_start, coord_end
+        return coordinates
 
 
 class ChainHasMultipleHeadsError(Exception):
@@ -134,6 +138,12 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         if isinstance(other, Polygon):
             return self.__key() == other.__key()
         return NotImplemented
+
+    def __iter__(self):
+        return iter(self.edges)
+
+    def __len__(self):
+        return len(self.edges)
 
     @property
     def vertices(self):
@@ -190,9 +200,12 @@ class Polygon(namedtuple("Polygon", ["edges"])):
 
     @property
     def area(self):
-        angle_sum = sum(Edge.angle(*es)
-                        for es in zip(self.edges, self.edges[1:] + self.edges[:1]))
-        return pi * (len(self.edges) - 2) - angle_sum
+        angle_sum = sum(Edge.angle(e1, e2)
+                        for e1, e2 in zip(self.edges, self.edges[1:] + self.edges[:1]))
+        return RR(pi) * (len(self.edges) - 2) - angle_sum
 
     def plot(self):
         return sum(edge.plot() for edge in self.edges)
+
+    def contains_point(self, point):
+        return all(x.halfplane.contains_point(point) for x in self.edges)

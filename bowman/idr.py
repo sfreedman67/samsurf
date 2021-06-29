@@ -2,7 +2,7 @@ from sage.all import *
 
 import collections
 
-from bowman.algo import _find_veech_equivs
+from bowman.geom_equiv import gen_geom_equivs
 
 
 class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangulation"])):
@@ -10,6 +10,9 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
 
     def __repr__(self):
         return f"IDR with {len(self.polygon.edges)} sides"
+
+    def __hash__(self):
+        return hash(self.polygon)
 
     @property
     def is_trivial(self):
@@ -24,13 +27,19 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
 
     @property
     def has_self_equivalences(self):
-        identity = ((QQ(1), QQ(0)), (QQ(0), QQ(1)))
-        return {tuple(tuple(row) for row in x) for x in _find_veech_equivs(self, self)} != {identity}
+        return len({tuple(tuple(row) for row in x)
+                    for x in gen_geom_equivs(self.triangulation, self.triangulation)}) > 1
 
     @property
     def neighbors(self):
         return [self.cross_segment(k) for k in range(len(self.polygon.edges))]
 
+    @property
+    def area(self):
+        return self.polygon.area
+
     def plot(self):
-        # TODO: add edge labels
         return self.polygon.plot()
+
+    def contains_point(self, point):
+        return self.polygon.contains_point(point)

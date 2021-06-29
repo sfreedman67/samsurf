@@ -76,15 +76,13 @@ class TestIsNonDegenerate(unittest.TestCase):
     def test_regular_polygons(self):
         # triangulation from a regular torus
         self.assertFalse(triangulation.Triangulation.square_torus(
-        ).is_delaunay(non_degenerate=True))
+        ).is_delaunay_strict)
         self.assertFalse(
-            triangulation.Triangulation.regular_octagon().is_delaunay(non_degenerate=True))
-        self.assertFalse(
-            triangulation.Triangulation.octagon_and_squares().is_delaunay(non_degenerate=True))
+            triangulation.Triangulation.regular_octagon().is_delaunay_strict)
 
     def test_arnoux_yoccoz(self):
         self.assertTrue(triangulation.Triangulation.arnoux_yoccoz(
-            3).is_delaunay(non_degenerate=True))
+            3).is_delaunay_strict)
 
 
 class TestIsDelaunay(unittest.TestCase):
@@ -92,10 +90,9 @@ class TestIsDelaunay(unittest.TestCase):
     def test_flatsurf_examples(self):
         for X in [triangulation.Triangulation.square_torus(),
                   triangulation.Triangulation.regular_octagon(),
-                  triangulation.Triangulation.octagon_and_squares(),
                   triangulation.Triangulation.arnoux_yoccoz(3),
                   triangulation.Triangulation.arnoux_yoccoz(5)]:
-            self.assertTrue(X.is_delaunay(non_degenerate=False))
+            self.assertTrue(X.is_delaunay)
 
 
 class TestFlipHinge(unittest.TestCase):
@@ -176,10 +173,20 @@ class TestHinge(TestCase):
 
 
 class TestTriangulation(TestCase):
-    def test_generators_veech(self):
+    def test_generators_veech_octagon(self):
+        Y = triangulation.Triangulation.regular_octagon()
+        fund_dom = Y.generators_veech
+        self.assertEqual(len(fund_dom), 2)
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-3/4))
+        self.assertEqual(fund_dom.genus, 0)
+        self.assertEqual(fund_dom.cusps, 2)
+        self.assertEqual(fund_dom.points_orbifold, [4])
+
+    def test_generators_veech_ronenl44(self):
         X = triangulation.Triangulation.ronen_l(44)
         fund_dom = X.generators_veech
+        self.assertEqual(len(fund_dom), 142)
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-21/2))
         self.assertEqual(fund_dom.genus, 1)
-        self.assertEqual(fund_dom.num_cusps, 9)
-        self.assertEqual(fund_dom.points_orbifold, [pi, pi, pi])
-        self.assertEqual(RR(fund_dom.chi_orb), RR(-21/2))
+        self.assertEqual(fund_dom.cusps, 9)
+        self.assertEqual(fund_dom.points_orbifold, [2, 2, 2])

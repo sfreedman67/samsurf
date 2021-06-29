@@ -1,20 +1,39 @@
-from unittest import TestCase
-
-import sage.all
 from sage.all import *
 
-from context import bowman
-import bowman.geom_equiv
+from unittest import TestCase
+from collections import defaultdict
+from itertools import combinations
+
 from bowman import geom_equiv
+from bowman import comb_equiv
+from bowman import triangulation
+from bowman import unfolding
 
 
 class Test(TestCase):
-    def test_get_matrix(self):
-        v1 = vector([2, 1])
-        v2 = vector([1, 1])
+    def test_generate_code_marked(self):
+        X = unfolding.triangulate_gothic1128(QQ(-1/2))
+        codes_to_identifications = defaultdict(list)
+        codes_to_vectors = defaultdict(list)
+        for tri in range(len(X.triangles)):
+            for edge in range(3):
+                code, _ = geom_equiv.generate_code_marked(X, tri, edge)
+                d = comb_equiv.canonical_relabel(X, tri, edge)
+                dinv = {v: k for k, v in d.items()}
 
-        w1 = v2
-        w2 = vector([1, 2])
+                ids = {d[e0]: d[e1] for e0, e1 in X.gluings.items()}
+                codes_to_identifications[code].append(ids)
 
-        ans = matrix([[0, 1], [-1, 3]])
-        self.assertEqual(geom_equiv._get_matrix_from_vectors((v1, v2), (w1, w2)), ans)
+                vectors = []
+                m = geom_equiv.get_normalization_matrix(X, tri, edge)
+                for tri_idx in range(len(X.triangles)):
+                    for edge_idx in range(3):
+                        k0, k1 = dinv[(tri_idx, edge_idx)]
+                        vectors.append(m*(X.triangles[k0][k1]))
+                codes_to_vectors[code].append(vectors)
+        for code, ids in codes_to_identifications.items():
+            for ids0, ids1 in combinations(ids, 2):
+                self.assertEqual(ids0, ids1)
+        for code, vectors in codes_to_vectors.items():
+            for vs0, vs1 in combinations(vectors, 2):
+                self.assertEqual(vs0, vs1)
