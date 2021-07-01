@@ -441,8 +441,3 @@ class Triangulation:
     @property
     def area(self):
         return sum(t.area for t in self.triangles)
-
-
-if __name__ == "__main__":
-    X = Triangulation.regular_octagon()
-    r = X.idr
