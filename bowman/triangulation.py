@@ -339,7 +339,21 @@ class Triangulation:
     def generators_veech(self):
         return algo.generators_veech(self)
 
+    @property
+    def cylinder_directions(self):
+        dir_list = list()
+
+        for idr in self.generators_veech.idrs:
+            for vertex in idr.polygon.vertices:
+                if vertex == oo and (1,0) not in [dir for dir, _ in dir_list]:
+                    dir_list.append(((1,0), idr.triangulation))
+                elif vertex != oo and vertex.v2 == 0 and (vertex.u, 1) not in [dir for dir, _ in dir_list]:
+                    dir_list.append(((vertex.u, 1), idr.triangulation))
+
+        return dir_list
+
     def get_vertices_neighbor(self, vertices_tri, idx_tri, idx_edge):
+        '''Computes the vertex coordinates of the neighboring triangle across IDX_EDGE given the coordinates of IDX_TRI.'''
         vertex_start = vertices_tri[idx_edge]
         vertex_end = vertices_tri[(idx_edge + 1) % 3]
 
@@ -351,10 +365,12 @@ class Triangulation:
         return [vertices_tri_opp[k] for k in range(3)]
 
     def plot(self):
-        # TODO: CLEAN + separate each part of plot into separate methods
-
+        # Keys are triangle IDs, and the corresponding values are the vertices of that triangle.
         tris_seen = {0: self.triangles[0].vertices()}
+        # Start from the zeroeth triangle in your triangulation.
         tris_to_visit = deque([0])
+
+        plots_tris = self.triangles[0].plot()
 
         while tris_to_visit:
             idx_tri_curr = tris_to_visit.pop()
@@ -363,6 +379,7 @@ class Triangulation:
                 if idx_tri_nbr not in tris_seen:
                     vertices_curr = tris_seen[idx_tri_curr]
                     tris_seen[idx_tri_nbr] = self.get_vertices_neighbor(vertices_curr, idx_tri_curr, idx_edge)
+                    plots_tris += self.triangles[idx_tri_nbr].plot(tris_seen[idx_tri_nbr][0])
                     tris_to_visit.appendleft(idx_tri_nbr)
 
         def center(vertices):
@@ -386,8 +403,6 @@ class Triangulation:
         plots_labels_edge = sum(sage.all.text(str(idx), midpoint(v1, v2) + displacement(v1, v2)).plot()
                                 for (a, b, c) in tris_seen.values()
                                 for idx, (v1, v2) in [(0, (a, b)), (1, (b, c)), (2, (c, a))])
-
-        plots_tris = sum(sage.all.polygon2d(vertices, fill=False).plot() for vertices in tris_seen.values())
 
         return plots_tris + plots_labels_tri + plots_labels_edge
 
@@ -441,3 +456,8 @@ class Triangulation:
     @property
     def area(self):
         return sum(t.area for t in self.triangles)
+
+
+if __name__ == "__main__":
+    X = Triangulation.regular_octagon()
+    r = X.idr

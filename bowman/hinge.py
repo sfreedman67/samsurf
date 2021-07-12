@@ -7,8 +7,25 @@ from bowman.triangle import Triangle
 from bowman.halfplane import HalfPlane
 
 
-class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
-    __slots__ = ()
+class Hinge:
+
+    def __init__(self, tri, id_edge, tri_opp, id_edge_opp):
+        self.tri = tri
+        self.id_edge = id_edge
+        self.tri_opp = tri_opp
+        self.id_edge_opp = id_edge_opp
+
+        edge = tri[id_edge[1]]
+        edge_opp = tri_opp[id_edge_opp[1]]
+
+        if edge != -edge_opp:
+            raise ValueError("Edges either nonparallel or improperly oriented")
+
+        v0 = tri[(id_edge[1] + 1) % 3]
+        v1 = edge_opp
+        v2 = -tri_opp[(id_edge_opp[1] - 1) % 3]
+
+        self.vectors = (v0,v1,v2)
 
     @property
     def coordinates(self):
@@ -28,17 +45,7 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
         tri = trin.triangles[label_tri]
         tri_opp = trin.triangles[label_tri_opp]
 
-        edge = tri[label_edge]
-        edge_opp = tri_opp[label_edge_opp]
-
-        if edge != -edge_opp:
-            raise ValueError("Edges either nonparallel or improperly oriented")
-
-        v0 = tri[(label_edge + 1) % 3]
-        v1 = edge_opp
-        v2 = -tri_opp[(label_edge_opp - 1) % 3]
-
-        return Hinge((v0, v1, v2), id_edge, id_edge_opp)
+        return Hinge(tri, id_edge, tri_opp, id_edge_opp)
 
     @property
     def is_convex(self):
@@ -55,7 +62,53 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
 
     def flip(self):
         v0, v1, v2 = self.vectors
-        return Hinge((v1 - v0, v2 - v0, -v0), self.id_edge, self.id_edge_opp)
+
+        sides_ordered = sorted([(self.id_edge[1], v0 - v2),
+                                ((self.id_edge[1] + 1) % 3, v1 - v0),
+                                ((self.id_edge[1] + 2) % 3, v2 - v1)])
+
+        tri = Triangle(*(vector for _, vector in sides_ordered), list())
+
+        sides_ordered = sorted([(self.id_edge_opp[1], v2 - v0),
+                                ((self.id_edge_opp[1] + 1) % 3, -v2),
+                                ((self.id_edge_opp[1] + 2) % 3, v0)])
+        tri_opp = Triangle(*(vector for _, vector in sides_ordered), list())
+
+        for point_marked, point_marked_color in self.tri.points_marked:
+            cartesian_coords = sage.all.matrix([[v1[0],v0[0]],[v1[1],v0[1]]]) * sage.all.vector((point_marked[self.id_edge[1]],
+                                                                                                 point_marked[(self.id_edge[1] + 2) % 3]))
+            change_of_basis = sage.all.matrix([[(v1-v0)[0],(v2-v0)[0]],[(v1-v0)[1],(v2-v0)[1]]])**(-1)
+            new_coords = change_of_basis * (cartesian_coords - v0)
+            new_coords_ordered = sorted([(self.id_edge[1], new_coords[0]),
+                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
+                                         ((self.id_edge[1] + 2) % 3, new_coords[1])])
+            if tri.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color):
+                # If the point was not successfully marked on TRI, mark on TRI_OPP instead.
+                change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
+                new_coords = change_of_basis * cartesian_coordinates
+                new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
+                                             ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
+                                             ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
+                tri_opp.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
+
+        for point_marked, point_marked_color in self.tri_opp.points_marked:
+            cartesian_coords = sage.all.matrix([[v1[0],v2[0]],[v1[1],v2[1]]]) * sage.all.vector((point_marked[(self.id_edge_opp[1] + 1) % 3],
+                                                                                                 point_marked[(self.id_edge_opp[1] + 2) % 3]))
+            change_of_basis = sage.all.matrix([[(v2-v0)[0],(v1-v0)[0]],[(v2-v0)[1],(v1-v0)[1]]])**(-1)
+            new_coords = change_of_basis * (cartesian_coords - v0)
+            new_coords_ordered = sorted([(self.id_edge[1], new_coords[0]),
+                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
+                                         ((self.id_edge[1] + 2) % 3, new_coords[1])])
+            if tri.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color):
+                # If the point was not succesfully marked on TRI, mark on TRI_OPP instead.
+                change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
+                new_coords = change_of_basis * cartesian_coords
+                new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
+                                             ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
+                                             ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
+                tri_opp.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
+
+        return Hinge(tri, self.id_edge, tri_opp, self.id_edge_opp)
 
     @property
     def incircle_det(self):
@@ -86,22 +139,11 @@ class Hinge(namedtuple("Hinge", ["vectors", "id_edge", "id_edge_opp"])):
 
     @property
     def triangle(self):
-        v0, v1, v2 = self.vectors
-
-        sides_ordered = sorted([(self.id_edge[1], -v1),
-                                ((self.id_edge[1] + 1) % 3, v0),
-                                ((self.id_edge[1] + 2) % 3, v1 - v0)])
-        return Triangle(*(vector for _, vector in sides_ordered))
+        return self.tri
 
     @property
     def triangle_opp(self):
-        v0, v1, v2 = self.vectors
-
-        sides_ordered = sorted([(self.id_edge_opp[1], v1),
-                                ((self.id_edge_opp[1] + 1) % 3, v2 - v1),
-                                ((self.id_edge_opp[1] + 2) % 3, -v2)])
-
-        return Triangle(*(vector for _, vector in sides_ordered))
+        return self.tri_opp
 
     @property
     def ids_boundary(self):

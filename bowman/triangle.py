@@ -4,17 +4,42 @@ import functools
 from sage.all import *
 
 
-class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
-    __slots__ = ()
-
-    def __new__(cls, v0, v1, v2):
+class Triangle():
+    def __init__(self, v0, v1, v2, points_marked = list()):
         if sum((v0, v1, v2)) != 0:
             raise ValueError("sides do not close up")
         elif sage.all.matrix([v0, -v2]).determinant() <= 0:
             raise ValueError("sides are not oriented correctly")
 
-        self = super(Triangle, cls).__new__(cls, v0, v1, v2)
-        return self
+        self.v0 = v0
+        self.v1 = v1
+        self.v2 = v2
+
+        for point_marked, point_marked_color in points_marked:
+            if point_marked[0] + point_marked[1] + point_marked[2] != 1:
+                raise ValueError("Barycentric coordinates should sum to 1.")
+            if point_marked[0] < 0 or point_marked[1] < 0 or point_marked[2] < 0:
+                raise ValueError("Barycentric coordinates should be nonnegative")
+
+        self.points_marked = points_marked
+
+    def mark_point(self, a0, a1, a2, rgbcolor):
+        if a0 + a1 + a2 != 1:
+            return 1
+        if a0 < 0 or a1 < 0 or a2 < 0:
+            return 1
+        self.points_marked.append(((a0, a1, a2), rgbcolor))
+        return 0
+
+    def __getitem__(self, key):
+        if key == 0:
+            return self.v0
+        elif key == 1:
+            return self.v1
+        elif key == 2:
+            return self.v2
+        else:
+            raise ValueError("Invalid index {i}. A triangle has only three edges.".format(i = key))
 
     def reflect(self, idx):
         def reflect_vector(v, w):
@@ -28,10 +53,14 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
         sides_new = {idx: -v_axis,
                      (idx + 1) % 3: reflect_vector(v_axis, -v_pred),
                      (idx + 2) % 3: reflect_vector(v_axis, -v_succ)}
-        return Triangle(sides_new[0], sides_new[1], sides_new[2])
+        return Triangle(sides_new[0], sides_new[1], sides_new[2], self.points_marked)
 
     def plot(self, basepoint=sage.all.zero_vector(2)):
-        return sage.all.polygon2d(self.vertices(basepoint), fill=False).plot()
+        triangle_plot = sage.all.polygon2d(self.vertices(basepoint), fill=False).plot()
+        for point_marked, point_marked_color in self.points_marked:
+            point_marked_coords = basepoint + point_marked[1]*self.v0 - point_marked[2]*self.v2
+            triangle_plot = triangle_plot + sage.all.point2d((float(point_marked_coords[0]), float(point_marked_coords[1])), rgbcolor = point_marked_color, size = 50).plot()
+        return triangle_plot
 
     def vertices(self, basepoint=sage.all.zero_vector(2)):
         return [basepoint, basepoint + self.v0, basepoint - self.v2]
@@ -40,7 +69,7 @@ class Triangle(namedtuple("Triangle", ["v0", "v1", "v2"])):
         w0 = m * self.v0
         w1 = m * self.v1
         w2 = -(w0 + w1)
-        return Triangle(w0, w1, w2)
+        return Triangle(w0, w1, w2, self.points_marked)
 
     def __hash__(self):
         return hash(tuple(coord for vertex in self.vertices() for coord in vertex))
