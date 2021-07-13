@@ -5,7 +5,15 @@ from sage.all import *
 
 
 class Triangle():
-    def __init__(self, v0, v1, v2, points_marked = list()):
+    """ A triangle with a list of marked points
+    -
+    :params v0, v1, v2: vectors representing edges of the triangle with property v0 + v1 + v2 = 0
+    :param points_marked: an optional list containing marked points of the form
+     ((a, b, c), (r, g, b)) where (a,b,c) are barycentric coords in the triangle and (r, g, b) correspond to a color for the marked point
+    -
+    - see a document for how the coordinates correspond to the edges
+    """
+    def __init__(self, v0, v1, v2, points_marked = None):
         if sum((v0, v1, v2)) != 0:
             raise ValueError("sides do not close up")
         elif sage.all.matrix([v0, -v2]).determinant() <= 0:
@@ -15,15 +23,20 @@ class Triangle():
         self.v1 = v1
         self.v2 = v2
 
-        for point_marked, point_marked_color in points_marked:
-            if point_marked[0] + point_marked[1] + point_marked[2] != 1:
-                raise ValueError("Barycentric coordinates should sum to 1.")
-            if point_marked[0] < 0 or point_marked[1] < 0 or point_marked[2] < 0:
-                raise ValueError("Barycentric coordinates should be nonnegative")
-
-        self.points_marked = points_marked
+        if points_marked is None:
+            self.points_marked = []
+        else:
+            for point_marked, point_marked_color in points_marked:
+                if point_marked[0] + point_marked[1] + point_marked[2] != 1:
+                    raise ValueError("Barycentric coordinates should sum to 1.")
+                if point_marked[0] < 0 or point_marked[1] < 0 or point_marked[2] < 0:
+                    raise ValueError("Barycentric coordinates should be nonnegative.")
+            self.points_marked = points_marked
 
     def mark_point(self, a0, a1, a2, rgbcolor):
+        """Determine if the given coordinates a0, a1, a2 are valid barycentric coordinates in the Triangle self and add to points_marked if valid.
+        return 0 if the cooridnates are valid, 1 otherwise
+        """
         if a0 + a1 + a2 != 1:
             return 1
         if a0 < 0 or a1 < 0 or a2 < 0:

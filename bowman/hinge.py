@@ -8,7 +8,15 @@ from bowman.halfplane import HalfPlane
 
 
 class Hinge:
-
+    """ Two adjacent triangles where a hinge transformation could be performed.
+    -
+    :param tri: a Triangle
+    :param id_edge: an edge vector, the shared edge identified by tri
+    :param tri_opp: a Triangle, the triangle opposite tri
+    :param id_edge_op: an edge vector, the shared edge identified by tri_opp
+    -
+    - See document for examples of labeling tri, tri_opp and edges.
+    """
     def __init__(self, tri, id_edge, tri_opp, id_edge_opp):
         self.tri = tri
         self.id_edge = id_edge
@@ -61,12 +69,18 @@ class Hinge:
         return all_positive or all_negative
 
     def flip(self):
+        """Performs hinge flip and maintains the locations of marked points.
+        -See document for how labeling is done."""
+        #TODO: check that equations are correct, look out for possible symmetry issues
+
         v0, v1, v2 = self.vectors
 
+        # produce new side list maintaining order such that v1 is still v1
         sides_ordered = sorted([(self.id_edge[1], v0 - v2),
                                 ((self.id_edge[1] + 1) % 3, v1 - v0),
                                 ((self.id_edge[1] + 2) % 3, v2 - v1)])
 
+        # produce new triangle tri from sides_ordered
         tri = Triangle(*(vector for _, vector in sides_ordered), list())
 
         sides_ordered = sorted([(self.id_edge_opp[1], v2 - v0),
@@ -74,6 +88,7 @@ class Hinge:
                                 ((self.id_edge_opp[1] + 2) % 3, v0)])
         tri_opp = Triangle(*(vector for _, vector in sides_ordered), list())
 
+        #produce marked points from original tri
         for point_marked, point_marked_color in self.tri.points_marked:
             cartesian_coords = sage.all.matrix([[v1[0],v0[0]],[v1[1],v0[1]]]) * sage.all.vector((point_marked[self.id_edge[1]],
                                                                                                  point_marked[(self.id_edge[1] + 2) % 3]))
@@ -91,6 +106,7 @@ class Hinge:
                                              ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
                 tri_opp.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
 
+        #produce marked points from original tri_opp
         for point_marked, point_marked_color in self.tri_opp.points_marked:
             cartesian_coords = sage.all.matrix([[v1[0],v2[0]],[v1[1],v2[1]]]) * sage.all.vector((point_marked[(self.id_edge_opp[1] + 1) % 3],
                                                                                                  point_marked[(self.id_edge_opp[1] + 2) % 3]))
