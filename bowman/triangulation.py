@@ -15,17 +15,16 @@ from bowman.hinge import Hinge
 
 
 class Triangulation:
-    def __init__(self, triangles=None, gluings=None):
-        self.triangles = triangles if triangles is not None else []
+    def __init__(self, triangles = None, gluings = None):
+        self.triangles = tuple(triangles) if triangles is not None else tuple()
         self.gluings = gluings if gluings is not None else {}
 
         self._hash = hash(self.__key())
 
     def __key(self):
-        tris_safe = tuple(self.triangles)
         gluings_ordered = {(e1, e2) for e1, e2 in self.gluings.items() if e1 < e2}
         gluings_safe = tuple(sorted(gluings_ordered))
-        return tris_safe, gluings_safe
+        return self.triangles, gluings_safe
 
     def __hash__(self):
         return self._hash
@@ -153,8 +152,13 @@ class Triangulation:
         return Triangulation(triangles, gluings)
 
     def apply_matrix(self, m):
-        tris_new = [tri.apply_matrix(m) for tri in self.triangles]
+        tris_new = tuple(tri.apply_matrix(m) for tri in self.triangles)
         return Triangulation(tris_new, self.gluings)
+
+    def mark_point(self, triangle_id, a0, a1, a2, rgbcolor):
+        """Mark in color RGBCOLOR the point determined by barycentric coordinates (A0, A1, A2) on the triangle TRIANGLE_ID."""
+        tris_new = self.triangles[:triangle_id] + (self.triangles[triangle_id].mark_point(a0, a1, a2, rgbcolor),) + self.triangles[triangle_id + 1:]
+        return Triangulation(tries_new, self.gluings)
 
     @property
     def edges(self):
@@ -353,7 +357,7 @@ class Triangulation:
         return dir_list
 
     def get_vertices_neighbor(self, vertices_tri, idx_tri, idx_edge):
-        '''Computes the vertex coordinates of the neighboring triangle across IDX_EDGE given the coordinates of IDX_TRI.'''
+        """Computes the vertex coordinates of the neighboring triangle across IDX_EDGE given the coordinates of IDX_TRI."""
         vertex_start = vertices_tri[idx_edge]
         vertex_end = vertices_tri[(idx_edge + 1) % 3]
 

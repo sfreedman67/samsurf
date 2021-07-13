@@ -3,7 +3,7 @@ from functools import lru_cache
 
 from sage.all import *
 
-from bowman.triangle import Triangle
+from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.halfplane import HalfPlane
 
 
@@ -92,37 +92,47 @@ class Hinge:
         for point_marked, point_marked_color in self.tri.points_marked:
             cartesian_coords = sage.all.matrix([[v1[0],v0[0]],[v1[1],v0[1]]]) * sage.all.vector((point_marked[self.id_edge[1]],
                                                                                                  point_marked[(self.id_edge[1] + 2) % 3]))
+
+            # Attempt to mark point on TRI.
             change_of_basis = sage.all.matrix([[(v1-v0)[0],(v2-v0)[0]],[(v1-v0)[1],(v2-v0)[1]]])**(-1)
             new_coords = change_of_basis * (cartesian_coords - v0)
             new_coords_ordered = sorted([(self.id_edge[1], new_coords[0]),
                                          ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
                                          ((self.id_edge[1] + 2) % 3, new_coords[1])])
-            if tri.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color):
-                # If the point was not successfully marked on TRI, mark on TRI_OPP instead.
-                change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
-                new_coords = change_of_basis * cartesian_coordinates
-                new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
-                                             ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
-                                             ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
-                tri_opp.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
+            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
+                tri = tri.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
+
+            # Attempt to mark point on TRI_OPP.
+            change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
+            new_coords = change_of_basis * cartesian_coordinates
+            new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
+                                         ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
+                                         ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
+            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
+                tri_opp = tri_opp.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
 
         #produce marked points from original tri_opp
         for point_marked, point_marked_color in self.tri_opp.points_marked:
             cartesian_coords = sage.all.matrix([[v1[0],v2[0]],[v1[1],v2[1]]]) * sage.all.vector((point_marked[(self.id_edge_opp[1] + 1) % 3],
                                                                                                  point_marked[(self.id_edge_opp[1] + 2) % 3]))
+
+            # Attempt to mark point on TRI.
             change_of_basis = sage.all.matrix([[(v2-v0)[0],(v1-v0)[0]],[(v2-v0)[1],(v1-v0)[1]]])**(-1)
             new_coords = change_of_basis * (cartesian_coords - v0)
             new_coords_ordered = sorted([(self.id_edge[1], new_coords[0]),
                                          ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
                                          ((self.id_edge[1] + 2) % 3, new_coords[1])])
-            if tri.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color):
-                # If the point was not succesfully marked on TRI, mark on TRI_OPP instead.
-                change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
-                new_coords = change_of_basis * cartesian_coords
-                new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
-                                             ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
-                                             ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
-                tri_opp.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
+            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
+                tri = tri.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
+
+            # Attempt to mark point on TRI_OPP.
+            change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
+            new_coords = change_of_basis * cartesian_coords
+            new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
+                                         ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
+                                         ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
+            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
+                tri_opp = tri_opp.mark_point(*(coord for _, coord in new_coords_ordered), point_marked_color)
 
         return Hinge(tri, self.id_edge, tri_opp, self.id_edge_opp)
 

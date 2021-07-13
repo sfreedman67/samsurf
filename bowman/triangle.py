@@ -3,6 +3,12 @@ import functools
 
 from sage.all import *
 
+def is_valid_barycentric_coordinate(a0, a1, a2):
+    if a0 + a1 + a2 != 1:
+        return False
+    if a0 < 0 or a1 < 0 or a2 < 0:
+        return False
+    return True
 
 class Triangle():
     """ A triangle with a list of marked points
@@ -24,25 +30,20 @@ class Triangle():
         self.v2 = v2
 
         if points_marked is None:
-            self.points_marked = []
+            self.points_marked = tuple()
         else:
-            for point_marked, point_marked_color in points_marked:
-                if point_marked[0] + point_marked[1] + point_marked[2] != 1:
-                    raise ValueError("Barycentric coordinates should sum to 1.")
-                if point_marked[0] < 0 or point_marked[1] < 0 or point_marked[2] < 0:
-                    raise ValueError("Barycentric coordinates should be nonnegative.")
-            self.points_marked = points_marked
+            for point_marked, _ in points_marked:
+                if not is_valid_barycentric_coordinate(*(point_marked)):
+                    raise ValueError("Invalid barycentric coordinates.")
+            self.points_marked = tuple(points_marked)
 
     def mark_point(self, a0, a1, a2, rgbcolor):
         """Determine if the given coordinates a0, a1, a2 are valid barycentric coordinates in the Triangle self and add to points_marked if valid.
         return 0 if the cooridnates are valid, 1 otherwise
         """
-        if a0 + a1 + a2 != 1:
-            return 1
-        if a0 < 0 or a1 < 0 or a2 < 0:
-            return 1
-        self.points_marked.append(((a0, a1, a2), rgbcolor))
-        return 0
+        if not is_valid_barycentric_coordinate(a0, a1, a2):
+            raise ValueError("Invalid barycentric coordinates.")
+        return Triangle(self.v0, self.v1, self.v2, self.points_marked + (((a0, a1, a2), rgbcolor),))
 
     def __getitem__(self, key):
         if key == 0:
