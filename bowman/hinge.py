@@ -71,8 +71,6 @@ class Hinge:
     def flip(self):
         """Performs hinge flip and maintains the locations of marked points.
         -See document for how labeling is done."""
-        #TODO: check that equations are correct, look out for possible symmetry issues
-
         v0, v1, v2 = self.vectors
 
         # produce new side list maintaining order such that v1 is still v1
@@ -86,6 +84,7 @@ class Hinge:
         sides_ordered = sorted([(self.id_edge_opp[1], v2 - v0),
                                 ((self.id_edge_opp[1] + 1) % 3, -v2),
                                 ((self.id_edge_opp[1] + 2) % 3, v0)])
+
         tri_opp = Triangle(*(vector for _, vector in sides_ordered), list())
 
         #produce marked points from original tri
@@ -96,9 +95,9 @@ class Hinge:
             # Attempt to mark point on TRI.
             change_of_basis = sage.all.matrix([[(v1-v0)[0],(v2-v0)[0]],[(v1-v0)[1],(v2-v0)[1]]])**(-1)
             new_coords = change_of_basis * (cartesian_coords - v0)
-            new_coords_ordered = sorted([(self.id_edge[1], new_coords[0]),
+            new_coords_ordered = sorted([(self.id_edge[1], new_coords[1]),
                                          ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
-                                         ((self.id_edge[1] + 2) % 3, new_coords[1])])
+                                         ((self.id_edge[1] + 2) % 3, new_coords[0])])
             if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
                 tri = tri.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)
 
@@ -120,7 +119,7 @@ class Hinge:
             change_of_basis = sage.all.matrix([[(v2-v0)[0],(v1-v0)[0]],[(v2-v0)[1],(v1-v0)[1]]])**(-1)
             new_coords = change_of_basis * (cartesian_coords - v0)
             new_coords_ordered = sorted([(self.id_edge[1], new_coords[0]),
-                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
+                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] - new_coords[1]),
                                          ((self.id_edge[1] + 2) % 3, new_coords[1])])
             if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
                 tri = tri.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)

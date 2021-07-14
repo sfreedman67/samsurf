@@ -10,7 +10,7 @@ from bowman import idr
 from bowman import comb_equiv
 from bowman import geom_equiv
 from bowman import algo
-from bowman.triangle import Triangle
+from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
 
 
@@ -164,9 +164,26 @@ class Triangulation:
         rgbcolor    := a tuple of three real numbers between 0 and 1, where the componenets are the RGB values of a
                        color.
         """
-        tris_new = self.triangles[:triangle_id] + \
-                       (self.triangles[triangle_id].mark_point(coords, rgbcolor),) + \
-                       self.triangles[triangle_id + 1:]
+        if not is_valid_barycentric_coordinate(*coords):
+            raise ValueError("Invalid barycentric coordinates.")
+
+        tris_new = self.triangles[0:]
+
+        def __replace__(array, index, new_element):
+            return array[:index] + (new_element,) + array[index + 1:]
+
+        if coords[0] > 0 and coords[1] > 0 and coords[2] > 0:
+            # If the point marked lies in the interior of the triangle...
+            tris_new = __replace__(tris_new, triangle_id, tris_new[triangle_id].mark_point(coords, rgbcolor))
+        elif coords[0] + coords[1] > 0 and coords[1] + coords[2] > 0 and coords[2] + coords[0] > 0:
+            # If the point marked lies on the interior of an edge of the triangle...
+            tris_new = __replace__(tris_new, triangle_id, tris_new[triangle_id].mark_point(coords, rgbcolor))
+            edge_id = (coords.index(0) + 1) % 3
+            opp_triangle_id, opp_edge_id = self.gluings[(triangle_id, edge_id)]
+            opp_coords_indexed = sorted([(opp_edge_id, coords[(edge_id + 1) % 3]), ((opp_edge_id + 1) % 3, coords[edge_id]), ((opp_edge_id + 2) % 3, coords[(edge_id + 2) % 3])])
+            opp_coords = tuple(opp_coord for _, opp_coord in opp_coords_indexed)
+            tris_new = __replace__(tris_new, opp_triangle_id, tris_new[opp_triangle_id].mark_point(opp_coords, rgbcolor))
+
         return Triangulation(tris_new, self.gluings)
 
     @property
