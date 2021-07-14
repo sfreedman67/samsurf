@@ -155,10 +155,19 @@ class Triangulation:
         tris_new = tuple(tri.apply_matrix(m) for tri in self.triangles)
         return Triangulation(tris_new, self.gluings)
 
-    def mark_point(self, triangle_id, a0, a1, a2, rgbcolor):
-        """Mark in color RGBCOLOR the point determined by barycentric coordinates (A0, A1, A2) on the triangle TRIANGLE_ID."""
-        tris_new = self.triangles[:triangle_id] + (self.triangles[triangle_id].mark_point(a0, a1, a2, rgbcolor),) + self.triangles[triangle_id + 1:]
-        return Triangulation(tries_new, self.gluings)
+    def mark_point(self, triangle_id, coords, rgbcolor):
+        """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
+
+        triangle_id := the ID, i.e., index in self.triangles, of the triangle to be marked.
+        coords      := a tuple of three nonnegative real numbers that sum to 1 representing the barycentric
+                       coordinates of a point in the triangle determined by TRIANGLE_ID.
+        rgbcolor    := a tuple of three real numbers between 0 and 1, where the componenets are the RGB values of a
+                       color.
+        """
+        tris_new = self.triangles[:triangle_id] + \
+                       (self.triangles[triangle_id].mark_point(coords, rgbcolor),) + \
+                       self.triangles[triangle_id + 1:]
+        return Triangulation(tris_new, self.gluings)
 
     @property
     def edges(self):
