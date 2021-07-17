@@ -10,22 +10,21 @@ from bowman import idr
 from bowman import comb_equiv
 from bowman import geom_equiv
 from bowman import algo
-from bowman.triangle import Triangle
+from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
 
 
 class Triangulation:
-    def __init__(self, triangles=None, gluings=None):
-        self.triangles = triangles if triangles is not None else []
+    def __init__(self, triangles = None, gluings = None):
+        self.triangles = tuple(triangles) if triangles is not None else tuple()
         self.gluings = gluings if gluings is not None else {}
 
         self._hash = hash(self.__key())
 
     def __key(self):
-        tris_safe = tuple(self.triangles)
         gluings_ordered = {(e1, e2) for e1, e2 in self.gluings.items() if e1 < e2}
         gluings_safe = tuple(sorted(gluings_ordered))
-        return tris_safe, gluings_safe
+        return self.triangles, gluings_safe
 
     def __hash__(self):
         return self._hash
@@ -153,7 +152,38 @@ class Triangulation:
         return Triangulation(triangles, gluings)
 
     def apply_matrix(self, m):
-        tris_new = [tri.apply_matrix(m) for tri in self.triangles]
+        tris_new = tuple(tri.apply_matrix(m) for tri in self.triangles)
+        return Triangulation(tris_new, self.gluings)
+
+    def mark_point(self, triangle_id, coords, rgbcolor):
+        """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
+
+        triangle_id := the ID, i.e., index in self.triangles, of the triangle to be marked.
+        coords      := a tuple of three nonnegative real numbers that sum to 1 representing the barycentric
+                       coordinates of a point in the triangle determined by TRIANGLE_ID.
+        rgbcolor    := a tuple of three real numbers between 0 and 1, where the componenets are the RGB values of a
+                       color.
+        """
+        if not is_valid_barycentric_coordinate(*coords):
+            raise ValueError("Invalid barycentric coordinates.")
+
+        tris_new = self.triangles[0:]
+
+        def __replace__(array, index, new_element):
+            return array[:index] + (new_element,) + array[index + 1:]
+
+        if coords[0] > 0 and coords[1] > 0 and coords[2] > 0:
+            # If the point marked lies in the interior of the triangle...
+            tris_new = __replace__(tris_new, triangle_id, tris_new[triangle_id].mark_point(coords, rgbcolor))
+        elif coords[0] + coords[1] > 0 and coords[1] + coords[2] > 0 and coords[2] + coords[0] > 0:
+            # If the point marked lies on the interior of an edge of the triangle...
+            tris_new = __replace__(tris_new, triangle_id, tris_new[triangle_id].mark_point(coords, rgbcolor))
+            edge_id = (coords.index(0) + 1) % 3
+            opp_triangle_id, opp_edge_id = self.gluings[(triangle_id, edge_id)]
+            opp_coords_indexed = sorted([(opp_edge_id, coords[(edge_id + 1) % 3]), ((opp_edge_id + 1) % 3, coords[edge_id]), ((opp_edge_id + 2) % 3, coords[(edge_id + 2) % 3])])
+            opp_coords = tuple(opp_coord for _, opp_coord in opp_coords_indexed)
+            tris_new = __replace__(tris_new, opp_triangle_id, tris_new[opp_triangle_id].mark_point(opp_coords, rgbcolor))
+
         return Triangulation(tris_new, self.gluings)
 
     @property
@@ -339,7 +369,21 @@ class Triangulation:
     def generators_veech(self):
         return algo.generators_veech(self)
 
+    @property
+    def cylinder_directions(self):
+        dir_list = list()
+
+        for idr in self.generators_veech.idrs:
+            for vertex in idr.polygon.vertices:
+                if vertex == oo and (1,0) not in [dir for dir, _ in dir_list]:
+                    dir_list.append(((1,0), idr.triangulation))
+                elif vertex != oo and vertex.v2 == 0 and (vertex.u, 1) not in [dir for dir, _ in dir_list]:
+                    dir_list.append(((vertex.u, 1), idr.triangulation))
+
+        return dir_list
+
     def get_vertices_neighbor(self, vertices_tri, idx_tri, idx_edge):
+        """Computes the vertex coordinates of the neighboring triangle across IDX_EDGE given the coordinates of IDX_TRI."""
         vertex_start = vertices_tri[idx_edge]
         vertex_end = vertices_tri[(idx_edge + 1) % 3]
 
@@ -351,10 +395,12 @@ class Triangulation:
         return [vertices_tri_opp[k] for k in range(3)]
 
     def plot(self):
-        # TODO: CLEAN + separate each part of plot into separate methods
-
+        # Keys are triangle IDs, and the corresponding values are the vertices of that triangle.
         tris_seen = {0: self.triangles[0].vertices()}
+        # Start from the zeroeth triangle in your triangulation.
         tris_to_visit = deque([0])
+
+        plots_tris = self.triangles[0].plot()
 
         while tris_to_visit:
             idx_tri_curr = tris_to_visit.pop()
@@ -363,6 +409,7 @@ class Triangulation:
                 if idx_tri_nbr not in tris_seen:
                     vertices_curr = tris_seen[idx_tri_curr]
                     tris_seen[idx_tri_nbr] = self.get_vertices_neighbor(vertices_curr, idx_tri_curr, idx_edge)
+                    plots_tris += self.triangles[idx_tri_nbr].plot(tris_seen[idx_tri_nbr][0])
                     tris_to_visit.appendleft(idx_tri_nbr)
 
         def center(vertices):
@@ -386,8 +433,6 @@ class Triangulation:
         plots_labels_edge = sum(sage.all.text(str(idx), midpoint(v1, v2) + displacement(v1, v2)).plot()
                                 for (a, b, c) in tris_seen.values()
                                 for idx, (v1, v2) in [(0, (a, b)), (1, (b, c)), (2, (c, a))])
-
-        plots_tris = sum(sage.all.polygon2d(vertices, fill=False).plot() for vertices in tris_seen.values())
 
         return plots_tris + plots_labels_tri + plots_labels_edge
 
@@ -441,3 +486,8 @@ class Triangulation:
     @property
     def area(self):
         return sum(t.area for t in self.triangles)
+
+
+if __name__ == "__main__":
+    X = Triangulation.regular_octagon()
+    r = X.idr
