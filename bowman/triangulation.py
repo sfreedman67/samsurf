@@ -12,6 +12,7 @@ from bowman import geom_equiv
 from bowman import algo
 from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
+from bowman.radical import Radical
 
 
 class Triangulation:
@@ -185,6 +186,47 @@ class Triangulation:
             tris_new = __replace__(tris_new, opp_triangle_id, tris_new[opp_triangle_id].mark_point(opp_coords, rgbcolor))
 
         return Triangulation(tris_new, self.gluings)
+
+    def step_flow(self, start_tri_id, start_coords, direction):
+        """Flows a given point in a given direction.
+
+        start_tri_id := the triangle to which the point belongs, provided as an integer.
+        start_coords := the barycentric coordinates of the point, provided as a tuple of three numbers."""
+        # Utility functions
+        def dot_product(v, w, dimension):
+            return sum(v[i] * w[i] for i in range(dimension))
+        def norm_squared(v, dimension):
+            return dot_product(v, v, dimension)
+        def scale(scalar, v, dimension):
+            return tuple(scalar * v[i] for i in range(dimension))
+        def lin_comb(scalar1, scalar2, v1, v2, dimension):
+            return tuple(scalar1 * v1[i] + scalar2 * v2[i] for i in range(dimension))
+
+        start_tri = self.triangles[start_tri_id]
+
+        # Step 1: Identify the outgoing edge.
+        p = tuple(lin_comb(start_coords[(i + 1) % 3], -start_coords[(i + 2) % 3], start_tri[i], start_tri[(i + 2) % 3], 2) for i in range(3))
+        for i in range(3):
+            change_of_basis = ((-p[i][0], -p[(i + 1) % 3][0]),(-p[i][1], -p[(i + 1) % 3][1]))
+            determinant = change_of_basis[0][0] * change_of_basis[1][1] - change_of_basis[0][1] * change_of_basis[1][0]
+            if determinant != 0:
+                adjugate = ((change_of_basis[1][1], -change_of_basis[0][1]),(-change_of_basis[1][0], change_of_basis[0][0]))
+                sector_coords = (dot_product(adjugate[0], direction, 2), dot_product(adjugate[1], direction, 2))
+                out_edge = i
+                if float(sector_coords[0]) > 0 and float(sector_coords[1]) > 0:
+                    break
+
+        # Step 2: Determine the barycentric coordinates of the next point in the next triangle.
+        end_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
+        weight = scale(1/(sector_coords[0] + sector_coords[1]), sector_coords, 2) # Normalize to get a weighted average of the two sector bounds.
+
+        pos_on_edge_squared = norm_squared(lin_comb(1, -1, p[(out_edge + 1) % 3], lin_comb(weight[0], weight[1], p[out_edge], p[(out_edge + 1) % 3], 2), 2), 2) / norm_squared(start_tri[out_edge], 2)
+        end_coords_indexed = sorted([(in_edge, 1 - sqrt(pos_on_edge_squared)),
+                                     ((in_edge + 1) % 3, sqrt(pos_on_edge_squared)),
+                                     ((in_edge + 2) % 3, 0)])
+        end_coords = tuple(coord for _, coord in end_coords_indexed)
+
+        return end_tri_id, end_coords, direction
 
     @property
     def edges(self):
