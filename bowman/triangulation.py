@@ -155,6 +155,95 @@ class Triangulation:
         tris_new = tuple(tri.apply_matrix(m) for tri in self.triangles)
         return Triangulation(tris_new, self.gluings)
 
+    def apply_rotation(self, angle, dir="cwise"):
+        """Takes an angle in radians, and rotates the triangulation
+        by that angle in the clockwise direction. Default rotation direction is
+        clockwise.  Inpute ccwise for counterclockwise rotation."""
+        m = matrix([[cos(angle), -sin(angle)], [sin(angle), cos(angle)]])
+        m_inv = matrix([[cos(angle), sin(angle)], [-sin(angle), cos(angle)]])
+
+        if(dir == "ccwise"):
+            return self.apply_matrix(m)  #can change from pass by value
+        else:
+            return self.apply_matrix(m_inv)
+
+    def apply_gt_flow(self, t, inv=True):
+        """Applies g_t flow to the triangulation for a time t.
+        Applies the inverse matrix by default, if inv=False then applies normal flow"""
+        m = matrix([[exp(t), 0], [0, exp(-t)]])
+        m_inv = matrix([[exp(-t), 0], [0, exp(t)]])
+
+        if(inv):
+            return self.apply_matrix(m_inv)
+        else:
+            return self.apply_matrix(m)
+
+    def check_horiz(self):
+        """check if the triangulation has all horizontal saddle connections appearing
+        so every triangle has a horizontal edge.  Returns True if every edge is horizontal."""
+        tris = self.triangles
+        v = vector([1, 0])
+        horiz = True
+        for i in tris:
+            for j in range(0, 3):
+                if(abs(v.dot_product(i[j])) != i[j].norm() * v.norm()):
+                    horiz = False
+                    return horiz
+        return horiz
+
+    def make_horiz_triangulation(self, direction):
+        """This function takes a triangulation of a translation surface along with a 
+        cylinder direction, and rotates the surface so that the cylinder direction is 
+        horizontal.  This function then applies inverse g_t flow to the surface until
+        it obtains a triangulation associated to the non-compact IDR with cusp at infintiy.
+        
+        direction: input is a 2D vector pointing in the cylinder direction of interest.  
+        Assumes direction is a vector in the upper half plane."""
+        assert(direction[1] >= 0)
+
+        # first convert direction to angle from horizontal.
+        angle = 0
+        if(direction[0] < 0):
+            angle = pi - arctan(QQ(direction[1]/direction[0]))
+        else:
+            angle = arctan(QQ(direction[1]/direction[0]))
+        
+        # now apply rotation matrix to the surface, assume cwise rotation
+        self = self.apply_rotation(angle)
+
+        # run loop of checking if Delaunay, applying g_t flow, and retriangulating until
+        # enter the non-compact IDR
+        counter = 1
+
+        while True:
+            if(self.is_delaunay):
+                # check triangulation for horizontal edges
+                if(self.check_horiz):
+                    # found good triangulation
+                    print("Current triangulation has all horizontal edges.")
+                    break
+            
+            # else apply g_t flow until no-longer delaunay, and retriangulate
+            while True:
+                if(self.is_delaunay):
+                    self = self.apply_gt_flow(0.5*counter)
+                    counter += 1
+                else:
+                    self = self.make_delaunay()
+                    break
+            
+            # make a fail safe
+            if(counter >= 40):
+                print("Exited loop after applying g_t flow for 60 iterations")
+                break
+
+        # now that have proper triangulation, g_t flow in inverse direction and rotate back
+        self = self.apply_gt_flow((counter-1)*0.5, False)
+        self = self.apply_rotation(angle, "ccwise")
+
+        return self
+        
+
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
@@ -204,6 +293,7 @@ class Triangulation:
         return all(hinge.incircle_det > 0 for hinge in self.hinges)
 
     def make_delaunay(self):
+        """Makes a new Delaunay triangulation"""
         while not self.is_delaunay:
             idx = randint(0, len(self.hinges) - 1)
             h = self.hinges[idx]
