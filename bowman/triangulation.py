@@ -170,8 +170,8 @@ class Triangulation:
     def apply_gt_flow(self, t, inv=True):
         """Applies g_t flow to the triangulation for a time t.
         Applies the inverse matrix by default, if inv=False then applies normal flow"""
-        m = matrix([[exp(t), 0], [0, exp(-t)]])
-        m_inv = matrix([[exp(-t), 0], [0, exp(t)]])
+        m = matrix([[2**t, 0], [0, 2**(-t)]])
+        m_inv = matrix([[2**-t, 0], [0, 2**t]])
 
         if(inv):
             return self.apply_matrix(m_inv)
