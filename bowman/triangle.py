@@ -91,6 +91,7 @@ class Triangle():
         w0 = m * self.v0
         w1 = m * self.v1
         w2 = -(w0 + w1)
+        #w2 = m * self.v2
         return Triangle(w0, w1, w2, self.points_marked)
 
     def __hash__(self):

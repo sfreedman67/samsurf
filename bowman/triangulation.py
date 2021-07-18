@@ -179,17 +179,21 @@ class Triangulation:
             return self.apply_matrix(m)
 
     def check_horiz(self):
-        """check if the triangulation has all horizontal saddle connections appearing
-        so every triangle has a horizontal edge.  Returns True if every edge is horizontal."""
+        """Check if every triangle has a horizontal edge.  Returns True if so."""
         tris = self.triangles
         v = vector([1, 0])
-        horiz = True
+
         for i in tris:
+            horiz = False
             for j in range(0, 3):
-                if(abs(v.dot_product(i[j])) != i[j].norm() * v.norm()):
-                    horiz = False
-                    return horiz
-        return horiz
+                if(abs(v.dot_product(i[j])) == i[j].norm() * v.norm()):
+                    horiz = True
+            if(horiz):
+                continue
+            else:
+                return False
+
+        return True
 
     def make_horiz_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
@@ -210,7 +214,7 @@ class Triangulation:
         
         # now apply rotation matrix to the surface, assume cwise rotation
         self = self.apply_rotation(angle)
-
+        
         # run loop of checking if Delaunay, applying g_t flow, and retriangulating until
         # enter the non-compact IDR
         counter = 1
@@ -218,7 +222,7 @@ class Triangulation:
         while True:
             if(self.is_delaunay):
                 # check triangulation for horizontal edges
-                if(self.check_horiz):
+                if(self.check_horiz()):
                     # found good triangulation
                     print("Current triangulation has all horizontal edges.")
                     break
@@ -226,7 +230,7 @@ class Triangulation:
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
                 if(self.is_delaunay):
-                    self = self.apply_gt_flow(0.5*counter)
+                    self = self.apply_gt_flow(0.25*counter)
                     counter += 1
                 else:
                     self = self.make_delaunay()
@@ -234,7 +238,7 @@ class Triangulation:
             
             # make a fail safe
             if(counter >= 40):
-                print("Exited loop after applying g_t flow for 60 iterations")
+                print("Exited loop after applying g_t flow for 40 iterations")
                 break
 
         # now that have proper triangulation, g_t flow in inverse direction and rotate back
