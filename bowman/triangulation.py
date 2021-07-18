@@ -230,19 +230,24 @@ class Triangulation:
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
                 if(self.is_delaunay):
-                    self = self.apply_gt_flow(0.25*counter)
+                    #print("applying flow")
+                    #self = self.apply_gt_flow(0.25*counter)
                     counter += 1
+                    self = self.apply_gt_flow(counter)
+                    
                 else:
+                    #print("making delaunay")
                     self = self.make_delaunay()
                     break
             
             # make a fail safe
-            if(counter >= 40):
-                print("Exited loop after applying g_t flow for 40 iterations")
+            if(counter >= 20):
+                print("Exited loop after applying g_t flow for 20 iterations")
                 break
 
         # now that have proper triangulation, g_t flow in inverse direction and rotate back
-        self = self.apply_gt_flow((counter-1)*0.5, False)
+        #self = self.apply_gt_flow((counter-1)*0.25, False)
+        self = self.apply_gt_flow(counter, False)
         self = self.apply_rotation(angle, "ccwise")
 
         return self
