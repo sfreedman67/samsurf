@@ -191,41 +191,36 @@ class Triangulation:
         """Flows a given point in a given direction.
 
         start_tri_id := the triangle to which the point belongs, provided as an integer.
-        start_coords := the barycentric coordinates of the point, provided as a tuple of three numbers."""
-        # Utility functions
-        def dot_product(v, w, dimension):
-            return sum(v[i] * w[i] for i in range(dimension))
-        def norm_squared(v, dimension):
-            return dot_product(v, v, dimension)
-        def scale(scalar, v, dimension):
-            return tuple(scalar * v[i] for i in range(dimension))
-        def lin_comb(scalar1, scalar2, v1, v2, dimension):
-            return tuple(scalar1 * v1[i] + scalar2 * v2[i] for i in range(dimension))
+        start_coords := the vector from the zeroth vertex to the point.
+        direction    := the direction of the flow."""
 
         start_tri = self.triangles[start_tri_id]
+        start_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2]
 
         # Step 1: Identify the outgoing edge.
-        p = tuple(lin_comb(start_coords[(i + 1) % 3], -start_coords[(i + 2) % 3], start_tri[i], start_tri[(i + 2) % 3], 2) for i in range(3))
+        p = (start_pos, start_pos - start_tri[0], start_pos + start_tri[2])
         for i in range(3):
-            change_of_basis = ((-p[i][0], -p[(i + 1) % 3][0]),(-p[i][1], -p[(i + 1) % 3][1]))
-            determinant = change_of_basis[0][0] * change_of_basis[1][1] - change_of_basis[0][1] * change_of_basis[1][0]
-            if determinant != 0:
-                adjugate = ((change_of_basis[1][1], -change_of_basis[0][1]),(-change_of_basis[1][0], change_of_basis[0][0]))
-                sector_coords = (dot_product(adjugate[0], direction, 2), dot_product(adjugate[1], direction, 2))
+            change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
+            if not change_of_basis.determinant().is_zero():
+                sector_coords = change_of_basis**(-1) * direction
                 out_edge = i
-                if float(sector_coords[0]) > 0 and float(sector_coords[1]) > 0:
+                if sector_coords[0].is_real_positive() and sector_coords[1].is_real_positive():
                     break
 
-        # Step 2: Determine the barycentric coordinates of the next point in the next triangle.
-        end_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
-        weight = scale(1/(sector_coords[0] + sector_coords[1]), sector_coords, 2) # Normalize to get a weighted average of the two sector bounds.
+        # Step 2: Determine the vector coordinates of the next point.
+        linear_system = sage.all.column_matrix((start_tri[out_edge], direction))
+        line = start_pos
+        for i in range(out_edge):
+            line = line - start_tri[i]
+        s = (linear_system**(-1) * line)[0]
 
-        pos_on_edge_squared = norm_squared(lin_comb(1, -1, p[(out_edge + 1) % 3], lin_comb(weight[0], weight[1], p[out_edge], p[(out_edge + 1) % 3], 2), 2), 2) / norm_squared(start_tri[out_edge], 2)
-        end_coords_indexed = sorted([(in_edge, 1 - sqrt(pos_on_edge_squared)),
-                                     ((in_edge + 1) % 3, sqrt(pos_on_edge_squared)),
+        # Step 3: Translate these coordinates to those of the next triangle over.
+        end_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
+        end_tri = self.triangles[end_tri_id]
+        end_coords_indexed = sorted([(in_edge, s),
+                                     ((in_edge + 1) % 3, 1 - s),
                                      ((in_edge + 2) % 3, 0)])
         end_coords = tuple(coord for _, coord in end_coords_indexed)
-
         return end_tri_id, end_coords, direction
 
     @property
