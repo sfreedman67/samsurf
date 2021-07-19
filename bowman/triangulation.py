@@ -14,6 +14,16 @@ from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
 
 
+def return_shear_mat(dir):
+    """Generate a shear that projects dir onto the real line, or rotates 
+    dir by 90 degrees if dir is verticle."""
+    dir_x, dir_y = dir
+
+    if dir_x != 0:
+        return matrix([[1, 0], [(-dir_y/dir_x), 1]])
+    else:
+        return matrix([[0, -1], [1, 0]])
+
 class Triangulation:
     def __init__(self, triangles = None, gluings = None):
         self.triangles = tuple(triangles) if triangles is not None else tuple()
@@ -155,28 +165,11 @@ class Triangulation:
         tris_new = tuple(tri.apply_matrix(m) for tri in self.triangles)
         return Triangulation(tris_new, self.gluings)
 
-    def apply_rotation(self, angle, dir="cwise"):
-        """Takes an angle in radians, and rotates the triangulation
-        by that angle in the clockwise direction. Default rotation direction is
-        clockwise.  Inpute ccwise for counterclockwise rotation."""
-        m = matrix([[cos(angle), -sin(angle)], [sin(angle), cos(angle)]])
-        m_inv = matrix([[cos(angle), sin(angle)], [-sin(angle), cos(angle)]])
-
-        if(dir == "ccwise"):
-            return self.apply_matrix(m)  #can change from pass by value
-        else:
-            return self.apply_matrix(m_inv)
-
-    def apply_gt_flow(self, t, inv=True):
-        """Applies g_t flow to the triangulation for a time t.
-        Applies the inverse matrix by default, if inv=False then applies normal flow"""
-        m = matrix([[2**t, 0], [0, 2**(-t)]])
-        m_inv = matrix([[2**-t, 0], [0, 2**t]])
-
-        if(inv):
-            return self.apply_matrix(m_inv)
-        else:
-            return self.apply_matrix(m)
+    def apply_gt_flow(self, t):
+        """Apply g_t flow to the triangulation for a time t.
+        (Positive values of t coorespondes to contraction in the x-direction)"""
+        g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
+        return self.apply_matrix(g_t)
 
     def check_horiz(self):
         """Check if every triangle has a horizontal edge.  Returns True if so."""
@@ -195,28 +188,18 @@ class Triangulation:
 
         return True
 
+    
+
     def make_horiz_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
-        cylinder direction, and rotates the surface so that the cylinder direction is 
-        horizontal.  This function then applies inverse g_t flow to the surface until
-        it obtains a triangulation associated to the non-compact IDR with cusp at infintiy.
+        cylinder direction, and returns a delaunay triangulation where all triangles have
+        an edge parallel to the specified cylinder direction.
         
-        direction: input is a 2D vector pointing in the cylinder direction of interest.  
-        Assumes direction is a vector in the upper half plane."""
-        assert(direction[1] >= 0)
-
-        # first convert direction to angle from horizontal.
-        angle = 0
-        if(direction[0] < 0):
-            angle = pi - arctan(QQ(direction[1]/direction[0]))
-        else:
-            angle = arctan(QQ(direction[1]/direction[0]))
-        
-        # now apply rotation matrix to the surface, assume cwise rotation
-        self = self.apply_rotation(angle)
-        
-        # run loop of checking if Delaunay, applying g_t flow, and retriangulating until
-        # enter the non-compact IDR
+        direction := a 2D vector pointing in the cylinder direction of interest.  
+        """
+        mat = return_shear_mat(direction)
+        matinv = mat.inverse()
+        self = self.apply_matrix(mat)
         counter = 1
 
         while True:
@@ -230,26 +213,20 @@ class Triangulation:
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
                 if(self.is_delaunay):
-                    #print("applying flow")
-                    #self = self.apply_gt_flow(0.25*counter)
                     counter += 1
-                    self = self.apply_gt_flow(counter)
-                    
+                    self = self.apply_gt_flow(counter)  
                 else:
-                    #print("making delaunay")
                     self = self.make_delaunay()
                     break
             
-            # make a fail safe
             if(counter >= 20):
                 print("Exited loop after applying g_t flow for 20 iterations")
                 break
 
         # now that have proper triangulation, g_t flow in inverse direction and rotate back
-        #self = self.apply_gt_flow((counter-1)*0.25, False)
-        self = self.apply_gt_flow(counter, False)
-        self = self.apply_rotation(angle, "ccwise")
-
+        self = self.apply_gt_flow(-(counter-1))
+        self = self.apply_matrix(matinv)
+        self = self.make_delaunay()
         return self
         
 

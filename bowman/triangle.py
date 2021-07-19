@@ -61,7 +61,10 @@ class Triangle():
         elif key == 2:
             return self.v2
         else:
-            raise ValueError("Invalid index {i}. A triangle has only three edges.".format(i = key))
+            raise ValueError(f"Invalid index {key}. A triangle has only three edges.")
+
+    def __iter__(self):
+        return iter([self.v0, self.v1, self.v2])
 
     def reflect(self, idx):
         def reflect_vector(v, w):
