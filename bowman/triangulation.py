@@ -188,8 +188,6 @@ class Triangulation:
 
         return True
 
-    
-
     def make_horiz_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
         cylinder direction, and returns a delaunay triangulation where all triangles have
@@ -228,7 +226,6 @@ class Triangulation:
         self = self.apply_matrix(matinv)
         self = self.make_delaunay()
         return self
-        
 
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
