@@ -205,7 +205,7 @@ class Triangulation:
                 # check triangulation for horizontal edges
                 if(self.check_horiz()):
                     # found good triangulation
-                    print("Current triangulation has all horizontal edges.")
+                    print("Completed triangulation.")
                     break
             
             # else apply g_t flow until no-longer delaunay, and retriangulate
@@ -217,8 +217,8 @@ class Triangulation:
                     self = self.make_delaunay()
                     break
             
-            if(counter >= 20):
-                print("Exited loop after applying g_t flow for 20 iterations")
+            if(counter >= 25):
+                print("Exited loop after applying g_t flow for 25 iterations")
                 break
 
         # now that have proper triangulation, g_t flow in inverse direction and rotate back
