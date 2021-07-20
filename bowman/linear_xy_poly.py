@@ -51,9 +51,23 @@ class LinearXYPoly:
         a, b, c = self.coeffs
         return a*self.x + b*self.y + c
 
+    def apply_matrix(self, matrix):
+        """
+        Treats x, y as a basis and apply the 2x2 matrix to the polynomial.
+        Output is LinearXYPoly object with matrix applied.
+        Example:
+        * poly = ax + by + c
+        * matrix = [[p, q], [r, s]]
+        * output = (ap + br)x + (aq + bs)y + c
+        """
+        a, b, c = self.coeffs
+        p, q, r, s = *matrix[0], *matrix[1]  # unpack matrix [[p, q], [r, s]]
+        return LinearXYPoly([a*p + b*r, a*q + b*s, c])
+
+
 
 """
 TODO: Other things that would be nice to have:
 Left multiplication by numbers -> multiply all coefficients by the number
-Projection by matrix handled inside the Class?
+Left addition by addition -> add to constant term?
 """
