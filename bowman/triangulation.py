@@ -187,13 +187,26 @@ class Triangulation:
 
         return Triangulation(tris_new, self.gluings)
 
-    def step_flow(self, start_tri_id, start_coords, direction):
-        """Flows a given point in a given direction.
+    def mark_line(self, triangle_id, start_coords, end_coords, rgbcolor):
+        """Mark in color RGBCOLOR the line determined by barycentric coordinates START_COORDS and END_COORDS on the triangle TRIANGLE_ID.
 
-        start_tri_id := the triangle to which the point belongs, provided as an integer.
-        start_coords := the vector from the zeroth vertex to the point.
-        direction    := the direction of the flow."""
+        triangle_id  := the ID, i.e., index in self.triangles, of the triangle
+                        to be marked.
+        start_coords := a tuple of three nonnegative real numbers that sum to 1
+                        representing the barycentric coordinates of a point in
+                        the triangle determined by TRIANGLE_ID.
+        rgbcolor     := a tuple of three real numbers between 0 and 1, where
+                        the componenets are the RGB values of a color.
+        """
+        if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
+            raise ValueError("Invalid barycentric coordinates.")
 
+        tri_new = self.triangles[triangle_id].mark_line(start_coords, end_coords, rgbcolor)
+        tris_new = self.triangles[:triangle_id] + (tri_new,) + self.triangles[triangle_id + 1:]
+
+        return Triangulation(tris_new, self.gluings)
+
+    def __step_flow_helper__(self, start_tri_id, start_coords, direction):
         start_tri = self.triangles[start_tri_id]
         start_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2]
 
@@ -204,7 +217,7 @@ class Triangulation:
             if not change_of_basis.determinant().is_zero():
                 sector_coords = change_of_basis**(-1) * direction
                 out_edge = i
-                if sector_coords[0].is_real_positive() and sector_coords[1].is_real_positive():
+                if sector_coords[0].sign() > 0 and sector_coords[1].sign() > 0:
                     break
 
         # Step 2: Determine the vector coordinates of the next point.
@@ -213,6 +226,16 @@ class Triangulation:
         for i in range(out_edge):
             line = line - start_tri[i]
         s = (linear_system**(-1) * line)[0]
+        return s, out_edge
+
+    def step_flow(self, start_tri_id, start_coords, direction):
+        """Flows a given point in a given direction.
+
+        start_tri_id := the triangle to which the point belongs, provided as an integer.
+        start_coords := the vector from the zeroth vertex to the point.
+        direction    := the direction of the flow."""
+
+        s, out_edge = self.__step_flow_helper__(start_tri_id, start_coords, direction)
 
         # Step 3: Translate these coordinates to those of the next triangle over.
         end_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
@@ -221,7 +244,57 @@ class Triangulation:
                                      ((in_edge + 1) % 3, 1 - s),
                                      ((in_edge + 2) % 3, 0)])
         end_coords = tuple(coord for _, coord in end_coords_indexed)
+
         return end_tri_id, end_coords, direction
+
+    def mark_flow(self, start_tri_id, start_coords, direction, rgbcolor):
+        """Marks the trajectory of a given point under the straight line flow
+           in a given direction.
+
+        start_tri_id := the triangle to which the point belongs, provided as an integer.
+        start_coords := the vector from the zeroth vertex to the point.
+        direction    := the direction of the flow."""
+
+        points_seen = []
+        tris_new = self.triangles
+
+        while (start_tri_id, start_coords) not in points_seen:
+            points_seen.append((start_tri_id, start_coords))
+
+            # Extend the straight line from the previous point.
+            s, out_edge = self.__step_flow_helper__(start_tri_id, start_coords, direction)
+            end_coords_indexed = sorted([((out_edge + 1) % 3, s),
+                                         (out_edge, 1 - s),
+                                         ((out_edge + 2) % 3, 0)])
+            end_coords = tuple(coord for _, coord in end_coords_indexed)
+
+            tris_new = tris_new[0:start_tri_id] + (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+
+            # Prepare for the next depth of recursion.
+            start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
+            start_coords_indexed = sorted([(in_edge, s),
+                                         ((in_edge + 1) % 3, 1 - s),
+                                         ((in_edge + 2) % 3, 0)])
+            start_coords = tuple(coord for _, coord in start_coords_indexed)
+
+        return Triangulation(tris_new, self.gluings)
+
+    def is_on_same_geodesic(self, start_tri_id, start_coords, end_tri_id, end_coords, direction):
+        for i in range(100):
+            if start_tri_id == end_tri_id:
+                tri = self.triangles[start_tri_id]
+                start_pos = start_coords[1] * tri[0] - start_coords[2] * tri[2]
+                end_pos = end_coords[1] * tri[0] - end_coords[2] * tri[2]
+                nonzero_component = 0
+                if direction[nonzero_component].is_zero():
+                    nonzero_component = 1
+                displacement = start_pos - end_pos
+                ratio = displacement[nonzero_component] / direction[nonzero_component]
+                if displacement == ratio * direction:
+                    return True
+
+            start_tri_id, start_coords, direction = self.step_flow(start_tri_id, start_coords, direction)
+        return False
 
     @property
     def edges(self):
