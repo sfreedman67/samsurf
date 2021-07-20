@@ -34,6 +34,9 @@ class Radical:
     def value(self):
         return QQbar(self.A) + QQbar(self.B) * QQbar(self.C).sqrt()
 
+    def __neg__(self):
+        return Radical(-self.A, -self.B, self.C)
+
     def __repr__(self):
         return f"{self.value}"
 
