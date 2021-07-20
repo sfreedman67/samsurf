@@ -3,5 +3,4 @@
 # ignore all pyc files
 
 # ignore all .ipynb_checkpoint files
-.ipynb_checkpoints/
-*/.ipynb_checkpoints/*
+**/.ipynb_checkpoints/
