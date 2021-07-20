@@ -15,7 +15,7 @@ from bowman.hinge import Hinge
 
 
 def return_shear_mat(dir):
-    """Generate a shear that projects dir onto the real line, or rotates 
+    """Generate a shear that projects vector dir onto the real line, or rotates 
     dir by 90 degrees if dir is verticle."""
     dir_x, dir_y = dir
 
@@ -188,9 +188,9 @@ class Triangulation:
 
         return True
 
-    def make_horiz_triangulation(self, direction):
+    def make_directional_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
-        cylinder direction, and returns a delaunay triangulation where all triangles have
+        cylinder direction, and returns a triangulation where all triangles have
         an edge parallel to the specified cylinder direction.
         
         direction := a 2D vector pointing in the cylinder direction of interest.  
@@ -207,7 +207,6 @@ class Triangulation:
                     # found good triangulation
                     print("Completed triangulation.")
                     break
-            
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
                 if(self.is_delaunay):
@@ -216,7 +215,6 @@ class Triangulation:
                 else:
                     self = self.make_delaunay()
                     break
-            
             if(counter >= 25):
                 print("Exited loop after applying g_t flow for 25 iterations")
                 break
@@ -224,7 +222,6 @@ class Triangulation:
         # now that have proper triangulation, g_t flow in inverse direction and rotate back
         self = self.apply_gt_flow(-(counter-1))
         self = self.apply_matrix(matinv)
-        self = self.make_delaunay()
         return self
 
     def mark_point(self, triangle_id, coords, rgbcolor):
