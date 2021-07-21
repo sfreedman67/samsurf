@@ -26,15 +26,16 @@ def holonomy_representation(generator_images):
 class OctagonCover(Triangulation):
 
     def __init__(self, degree, holonomy_rep):
+        self.degree = degree
 
         # Step 1: Construct the triangles.
         k = sage.all.QuadraticField(2)
         sqrt2 = k.gen()
 
-        h_long = sage.all.vector([1 / 2, 0])
-        h_short = sage.all.vector([sqrt2 / 4, 0])
-        v_long = sage.all.vector([0, 1 / 2])
-        v_short = sage.all.vector([0, sqrt2 / 4])
+        h_long = sage.all.vector([Rational('1/2'), 0])
+        h_short = sage.all.vector([Rational('1/4') * sqrt2, 0])
+        v_long = sage.all.vector([0, Rational('1/2')])
+        v_short = sage.all.vector([0, Rational('1/4') * sqrt2])
         ne_diagonal = h_long + h_short + v_long + v_short
         nw_diagonal = -(h_long + h_short) + v_long + v_short
 
@@ -85,3 +86,29 @@ class OctagonCover(Triangulation):
         gluings_cover.update({v: k for k, v in gluings_cover.items()})
 
         super().__init__(triangles, gluings_cover)
+
+    def flow_permutation(self, base_tri_id, base_coords, direction):
+        """Given a point in the base and a cylinder direction, computes the
+        action of the flow on the fiber above the point."""
+        perm = dict()
+        for i in range(self.degree):
+            is_found_preimage = False
+            tri_id, coords, _ = self.step_flow(16 * i + base_tri_id, base_coords, direction)
+            while not is_found_preimage:
+                # 1. Flow forward until we arrive at a congruent triangle.
+                while tri_id % 16 != base_tri_id:
+                    tri_id, coords, _ = self.step_flow(tri_id, coords, direction)
+
+                # 2. Determine whether we run into a point in the fiber.
+                tri = self.triangles[tri_id]
+                start_pos = coords[1] * tri[0] - coords[2] * tri[2]
+                end_pos = base_coords[1] * tri[0] - base_coords[2] * tri[2]
+                displacement = end_pos - start_pos
+                nonzero_component = 0
+                if direction[nonzero_component].is_zero():
+                    nonzero_component = 1
+                ratio = displacement[nonzero_component] / direction[nonzero_component]
+                if displacement == ratio * direction:
+                    is_found_preimage = True
+            perm[i] = tri_id // 16
+        return perm
