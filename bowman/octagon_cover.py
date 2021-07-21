@@ -58,7 +58,6 @@ class OctagonCover(Triangulation):
         triangles = tuple()
         for i in range(degree):
             triangles = triangles + triangles_one_octagon
-        print(triangles)
 
         # Step 2: Define edge pairings on the base.
         gluings_outer = dict()
