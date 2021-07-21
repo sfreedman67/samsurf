@@ -198,32 +198,32 @@ class Triangulation:
         """
         mat = return_shear_mat(direction)
         matinv = mat.inverse()
-        self = self.apply_matrix(mat)
+        new_triangulation = self.apply_matrix(mat)
         counter = 1
 
         while True:
-            if(self.is_delaunay):
+            if(new_triangulation.is_delaunay):
                 # check triangulation for horizontal edges
-                if(self.check_horiz()):
+                if(new_triangulation.check_horiz()):
                     # found good triangulation
                     print("Completed triangulation.")
                     break
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
-                if(self.is_delaunay):
+                if(new_triangulation.is_delaunay):
                     counter += 1
-                    self = self.apply_gt_flow(counter)  
+                    new_triangulation = new_triangulation.apply_gt_flow(counter)  
                 else:
-                    self = self.make_delaunay()
+                    new_triangulation = new_triangulation.make_delaunay()
                     break
             if(counter >= 25):
                 print("Exited loop after applying g_t flow for 25 iterations")
                 break
-
+        
         # now that have proper triangulation, g_t flow in inverse direction and rotate back
-        self = self.apply_gt_flow(-(counter-1))
-        self = self.apply_matrix(matinv)
-        return self
+        new_triangulation = new_triangulation.apply_gt_flow(-(counter-1))
+        new_triangulation = new_triangulation.apply_matrix(matinv)
+        return new_triangulation
 
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
