@@ -172,6 +172,52 @@ class Triangulation:
         g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
         return self.apply_matrix(g_t)
 
+    def check_horiz(self):
+        """Check if every triangle has a horizontal edge.  Returns True if so."""
+        tris = self.triangles
+        v = vector([1, 0])
+        for i in tris:
+            horiz = False
+            for j in range(0, 3):
+                if(abs(v.dot_product(i[j])) == i[j].norm() * v.norm()):
+                    horiz = True
+            if(horiz):
+                continue
+            else:
+                return False
+        return True
+
+    def get_horiz_cyls(self):
+        """Take triangulation with every triangle having a horizontal edge,
+        and return the horizontal cylinder refinement."""
+        tris = list(self.triangles)
+        gluings = self.gluings
+        v = vector([1, 0])
+        cylinders = []
+        while True:
+            if(not tris):
+                return cylinders
+            # make cylinder
+            cylinder = []
+            curr_tri = tris.pop(0)
+            while True:
+                curr_tri_indx = self.triangles.index(curr_tri)
+                cylinder.append(curr_tri_indx)
+                check = False
+                for i in range(0, 3):
+                    if(abs(v.dot_product(curr_tri[i])) != curr_tri[i].norm()):
+                        glued_tri = self.triangles[gluings[(curr_tri_indx, i)][0]]
+                        glued_tri_indx = self.triangles.index(glued_tri)
+                        if((glued_tri_indx not in cylinder) and (glued_tri in tris)):
+                            tris.remove(glued_tri)
+                            check = True
+                            curr_tri = glued_tri
+                            break
+                if(not check):
+                    break
+            cylinders.append(cylinder)
+        return cylinders
+
     def make_directional_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
         cylinder direction, and returns a triangulation where all triangles have
@@ -182,7 +228,7 @@ class Triangulation:
         mat = return_shear_mat(direction)
         matinv = mat.inverse()
         new_triangulation = self.apply_matrix(mat)
-        counter = 1
+        counter = 0
 
         while True:
             if(new_triangulation.is_delaunay):
@@ -195,18 +241,18 @@ class Triangulation:
             while True:
                 if(new_triangulation.is_delaunay):
                     counter += 1
-                    new_triangulation = new_triangulation.apply_gt_flow(counter)  
+                    new_triangulation = new_triangulation.apply_gt_flow(2)  
                 else:
                     new_triangulation = new_triangulation.make_delaunay()
                     break
             if(counter >= 25):
                 print("Exited loop after applying g_t flow for 25 iterations")
                 break
-        
-        # now that have proper triangulation, g_t flow in inverse direction and rotate back
-        new_triangulation = new_triangulation.apply_gt_flow(-(counter-1))
+        # get cylinders, then g_t flow in inverse direction and rotate back
+        cylinders = new_triangulation.get_horiz_cyls()
+        new_triangulation = new_triangulation.apply_gt_flow(-(counter*2))
         new_triangulation = new_triangulation.apply_matrix(matinv)
-        return new_triangulation
+        return new_triangulation, cylinders
 
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
