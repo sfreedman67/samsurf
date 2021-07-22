@@ -238,9 +238,7 @@ class Triangulation:
 
         while True:
             if(new_triangulation.is_delaunay):
-                # check triangulation for horizontal edges
                 if(new_triangulation.check_horiz()):
-                    # found good triangulation
                     print("Completed triangulation.")
                     break
             # else apply g_t flow until no-longer delaunay, and retriangulate
