@@ -172,23 +172,6 @@ class Triangulation:
         g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
         return self.apply_matrix(g_t)
 
-    def check_horiz(self):
-        """Check if every triangle has a horizontal edge.  Returns True if so."""
-        tris = self.triangles
-        v = vector([1, 0])
-
-        for i in tris:
-            horiz = False
-            for j in range(0, 3):
-                if(abs(v.dot_product(i[j])) == i[j].norm() * v.norm()):
-                    horiz = True
-            if(horiz):
-                continue
-            else:
-                return False
-
-        return True
-
     def make_directional_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
         cylinder direction, and returns a triangulation where all triangles have
