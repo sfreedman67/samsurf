@@ -2,6 +2,7 @@
 # ignore all pyc files
 **.pyc
 **.cpython-37.pyc
+**.cpython-38.pyc
 
 # ignore all .ipynb_checkpoint files
 **/.ipynb_checkpoints/
