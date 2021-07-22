@@ -221,9 +221,15 @@ class Triangulation:
     def make_directional_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
         cylinder direction, and returns a triangulation where all triangles have
-        an edge parallel to the specified cylinder direction.
+        an edge parallel to the specified cylinder direction.  It also returns the cylinder
+        refinement for each cylinder of the surface, in the specified direction.
         
-        direction := a 2D vector pointing in the cylinder direction of interest.  
+        INPUT.      direction := a 2D vector pointing in the cylinder direction of interest.
+        OUTPUT.     new_triangulation := triangulation with every triangle having edge in 
+                        specified direction
+                    cylinders := a list, each of whose elements are lists of indices corresponding 
+                        to the triangles in the refinement of a cylinder.
+
         """
         mat = return_shear_mat(direction)
         matinv = mat.inverse()
