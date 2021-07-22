@@ -229,7 +229,6 @@ class Triangulation:
                         specified direction
                     cylinders := a list, each of whose elements are lists of indices corresponding 
                         to the triangles in the refinement of a cylinder.
-
         """
         mat = return_shear_mat(direction)
         matinv = mat.inverse()
