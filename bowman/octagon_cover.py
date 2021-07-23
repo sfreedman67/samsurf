@@ -112,3 +112,6 @@ class OctagonCover(Triangulation):
                     is_found_preimage = True
             perm[i] = tri_id // 16
         return perm
+
+    def plot(self):
+        return super().octagon_plot(self.degree)
