@@ -22,7 +22,7 @@ class LinearXYPoly:
 
         if isinstance(input_val, list):  # if input is list
             assert len(input_val) == 3, "Input must have 3 coefficients"
-            self.coeffs = input_val
+            self.coeffs = tuple(input_val)
 
         elif isinstance(input_val, type(x + y + 1)):  # if input is polynomial
             assert input_val.degree(x) in [0, 1], "Polynomial not linear in x"
@@ -32,7 +32,7 @@ class LinearXYPoly:
                 input_val.coefficient([0, 1]),
                 input_val.coefficient([0, 0])]
             # outputs coefficient of x, y, 1
-            self.coeffs = [base_field(x) for x in coeffs_list]
+            self.coeffs = tuple([base_field(x) for x in coeffs_list])
 
         else:
             raise ValueError("Input is not list of coefficients or polynomial")
@@ -42,7 +42,15 @@ class LinearXYPoly:
         return f"LinearXYPoly Object representing {a}*x + {b}*y + {c}."
 
     def __repr__(self):
-        return f"LinearXYPoly({self.coeffs})"
+        return f"LinearXYPoly({self.get_coeffs()})"
+
+    def __sub__(self, num):
+        """
+        num is a number. Returns the polynomial corresponding to self,
+        with other subtracted from constant term.
+        """
+        a, b, c = self.coeffs
+        return LinearXYPoly([a, b, c - num], base_field=self.base_field)
 
     def get_poly(self):
         """
@@ -50,6 +58,9 @@ class LinearXYPoly:
         """
         a, b, c = self.coeffs
         return a*self.x + b*self.y + c
+
+    def get_coeffs(self):
+        return list(self.coeffs)
 
     def apply_matrix(self, matrix):
         """
@@ -62,7 +73,8 @@ class LinearXYPoly:
         """
         a, b, c = self.coeffs
         p, q, r, s = *matrix[0], *matrix[1]  # unpack matrix [[p, q], [r, s]]
-        return LinearXYPoly([a*p + b*r, a*q + b*s, c])
+        return LinearXYPoly([a*p + b*r, a*q + b*s, c],
+                            base_field=self.base_field)
 
 
 
