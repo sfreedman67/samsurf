@@ -2,82 +2,68 @@ from sage.all import *
 from bowman.triangulation import Triangulation
 
 
-class Cylinder(Triangulation):
+class Cylinder:
     """
     Represents a Cylinder on a translation surface.
     """
 
-##################
-# PROTOTYPE CODE #
-##################
-
-    def __init__(
-        self, height, circumference, rat_ht_constraint, veech_element,
-        regions={}, num_twists=1, *etc):
+    def __init__(self, direction, height, circumference, veech_elem,
+                 other_dir, regions_dict):
         """
-        FOR PROTOTYPING USE ONLY
-        This __init__ lets use define Cylinder objects with properties preset,
-        for testing the rational height lemma calculations.
         Inputs:
-        * height, circumference are geometric invariants of the cylinder
-        * rat_ht_constraint is a LinearXYPoly object P. The rational height
-        lemma tells us that for all periodic points (x, y) in this cylinder,
-        P(x, y) is a rational number.
-        * regions is a dict of int -> Cylinder object
-        int represents the region's ID, and must be unique across the
-        cylinder decomposition along this cylinder's direction.
-        The Cylinder objects pointed to must be along the same direction.
-        * veech_element is the parabolic element corresponding to this
-        cylinder's direction. Can be obtained from Prop 3.4 in Wright's survey.
-        * num_twists is the number of simple cut and pastes required to return
-        to original cylinder shape after applying veech_element
-        This is the ratio of the modulus of the cylinder with the off-diagonal
-        element of veech_element
+        * direction: 2-tuple
+            Represents the direction of the cylinder in 2D space.
+        * height, circumference: number
+            Geometric invariants of the cylinder, used in embedding
+        * veech_elem: 2x2 matrix
+            Parabolic element corresponding to the cylinder direction
+        * other_dir: 2-tuple
+            The direction of the other cylinders intersecting this cylinder.
+        * regions_dict: Dictionary, int -> (Cylinder, LinearXYPoly)
+            The data about the regions this cylinder is split into by cylinders
+            in the other direction. A dictionary where the keys are unique int,
+            representing a specific region. The first value points to the
+            cylinder in other direction this region is a part of, and the next
+            value points to a LinearXYPoly representing the ratio of heights
+            in the coordinates of this embedding.
         """
+        self.direction = direction
         self.height = height
         self.circumference = circumference
-        self.rat_ht_constraint = rat_ht_constraint
-        self.regions = regions
         self.veech_element = veech_element
-        self.num_twists = num_twists
+        self.other_dir = other_dir
+        self.regions_dict = regions_dict
 
-
-###################
-# INTEGRATED CODE #
-###################
-
-    # TODO: maybe updated __init__ with circumference and height calculated?
-
-    def get_direction(self):
+    @classmethod
+    def from_triangles(self, triangles, gluings, veech_element):
         """
-        What direction is the cylinder in?
-        Is this something that must be handed in through __init__?
+        Produces a Cylinder object from triangles + gluings
+        """
+        # compute direction, height, circumference, other_dir, regions_dict
+        # from the triangles + gluings??
+        # might have to pass in more info to this function
+        return Cylinder(direction, height, circumference, veech_elem,
+                        other_dir, regions_dict)
+
+    @property
+    def modulus(self):
+        pass
+
+    @property
+    def num_twists(self):
+        """
+        num_twists: int
+            Maximum number of times we need to mod by the width of the embedded
+            triangle to return a point to its original point after applying
+            the veech group element
         """
         pass
 
-    def get_circumference(self):
+    @property
+    def constraint(self):
         """
-        Compute the circumference of the cylinder, from the triangles + gluings
-        IDEA: use straight line flow in cylinder direction to compute the 
-        distance traveled, 
-        """
-        pass
-
-    def get_height(self):
-        """
-        Compute the height of the cylinder, from the triangles + gluings
-        IDEA: Get the height to edge along cyl direction in one triangle
+        * constraint: LinearXYPoly
+            Represents the ratio of the height of a point in the cylinder with
+            the cylinder's height.
         """
         pass
-
-    def get_modulus(self):
-        pass
-
-    def get_veech_element(self, parent_triangulation):
-        """
-        parent_triangulation represents the Translation Surface cylinder is on
-        Returns the minimum parabolic element corresponding to this cylinder's
-        direction.
-        """
-        pass
-
