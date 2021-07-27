@@ -616,49 +616,6 @@ class Triangulation:
 
         return plots_tris + plots_labels_tri + plots_labels_edge
 
-    def octagon_plot(self, degree):
-        """Plot as individual octagons"""
-
-        tris_seen = {0: self.triangles[0].vertices()}
-        plots_tris_temp = []
-
-        #for each octagon
-        for i in range(degree):
-            #produce an empty graphic to hold the octagon
-            octagon_curr = Graphics()
-            for j in range(16):
-                index = i * 16 + j
-                #add triangle at each index
-                tris_seen[index] = self.triangles[index].vertices()
-                octagon_curr += self.triangles[index].plot()
-            #add octagon to plot
-            plots_tris_temp.append(octagon_curr)
-
-        def center(vertices):
-            x = sum(vx for vx, vy in vertices) / 3
-            y = sum(vy for vx, vy in vertices) / 3
-            return x, y
-
-        def midpoint(v1, v2):
-            v1x, v1y = v1
-            v2x, v2y = v2
-            return sage.all.vector([(v1x + v2x) / 2, (v1y + v2y) / 2])
-
-        def displacement(v1, v2):
-            a, b = v1
-            c, d = v2
-            return 1 / 30 * sage.all.vector([b - d, c - a])
-
-        for i in range(degree):
-            for j in range(16):
-                idx = i*16 + j
-                (a, b, c) = tris_seen[idx]
-                plots_tris_temp[i] += sage.all.text(str(idx), center(tris_seen[idx]), fontsize=14, color='orange').plot()
-                plots_tris_temp[i] += sum(sage.all.text(str(idx), midpoint(v1, v2) + displacement(v1, v2)).plot()
-                                         for idx, (v1, v2) in [(0, (a, b)), (1, (b, c)), (2, (c, a))])
-
-        return graphics_array(plots_tris_temp, 1, degree)
-
     @staticmethod
     def union(tn1, tn2):
         ts = tn1.triangles + tn2.triangles
