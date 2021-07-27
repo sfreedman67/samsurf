@@ -52,6 +52,14 @@ class LinearXYPoly:
         a, b, c = self.coeffs
         return LinearXYPoly([a, b, c - num], base_field=self.base_field)
 
+    def sub_from_x(self, num):
+        """
+        num is a number. Returns the polynomial with (x - num) substituted
+        in place of x.
+        """
+        a, b, c = self.coeffs
+        return LinearXYPoly([a, b, c - a * num], base_field=self.base_field)
+
     def get_poly(self):
         """
         Outputs the polynomial associated with self.
@@ -62,10 +70,11 @@ class LinearXYPoly:
     def get_coeffs(self):
         return list(self.coeffs)
 
-    def apply_matrix(self, matrix):
+    def matrix_coords(self, matrix):
         """
+        Outputs the polynomial obtained by first applying matrix to x, y, and
+        then applying self on the new coordinates.
         Treats x, y as a basis and apply the 2x2 matrix to the polynomial.
-        Output is LinearXYPoly object with matrix applied.
         Example:
         * poly = ax + by + c
         * matrix = [[p, q], [r, s]]
@@ -81,5 +90,4 @@ class LinearXYPoly:
 """
 TODO: Other things that would be nice to have:
 Left multiplication by numbers -> multiply all coefficients by the number
-Left addition by addition -> add to constant term?
 """

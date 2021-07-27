@@ -37,100 +37,80 @@ def produce_segment_three_polys(list_of_poly, debug=False):
     Output: linear P such that P(x, y) = 0.
     """
 
-    # manually adding the variables 
-    #TODO: fix for general number of polynomials
-
     base_field = list_of_poly[0].base_field
-    r_i_poly_field = PolynomialRing(base_field, 3, 'r')
-    r0, r1, r2 = r_i_poly_field.gens()
-    r = [r0, r1, r2]
+    z_i_poly_field = PolynomialRing(base_field, 3, 'r')
+    z0, z1, z2 = z_i_poly_field.gens()
+    z = [z0, z1, z2]
 
     coeffs_matrix = [poly.get_coeffs() for poly in list_of_poly]
     # LinearXYPoly stores coeffs as a list, so this constructs matrix
     for i in range(3):
-        coeffs_matrix[i][2] -= r[i]
+        coeffs_matrix[i][2] = z[i] - coeffs_matrix[i][2]
     Q_both = matrix(3, coeffs_matrix).determinant()
-    # Combines info from all three polynomials into a single polynomial in r_i
+    # Combines info from all three polynomials into a single polynomial in z_i
 
     # separate the constraint equation into rational and irrational parts
-
     rat_proj_matrix = matrix(2, [[1, 0], [0, 0]])
     Q_rat = project_polynomial(base_field, rat_proj_matrix, Q_both)
-    # assert (not Q_rat.is_constant()), \
-    #     "Degenerate case encountered, projection polynomial identically zero."
-    # # Check for degenerate case. If encountered, try other directions
-
-    #TODO: doesn't check for degenerate case. Maybe deal with it at output?
 
     if debug:
         print("Matrix of coefficients", coeffs_matrix)
         print("Combined polynomial", Q_both)
         print("Rational polynomial", Q_rat)
 
-    # irr_proj_matrix = matrix(2, [[0, 0], [0, 1]])
-    # Q_irr = project_polynomial(base_field, irr_proj_matrix, Q_both)
-    # produce the irrational equation,
-    # not used since it's the polynomial  -(rat_constraint)
-
     # Substitute polynomials to get linear equation
-    substitution_dict = {r[i]: list_of_poly[i].get_poly() for i in range(3)}
+    substitution_dict = {z[i]: list_of_poly[i].get_poly() for i in range(3)}
     return Q_rat.substitute(substitution_dict)
 
-# constraints are tied to each cylinder
-# also the output constraint is different from the input constraint
-# code these in!!
 
-
-def reduce_cylinder_constraints(cyl_decomposition, debug=False):
+def reduce_cylinder_constraints(cylinder, debug=False):
     """
+    Finds all the segments on a cylinder where periodic points might lie.
     Inputs:
-        cyl_decomposition is a list of Cylinder objects.
-        refer to cylinder.py, PROTOTYPE CODE, for more info.
+    * cylinder: Cylinder object
+        Represents all the cylinders in a given direction
     Output:
         List of line segments where periodic points lie.
         Two segments are produced for each pair of regions in a given cylinder
-    Assumes the veech group element being applied is horizontal.
+    #TODO: This code assumes cylinder direction is horizontal, and other
+    direction is vertical.
     """
     found_segments = []
-    for cyl in cyl_decomposition:
-        regions_dict = cyl.regions
-        veech_elem = cyl.veech_element
-        for reg_1, reg_2 in itertools.product(regions_dict, repeat=2):
-            # iterating over pairs of regions
+    for reg_1, reg_2 in itertools.product(cylinder.regions_dict, repeat=2):
+        # iterating over pairs of regions
+        other_cyl_1, other_con_1 = cylinder.regions_dict[reg_1]
+        other_cyl_2, other_con_2 = cylinder.regions_dict[reg_2]
+        # regions_dict stores other cylinder, and embedded constraint, for a
+        # given region
+        if debug:
+            print(
+                f"Working on the possible region action "
+                f"{reg_1, other_cyl_1, other_con_1} -> "
+                f"{reg_2, other_cyl_1, other_con_2}")
+
+        cylin_constraint = cylinder.constraint
+        # constraint coming from cylinder cyl
+        other_constraint = other_con_1
+        # constraint from other cylinder that reg_1 is in
+        acted_constraint = other_con_2.matrix_coords(cylinder.veech_elem)
+        # constraint corresponding to new region after applying veech_elem,
+        # in terms of original coordinates
+
+        modding_offsets = [i * cylinder.circumference for i
+                           in range(cylinder.num_twists + 1)]
+        # possible amounts to move back by after cut and paste
+        # each offset value produces its own line
+        for offset in modding_offsets:
+            final_constraint = acted_constraint.sub_from_x(offset)
+            # constraint after moving back
+            segment = produce_segment_three_polys(
+                [cylin_constraint, other_constraint, final_constraint])
+            found_segments.append(segment)
+            #TODO: Make segment into a proper segment, rather than a polynomial
             if debug:
-                print(
-                    f"Working on the possible region action "
-                    f"{reg_1} -> {reg_2}")
+                print(f"constraints are {constraints}, got line {segment}")
 
-            cylin_constraint = cyl.rat_ht_constraint
-            # constraint coming from cylinder cyl
-            other_constraint = regions_dict[reg_1].rat_ht_constraint
-            # constraint from other cylinder that reg_1 is in
-
-            constant_offsets = [i * cyl.circumference for i
-                                in range(cyl.num_twists + 1)]
-            # possible amounts to move back by after cut and paste
-            # each offset value produces its own line
-
-            for offset in constant_offsets:
-
-                new_cyl_constraint = regions_dict[reg_2].rat_ht_constraint
-                # constraint corresponding to new region the point ends up in
-                acted_constraint = new_cyl_constraint.apply_matrix(veech_elem)
-                # constraint in terms of orrignal coordinates
-                #TODO: check if this works, or if inverse of matrix is needed
-                final_constraint = acted_constraint - offset
-                # constraint from point after being acted on by veech_elem
-
-                constraints = [cylin_constraint,
-                               other_constraint,
-                               final_constraint]
-                segment = produce_segment_three_polys(constraints)
-                found_segments.append(segment)
-                if debug:
-                    print(f"constraints are {constraints}, got line {segment}")
-
-    return found_segments  # final output
+    return found_segments
 
 
 
