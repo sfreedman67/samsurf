@@ -12,6 +12,7 @@ from bowman import geom_equiv
 from bowman import algo
 from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
+from bowman.radical import Radical
 
 
 def return_shear_mat(dir):
@@ -87,6 +88,84 @@ class Triangulation:
 
         gluings = {(0, 0): (1, 0), (0, 1): (1, 1), (0, 2): (2, 2), (1, 2): (3, 2),
                    (2, 0): (3, 0), (2, 1): (4, 1), (3, 1): (5, 1), (4, 0): (5, 0), (4, 2): (5, 2)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(triangles, gluings)
+
+    @classmethod
+    def prym_eigenform_type_aplus(cls, w, h, t, e):
+        """Constructs as a polygon the Type A+ Prym eigenform corresponding to
+        the four nonnegative integers w, h, t, e, as detailed in the paper by
+        Lanneau-Nguyen."""
+
+        # Verify that the input satisfies the necessary conditions.
+        assert w > 0 and h > 0 and t >= 0 and e >= 0
+        assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
+        D = e**2 + 8 * w * h
+        k = QuadraticField(D)
+        sqrtD = k.gen()
+        l = (e + sqrtD) / 2
+        assert sign(l) > 0 and sign(w - l) > 0
+
+        east_long = sage.all.vector([w,0])
+        east_short = sage.all.vector([l,0])
+        north_short = sage.all.vector([0,l])
+        north_east = sage.all.vector([t,h])
+
+        triangles = [Triangle(east_short, -east_short + north_short, -north_short),
+                     Triangle(-east_short, east_short - north_short, north_short),
+                     Triangle(north_east, -east_short, east_short - north_east),
+                     Triangle(east_short, -east_short + north_east, -north_east),
+                     Triangle(-east_long + east_short, east_long - east_short - north_east, north_east),
+                     Triangle(east_long - east_short, -east_long + east_short + north_east, -north_east),
+                     Triangle(north_east, -east_short, east_short - north_east),
+                     Triangle(east_short, -east_short + north_east, -north_east),
+                     Triangle(-east_long + east_short, east_long - east_short - north_east, north_east),
+                     Triangle(east_long - east_short, -east_long + east_short + north_east, -north_east)]
+
+        gluings = {(0,0): (6,1), (0,1): (1,1), (0,2): (1,2), (1,0): (3,0),
+                   (2,0): (5,2), (2,1): (7,0), (2,2): (3,1), (3,2): (4,2),
+                   (4,0): (5,0), (4,1): (5,1), (6,0): (9,2), (6,2): (7,1),
+                   (7,2): (8,2), (8,0): (9,0), (8,1): (9,1)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(triangles, gluings)
+
+    @classmethod
+    def prym_eigenform_type_aminus(cls, w, h, t, e):
+        """Constructs as a polygon the Type A- Prym eigenform corresponding to
+        the four nonnegative integers w, h, t, e, as detailed in the paper by
+        Lanneau-Nguyen."""
+
+        # Verify that the input satisfies the necessary conditions.
+        assert w > 0 and h > 0 and t >= 0 and e >= 0
+        assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
+        D = e**2 + 8 * w * h
+        k = QuadraticField(D)
+        sqrtD = k.gen()
+        l = (e + sqrtD) / 2
+        assert sign(l) > 0 and sign(w - l) > 0
+
+        east_long = sage.all.vector([w - l,0])
+        east_short = sage.all.vector([l/2,0])
+        north_short = sage.all.vector([0,l/2])
+        north_east = sage.all.vector([t,h])
+
+        triangles = [Triangle(east_short, north_east - east_short, -north_east),
+                     Triangle(-east_short, -north_east + east_short, north_east),
+                     Triangle(east_short, north_east - east_short, -north_east),
+                     Triangle(-east_short, -north_east + east_short, north_east),
+                     Triangle(east_long, north_east - east_long, - north_east),
+                     Triangle(-east_long, -north_east + east_long, north_east),
+                     Triangle(east_short, north_short - east_short, -north_short),
+                     Triangle(-east_short, -north_short + east_short, north_short),
+                     Triangle(east_short, north_short - east_short, -north_short),
+                     Triangle(-east_short, -north_short + east_short, north_short)]
+
+        gluings = {(0,0): (7,0), (0,1): (1,1), (0,2): (5,2), (1,0): (6,0),
+                   (1,2): (2,2), (2,0): (9,0), (2,1): (3,1), (3,0): (8,0),
+                   (3,2): (4,2), (4,0): (5,0), (4,1): (5,1), (6,1): (7,1),
+                   (6,2): (7,2), (8,1): (9,1), (8,2): (9,2)}
         gluings.update({v: k for k, v in gluings.items()})
 
         return Triangulation(triangles, gluings)
@@ -175,7 +254,6 @@ class Triangulation:
         """Check if every triangle has a horizontal edge.  Returns True if so."""
         tris = self.triangles
         v = vector([1, 0])
-
         for i in tris:
             horiz = False
             for j in range(0, 3):
@@ -185,44 +263,80 @@ class Triangulation:
                 continue
             else:
                 return False
-
         return True
+
+    def get_horiz_cyls(self):
+        """Take triangulation with every triangle having a horizontal edge,
+        and return the horizontal cylinder refinement."""
+        tris = list(self.triangles)
+        gluings = self.gluings
+        v = vector([1, 0])
+        cylinders = []
+        while True:
+            if(not tris):
+                return cylinders
+            # make cylinder
+            cylinder = []
+            curr_tri = tris.pop(0)
+            while True:
+                curr_tri_indx = self.triangles.index(curr_tri)
+                cylinder.append(curr_tri_indx)
+                check = False
+                for i in range(0, 3):
+                    if(abs(v.dot_product(curr_tri[i])) != curr_tri[i].norm()):
+                        glued_tri = self.triangles[gluings[(curr_tri_indx, i)][0]]
+                        glued_tri_indx = self.triangles.index(glued_tri)
+                        if((glued_tri_indx not in cylinder) and (glued_tri in tris)):
+                            tris.remove(glued_tri)
+                            check = True
+                            curr_tri = glued_tri
+                            break
+                if(not check):
+                    break
+            cylinders.append(cylinder)
+        return cylinders
 
     def make_directional_triangulation(self, direction):
         """This function takes a triangulation of a translation surface along with a 
         cylinder direction, and returns a triangulation where all triangles have
-        an edge parallel to the specified cylinder direction.
+        an edge parallel to the specified cylinder direction.  It also returns the cylinder
+        refinement for each cylinder of the surface, in the specified direction.
         
-        direction := a 2D vector pointing in the cylinder direction of interest.  
+        INPUT.      direction := a 2D vector pointing in the cylinder direction of interest.
+        OUTPUT.     new_triangulation := triangulation with every triangle having edge in 
+                        specified direction
+                    cylinders := a list, each of whose elements are lists of indices corresponding 
+                        to the triangles in the refinement of a cylinder.
+
         """
         mat = return_shear_mat(direction)
         matinv = mat.inverse()
-        self = self.apply_matrix(mat)
-        counter = 1
+        new_triangulation = self.apply_matrix(mat)
+        counter = 0
 
         while True:
-            if(self.is_delaunay):
+            if(new_triangulation.is_delaunay):
                 # check triangulation for horizontal edges
-                if(self.check_horiz()):
+                if(new_triangulation.check_horiz()):
                     # found good triangulation
                     print("Completed triangulation.")
                     break
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
-                if(self.is_delaunay):
+                if(new_triangulation.is_delaunay):
                     counter += 1
-                    self = self.apply_gt_flow(counter)  
+                    new_triangulation = new_triangulation.apply_gt_flow(2)  
                 else:
-                    self = self.make_delaunay()
+                    new_triangulation = new_triangulation.make_delaunay()
                     break
             if(counter >= 25):
                 print("Exited loop after applying g_t flow for 25 iterations")
                 break
-
-        # now that have proper triangulation, g_t flow in inverse direction and rotate back
-        self = self.apply_gt_flow(-(counter-1))
-        self = self.apply_matrix(matinv)
-        return self
+        # get cylinders, then g_t flow in inverse direction and rotate back
+        cylinders = new_triangulation.get_horiz_cyls()
+        new_triangulation = new_triangulation.apply_gt_flow(-(counter*2))
+        new_triangulation = new_triangulation.apply_matrix(matinv)
+        return new_triangulation, cylinders
 
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
@@ -254,6 +368,115 @@ class Triangulation:
             tris_new = __replace__(tris_new, opp_triangle_id, tris_new[opp_triangle_id].mark_point(opp_coords, rgbcolor))
 
         return Triangulation(tris_new, self.gluings)
+
+    def mark_line(self, triangle_id, start_coords, end_coords, rgbcolor):
+        """Mark in color RGBCOLOR the line determined by barycentric coordinates START_COORDS and END_COORDS on the triangle TRIANGLE_ID.
+
+        triangle_id  := the ID, i.e., index in self.triangles, of the triangle
+                        to be marked.
+        start_coords := a tuple of three nonnegative real numbers that sum to 1
+                        representing the barycentric coordinates of a point in
+                        the triangle determined by TRIANGLE_ID.
+        rgbcolor     := a tuple of three real numbers between 0 and 1, where
+                        the componenets are the RGB values of a color.
+        """
+        if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
+            raise ValueError("Invalid barycentric coordinates.")
+
+        tri_new = self.triangles[triangle_id].mark_line(start_coords, end_coords, rgbcolor)
+        tris_new = self.triangles[:triangle_id] + (tri_new,) + self.triangles[triangle_id + 1:]
+
+        return Triangulation(tris_new, self.gluings)
+
+    def __step_flow_helper__(self, start_tri_id, start_coords, direction):
+        start_tri = self.triangles[start_tri_id]
+        start_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2]
+
+        # Step 1: Identify the outgoing edge.
+        p = (start_pos, start_pos - start_tri[0], start_pos + start_tri[2])
+        for i in range(3):
+            change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
+            if not change_of_basis.determinant().is_zero():
+                sector_coords = change_of_basis**(-1) * direction
+                out_edge = i
+                if sector_coords[0].sign() > 0 and sector_coords[1].sign() > 0:
+                    break
+
+        # Step 2: Determine the vector coordinates of the next point.
+        linear_system = sage.all.column_matrix((start_tri[out_edge], direction))
+        line = start_pos
+        for i in range(out_edge):
+            line = line - start_tri[i]
+        s = (linear_system**(-1) * line)[0]
+        return s, out_edge
+
+    def step_flow(self, start_tri_id, start_coords, direction):
+        """Flows a given point in a given direction.
+
+        start_tri_id := the triangle to which the point belongs, provided as an integer.
+        start_coords := the vector from the zeroth vertex to the point.
+        direction    := the direction of the flow."""
+
+        s, out_edge = self.__step_flow_helper__(start_tri_id, start_coords, direction)
+
+        # Step 3: Translate these coordinates to those of the next triangle over.
+        end_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
+        end_tri = self.triangles[end_tri_id]
+        end_coords_indexed = sorted([(in_edge, s),
+                                     ((in_edge + 1) % 3, 1 - s),
+                                     ((in_edge + 2) % 3, 0)])
+        end_coords = tuple(coord for _, coord in end_coords_indexed)
+
+        return end_tri_id, end_coords, direction
+
+    def mark_flow(self, start_tri_id, start_coords, direction, rgbcolor):
+        """Marks the trajectory of a given point under the straight line flow
+           in a given direction.
+
+        start_tri_id := the triangle to which the point belongs, provided as an integer.
+        start_coords := the vector from the zeroth vertex to the point.
+        direction    := the direction of the flow."""
+
+        points_seen = []
+        tris_new = self.triangles
+
+        while (start_tri_id, start_coords) not in points_seen:
+            points_seen.append((start_tri_id, start_coords))
+
+            # Extend the straight line from the previous point.
+            s, out_edge = self.__step_flow_helper__(start_tri_id, start_coords, direction)
+            end_coords_indexed = sorted([((out_edge + 1) % 3, s),
+                                         (out_edge, 1 - s),
+                                         ((out_edge + 2) % 3, 0)])
+            end_coords = tuple(coord for _, coord in end_coords_indexed)
+
+            tris_new = tris_new[0:start_tri_id] + (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+
+            # Prepare for the next depth of recursion.
+            start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
+            start_coords_indexed = sorted([(in_edge, s),
+                                         ((in_edge + 1) % 3, 1 - s),
+                                         ((in_edge + 2) % 3, 0)])
+            start_coords = tuple(coord for _, coord in start_coords_indexed)
+
+        return Triangulation(tris_new, self.gluings)
+
+    def is_on_same_geodesic(self, start_tri_id, start_coords, end_tri_id, end_coords, direction):
+        for i in range(100):
+            if start_tri_id == end_tri_id:
+                tri = self.triangles[start_tri_id]
+                start_pos = start_coords[1] * tri[0] - start_coords[2] * tri[2]
+                end_pos = end_coords[1] * tri[0] - end_coords[2] * tri[2]
+                nonzero_component = 0
+                if direction[nonzero_component].is_zero():
+                    nonzero_component = 1
+                displacement = start_pos - end_pos
+                ratio = displacement[nonzero_component] / direction[nonzero_component]
+                if displacement == ratio * direction:
+                    return True
+
+            start_tri_id, start_coords, direction = self.step_flow(start_tri_id, start_coords, direction)
+        return False
 
     @property
     def edges(self):

@@ -21,7 +21,7 @@ class Triangle():
     -
     - see a document for how the coordinates correspond to the edges
     """
-    def __init__(self, v0, v1, v2, points_marked = None):
+    def __init__(self, v0, v1, v2, points_marked = None, lines_marked = None):
         if sum((v0, v1, v2)) != 0:
             raise ValueError("sides do not close up")
         elif sage.all.matrix([v0, -v2]).determinant() <= 0:
@@ -39,6 +39,14 @@ class Triangle():
                     raise ValueError("Invalid barycentric coordinates.")
             self.points_marked = tuple(points_marked)
 
+        if lines_marked is None:
+            self.lines_marked = tuple()
+        else:
+            for start_coords, end_coords, _ in lines_marked:
+                if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
+                    raise ValueError("Invalid barycentric coordinates.")
+            self.lines_marked = tuple(lines_marked)
+
     def mark_point(self, coords, rgbcolor):
         """Determine if the given coordinates COORDS are valid barycentric coordinates in the Triangle self and add to points_marked if valid.
         return 0 if the cooridnates are valid, 1 otherwise
@@ -50,10 +58,21 @@ class Triangle():
             point_marked, _ = self.points_marked[i]
             if coords == point_marked:
                 # If the point has already been marked, just update the color.
-                return Triangle(self.v0, self.v1, self.v2, self.points_marked[0:i] + ((coords, rgbcolor),) + self.points_marked[i+1:])
+                return Triangle(self.v0, self.v1, self.v2, self.points_marked[0:i] + ((coords, rgbcolor),) + self.points_marked[i+1:], self.lines_marked)
 
         # Otherwise, append the point as a new element in self.points_marked.
-        return Triangle(self.v0, self.v1, self.v2, self.points_marked + ((coords, rgbcolor),))
+        return Triangle(self.v0, self.v1, self.v2, self.points_marked + ((coords, rgbcolor),), self.lines_marked)
+
+    def mark_line(self, start_coords, end_coords, rgbcolor):
+        if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
+            raise ValueError("Invalid barycentric coordinates.")
+
+        for i in range(len(self.lines_marked)):
+            start_coords_marked, end_coords_marked, _ = self.lines_marked[i]
+            if start_coords == start_coords_marked and end_coords == end_coords_marked:
+                return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked[0:i] + ((start_coords, end_coords, rgbcolor),) + self.lines_marked[i+1:])
+
+        return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked + ((start_coords, end_coords, rgbcolor),))
 
     def __getitem__(self, key):
         if key == 0:
@@ -83,7 +102,16 @@ class Triangle():
         return Triangle(sides_new[0], sides_new[1], sides_new[2], self.points_marked)
 
     def plot(self, basepoint=sage.all.zero_vector(2)):
+        # Plot the triangle.
         triangle_plot = sage.all.polygon2d(self.vertices(basepoint), fill=False).plot()
+
+        # Plot the marked lines.
+        for start_coords, end_coords, line_marked_color in self.lines_marked:
+            start_cartesian = basepoint + start_coords[1]*self.v0 - start_coords[2]*self.v2
+            end_cartesian = basepoint + end_coords[1]*self.v0 - end_coords[2]*self.v2
+            triangle_plot = triangle_plot + sage.all.line2d([start_cartesian.numerical_approx(), end_cartesian.numerical_approx()], rgbcolor = line_marked_color).plot() 
+
+        # Plot the marked points.
         for point_marked, point_marked_color in self.points_marked:
             point_marked_coords = basepoint + point_marked[1]*self.v0 - point_marked[2]*self.v2
             triangle_plot = triangle_plot + sage.all.point2d((float(point_marked_coords[0]), float(point_marked_coords[1])), rgbcolor = point_marked_color, size = 50).plot()
