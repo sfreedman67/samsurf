@@ -3,12 +3,14 @@ import functools
 
 from sage.all import *
 
+
 def is_valid_barycentric_coordinate(a0, a1, a2):
     if a0 + a1 + a2 != 1:
         return False
     if a0 < 0 or a1 < 0 or a2 < 0:
         return False
     return True
+
 
 class Triangle():
     """ A triangle with a list of marked points
@@ -103,3 +105,4 @@ class Triangle():
     @property
     def area(self):
         return QQ(1/2) * abs(sage.all.matrix([self.v0, -self.v2]).determinant())
+

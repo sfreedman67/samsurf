@@ -6,6 +6,14 @@ from bowman.linear_xy_poly import LinearXYPoly
 from bowman.cylinder import Cylinder
 
 
+def perp_vector_2D(vec):
+    """
+    Returns the perpendicular vector to a 2D vector
+    """
+    a, b = vec
+    return vector([b, -a])
+
+
 def project_polynomial(number_field, proj_matrix, poly):
     """
     Input:

@@ -49,8 +49,19 @@ class LinearXYPoly:
         num is a number. Returns the polynomial corresponding to self,
         with other subtracted from constant term.
         """
+        assert num in self.base_field, "Can't subtract numbers outside base_field"
         a, b, c = self.coeffs
         return LinearXYPoly([a, b, c - num], base_field=self.base_field)
+
+    def __mul__(self, num):
+        """
+        num is a number. Returns the polynomial with num multiplied to
+        the coefficients
+        """
+        assert num in self.base_field, "Can't multiply numbers outside base_field"
+        a, b, c = self.coeffs
+        new_coeffs = [num * a, num * b, num * c]
+        return LinearXYPoly(new_coeffs, base_field=self.base_field)
 
     def sub_from_x(self, num):
         """
