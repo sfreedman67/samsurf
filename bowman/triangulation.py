@@ -131,6 +131,45 @@ class Triangulation:
 
         return Triangulation(triangles, gluings)
 
+    @classmethod
+    def prym_eigenform_type_aminus(cls, w, h, t, e):
+        """Constructs as a polygon the Type A- Prym eigenform corresponding to
+        the four nonnegative integers w, h, t, e, as detailed in the paper by
+        Lanneau-Nguyen."""
+
+        # Verify that the input satisfies the necessary conditions.
+        assert w > 0 and h > 0 and t >= 0 and e >= 0
+        assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
+        D = e**2 + 8 * w * h
+        k = QuadraticField(D)
+        sqrtD = k.gen()
+        l = (e + sqrtD) / 2
+        assert sign(l) > 0 and sign(w - l) > 0
+
+        east_long = sage.all.vector([w - l,0])
+        east_short = sage.all.vector([l/2,0])
+        north_short = sage.all.vector([0,l/2])
+        north_east = sage.all.vector([t,h])
+
+        triangles = [Triangle(east_short, north_east - east_short, -north_east),
+                     Triangle(-east_short, -north_east + east_short, north_east),
+                     Triangle(east_short, north_east - east_short, -north_east),
+                     Triangle(-east_short, -north_east + east_short, north_east),
+                     Triangle(east_long, north_east - east_long, - north_east),
+                     Triangle(-east_long, -north_east + east_long, north_east),
+                     Triangle(east_short, north_short - east_short, -north_short),
+                     Triangle(-east_short, -north_short + east_short, north_short),
+                     Triangle(east_short, north_short - east_short, -north_short),
+                     Triangle(-east_short, -north_short + east_short, north_short)]
+
+        gluings = {(0,0): (7,0), (0,1): (1,1), (0,2): (5,2), (1,0): (6,0),
+                   (1,2): (2,2), (2,0): (9,0), (2,1): (3,1), (3,0): (8,0),
+                   (3,2): (4,2), (4,0): (5,0), (4,1): (5,1), (6,1): (7,1),
+                   (6,2): (7,2), (8,1): (9,1), (8,2): (9,2)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(triangles, gluings)
+
     @staticmethod
     def _triangulate_rectangle(base, height):
         triangle_lower = Triangle(sage.all.vector([0, height]),
