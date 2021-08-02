@@ -43,3 +43,13 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
 
     def contains_point(self, point):
         return self.polygon.contains_point(point)
+
+    @property
+    def cusps(self):
+        cusps_list = []
+        for edge in self.polygon.edges:
+            if edge.start == oo:
+                cusps_list.append(oo)
+            elif sign(edge.start.v2) == 0:
+                cusps_list.append(edge.start.u)
+        return cusps_list

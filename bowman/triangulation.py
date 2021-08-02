@@ -1,6 +1,7 @@
 import itertools
 from collections import defaultdict, deque
 from functools import lru_cache
+from typing import overload
 
 from sage.all import *
 # import flatsurf
@@ -16,7 +17,7 @@ from bowman.radical import Radical
 
 
 def return_shear_mat(dir):
-    """Generate a shear that projects vector dir onto the real line, or rotates 
+    """Generate a shear that projects vector dir onto the real line, or rotates
     dir by 90 degrees if dir is verticle."""
     dir_x, dir_y = dir
 
@@ -297,17 +298,16 @@ class Triangulation:
         return cylinders
 
     def make_directional_triangulation(self, direction):
-        """This function takes a triangulation of a translation surface along with a 
+        """This function takes a triangulation of a translation surface along with a
         cylinder direction, and returns a triangulation where all triangles have
         an edge parallel to the specified cylinder direction.  It also returns the cylinder
         refinement for each cylinder of the surface, in the specified direction.
-        
-        INPUT.      direction := a 2D vector pointing in the cylinder direction of interest.
-        OUTPUT.     new_triangulation := triangulation with every triangle having edge in 
-                        specified direction
-                    cylinders := a list, each of whose elements are lists of indices corresponding 
-                        to the triangles in the refinement of a cylinder.
 
+        INPUT.      direction := a 2D vector pointing in the cylinder direction of interest.
+        OUTPUT.     new_triangulation := triangulation with every triangle having edge in
+                        specified direction
+                    cylinders := a list, each of whose elements are lists of indices corresponding
+                        to the triangles in the refinement of a cylinder.
         """
         mat = return_shear_mat(direction)
         matinv = mat.inverse()
@@ -325,7 +325,7 @@ class Triangulation:
             while True:
                 if(new_triangulation.is_delaunay):
                     counter += 1
-                    new_triangulation = new_triangulation.apply_gt_flow(2)  
+                    new_triangulation = new_triangulation.apply_gt_flow(2)
                 else:
                     new_triangulation = new_triangulation.make_delaunay()
                     break
@@ -337,6 +337,138 @@ class Triangulation:
         new_triangulation = new_triangulation.apply_gt_flow(-(counter*2))
         new_triangulation = new_triangulation.apply_matrix(matinv)
         return new_triangulation, cylinders
+
+    def _return_triangle_coords(self, triangle_id):
+        """Helper funciton returning triangle orientation type for rectilinear triangle
+        located at triangle_id."""
+        horiz_vec = vector([1, 0])
+        vert_vec = vector([0, 1])
+        tri = self.triangles[triangle_id]
+        for i in range(0, 3):
+            if(tri[i][1] == 0):
+                horiz_vec = tri[i]
+                continue
+            if(tri[i][0] == 0):
+                vert_vec = tri[i]
+                continue
+        # check orientation
+        if(vert_vec[1] > 0 and horiz_vec[0] < 0):
+            # then type 1 triangle
+            horiz_vec[0] = abs(horiz_vec[0])
+            return vert_vec, horiz_vec, horiz_vec+vert_vec
+        if(vert_vec[1] < 0 and horiz_vec[0] > 0):
+            # type 2
+            vert_vec[1] = abs(vert_vec[1])
+            return vert_vec, horiz_vec, vector([0, 0])
+        if(vert_vec[1] > 0 and horiz_vec[0] > 0):
+            # type 3
+            return vert_vec+horiz_vec, horiz_vec, vector([0, 0])
+        if(vert_vec[1] < 0 and horiz_vec[0] < 0):
+            # type 4
+            horiz_vec[0] = abs(horiz_vec[0])
+            vert_vec[1] = abs(vert_vec[1])
+            return vert_vec, horiz_vec+vert_vec, vector([0, 0])
+        else:
+            raise ValueError("Did not obtain triangle type.")
+
+    def _return_line_params(self, p1, p2):
+        """Take two cartesian coordinates p1 and p2, and return the two parameters
+        which determine the line cutting through both."""
+        r = p1[1] - p2[1]
+        ru = p1[0] - p2[0]
+        m = 0
+        if(ru == 0):
+            return (oo, p1[0])
+        else:
+            m = r/ru # need QQ?
+        b = p1[1] - (m*p1[0])
+        return (m, b)
+
+    def _get_intersection_pt(self, line1, line2):
+        """Takes two line parameters and returns intersection pt in
+        cartesian coordinates.  line1/2 = (m, b) for slope m, intercept b."""
+        if(line1[0] == oo):
+            return (line1[1], (line1[1]*line2[0])+line2[1])
+        if(line2[0] == oo):
+            return (line2[1], (line2[1]*line1[0])+line1[1])
+        if(line1[0] == line2[0]):
+            raise ValueError("Lines are parallel.")
+        x = -(line1[1] - line2[1]) / (line1[0] - line2[0])
+        y = line1[0] * x + line1[1]
+        return (x, y)
+
+    def return_intersections(self, triangle_id, constraints_list):
+        """Take a triangle and a list of constraints of form [a, b, c]
+        where a, b, c are the parameters that define a line (a for x, b for y).
+        Return barycentric coordinates that correspond to where on the triangle
+        the lines intersect, with respect to the determined coordinate system.
+
+        triangle_id         := the index of the triangle in self.triangles.
+        constraints list    := list of constraints, each constrain is a list of three parameters
+        RETURNS:            collection of points, corresponding to the points at which 
+                            each constraint passes through the triangle edges.
+        """
+        # unpack coordinates of triangle with appropriate origin location.
+        r = self._return_triangle_coords(triangle_id)
+        # get triangle lines
+        tri_lines = []
+        for i in range(3):
+            j =  (i+1) % 3
+            p1, p2 = r[i], r[j]
+            line = self._return_line_params(p1, p2)
+            tri_lines.append(line)
+        # check where constraint lines intersect triangle lines.
+        # make sure not to check parallel lines.
+        line_intersections = []
+        for i in range(len(constraints_list)):
+            line_slope = -constraints_list[i][0] / constraints_list[i][1]
+            line_intercept = -constraints_list[i][2] / constraints_list[i][1]
+            cons_line = (line_slope, line_intercept)
+            intersections = []
+            for j in range(3):
+                tri_line = tri_lines[j]
+                if(tri_line[0] == cons_line[0]): #parallel
+                    continue
+                intersection_pt = self._get_intersection_pt(cons_line, tri_line)
+                intersections.append(intersection_pt)
+            line_intersections.append(intersections)
+        
+        # Keep the points that lie on a triangle edge.
+        x_min = min([r[0][0], r[1][0], r[2][0]])
+        x_max = max([r[0][0], r[1][0], r[2][0]])
+        y_min = min([r[0][1], r[1][1], r[2][1]])
+        y_max = max([r[0][1], r[1][1], r[2][1]])
+        kept_coords = []
+        for i in range(len(line_intersections)):
+            good_coords = []
+            for j in range(len(line_intersections[i])):
+                pt = line_intersections[i][j]
+                if(pt[0] < x_min or pt[0] > x_max or pt[1] < y_min or pt[1] > y_max):
+                    continue
+                else:
+                    pt = vector(pt)
+                    good_coords.append(pt)
+            kept_coords.append(good_coords)
+        
+        # convert intersection pts to barycentric coordinates
+        T = matrix([[r[0][0] - r[2][0], r[1][0] - r[2][0]], 
+                    [r[0][1] - r[2][1], r[1][1] - r[2][1]]])
+        Tinv = T.inverse()
+
+        barycentric_coords = []
+        for i in range(len(kept_coords)):
+            constraint_coords = []
+            for j in range(len(kept_coords[i])):
+                pt = kept_coords[i][j]
+                # get barycentric coordinate
+                lambda12 = Tinv * (pt - r[2])
+                lambda3 = 1 - lambda12[0] - lambda12[1]
+                v = vector([lambda12[0], lambda12[1], lambda3]) # barycentric coordinate
+                v = tuple(v/sum(v))     # normalize so sums to 1
+                constraint_coords.append(v)
+            barycentric_coords.append(constraint_coords)
+
+        return barycentric_coords
 
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
