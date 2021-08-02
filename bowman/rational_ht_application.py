@@ -29,6 +29,29 @@ def common_field(list_of_fields):
     return output
 
 
+def euclidean_gcd(a, b):
+    # returns the gcd of number field elements a, b using the Euclidean algorithm
+    if b > a:
+        a, b = b, a
+    if b == 0:
+        return a
+    else:
+        return euclidean_gcd(b, a - b)
+
+
+def list_lcm(list_of_nums):
+    """
+    Returns the lcm of a list of numbers
+    """
+    list_so_far = list_of_nums[:]  # deep copy of the list
+    lcm = list_so_far.pop()
+    while list_so_far:
+        new_num = list_so_far.pop()
+        lcm = lcm * new_num / euclidean_gcd(lcm, new_num)
+    return lcm
+
+
+
 def project_polynomial(number_field, proj_matrix, poly):
     """
     Input:
@@ -102,65 +125,80 @@ def reduce_cylinder_constraints(cylinder, global_veech_elem, debug=False):
     """
 
     found_segments = {}
-    count = 0
     farthest_idx = ((cylinder.num_twists(global_veech_elem) + 1) *
                     cylinder.num_triangles)
     # farthest triangle a point travels to under action of global_veech_elem
+    if debug:
+        print(f"----------------")
+        print(f"Looking at cylinder {list(cylinder.idx_dict.keys())} with")
+        print(f"direction {cylinder.direction}")
+        print(f"and veech elem {global_veech_elem}\n")
+        print(f"Points in cylinder travel upto {farthest_idx} triangles away\n")
 
-    for tri in cylinder:
-        found_segments[count] = tri, []
-        if debug:
-            print(f"working on triangle {tri}")
+    for idx, tri in cylinder.idx_dict.items():
+        tri_segments = []
         cylin_constraint = tri.constraint_in_direction(cylinder.direction)
         other_constraint = tri.constraint_in_direction(cylinder.other_direction)
+        if debug:
+            print(f"--------")
+            print(f"working on triangle {idx}")
+            print(f"got constraints {cylin_constraint} and {other_constraint}")
 
-        for idx in range(0, int(farthest_idx), 2):
-            final_constraint = cylinder.get_third_constraint(tri, idx, global_veech_elem)
-            constraints = [cylin_constraint, other_constraint, final_constraint]
-            segment = produce_segment_three_polys(constraints)
+        for i in range(0, int(farthest_idx), 2):
+            final_constraint = cylinder.get_third_constraint(tri, i, global_veech_elem)
+            segment = produce_segment_three_polys(
+                [cylin_constraint, other_constraint, final_constraint])
             if debug:
-                print(f"constraints are {constraints}, got line {segment}")
-            found_segments[count][1].append(segment)
-        count += 1
+                print(f"Considering the triangle {i} indices away.")
+                print(f"Final constraint is {final_constraint}.")
+                print(f"The case {idx} -> {idx + i} produces line {segment}\n")
+            tri_segments.append(segment)
+
+        found_segments[idx] = tri_segments
 
     return found_segments
 
-    # found_segments = []
-    # for reg_1, reg_2 in itertools.product(cylinder.regions_dict, repeat=2):
-    #     # iterating over pairs of regions
-    #     other_cyl_1, other_con_1 = cylinder.regions_dict[reg_1]
-    #     other_cyl_2, other_con_2 = cylinder.regions_dict[reg_2]
-    #     # regions_dict stores other cylinder, and embedded constraint, for a
-    #     # given region
-    #     if debug:
-    #         print(
-    #             f"Working on the possible region action "
-    #             f"{reg_1, other_cyl_1, other_con_1} -> "
-    #             f"{reg_2, other_cyl_1, other_con_2}")
 
-    #     cylin_constraint = cylinder.constraint
-    #     # constraint coming from cylinder cyl
-    #     other_constraint = other_con_1
-    #     # constraint from other cylinder that reg_1 is in
-    #     acted_constraint = other_con_2.matrix_coords(cylinder.veech_elem)
-    #     # constraint corresponding to new region after applying veech_elem,
-    #     # in terms of original coordinates
+def bicuspid_segments(triangulation, debug=False):
+    """
+    Given a bicuspid triangulation with both horizontal and vertical cylinders
+    finds the segments of candidate periodic points in each triangle.
+    """
 
-    #     modding_offsets = [i * cylinder.circumference for i
-    #                        in range(cylinder.num_twists + 1)]
-    #     # possible amounts to move back by after cut and paste
-    #     # each offset value produces its own line
-    #     for offset in modding_offsets:
-    #         final_constraint = acted_constraint.sub_from_x(offset)
-    #         # constraint after moving back
-    #         segment = produce_segment_three_polys(
-    #             [cylin_constraint, other_constraint, final_constraint])
-    #         found_segments.append(segment)
-    #         #TODO: Make segment into a proper segment, rather than a polynomial
-    #         if debug:
-    #             print(f"constraints are {constraints}, got line {segment}")
+    hor_dir = vector([1, 0])
+    ver_dir = vector([0, 1])
 
-    # return found_segments
+    refined_tris, ver_cyl_idxs = \
+        triangulation.make_directional_triangulation(ver_dir)
+    assert refined_tris.check_horiz(), "Triangulation not bicuspid"
+    #TODO Assumes that the vertical sheared triangulation will have horizontal
+    # cylinders too - might be wrong
+    hor_cyl_idxs = refined_tris.get_horiz_cyls()
+
+    hor_cyls = [Cylinder.from_indices(hor_dir, refined_tris, cyl)
+                for cyl in hor_cyl_idxs]
+    hor_modulus_lcm = list_lcm([1 / cyl.modulus for cyl in hor_cyls])
+    hor_veech_elem = matrix([[1, hor_modulus_lcm], [0, 1]])
+    hor_segments = {}
+    for cyl in hor_cyls:
+        hor_segments.update(
+            reduce_cylinder_constraints(cyl, hor_veech_elem, debug=debug))
+
+    ver_cyls = [Cylinder.from_indices(ver_dir, refined_tris, cyl)
+                for cyl in ver_cyl_idxs]
+    ver_modulus_lcm = list_lcm([1 / cyl.modulus for cyl in ver_cyls])
+    ver_veech_elem = matrix([[1, 0], [ver_modulus_lcm, 1]])
+    ver_segments = {}
+    for cyl in ver_cyls:
+        ver_segments.update(
+            reduce_cylinder_constraints(cyl, ver_veech_elem, debug=debug))
+
+    # if debug:
+    #     print(f"Horizontal veech element used")
+
+    tri_segments = {idx: (hor_segments[idx], ver_segments[idx])
+                    for idx in hor_segments}
+    return tri_segments
 
 
 

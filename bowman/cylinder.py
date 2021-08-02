@@ -18,10 +18,11 @@ class Cylinder:
     on bicuspid surfaces, for now
     """
 
-    def __init__(self, direction, triangles):
+    def __init__(self, direction, idx_dict, base_triangulation=None):
         self.direction = direction
-        self.triangles = triangles  # list of Triangle objects
-        # self.gluings = gluings
+        self.idx_dict = idx_dict  # dict: int -> triangle
+        self.triangles = list(idx_dict.values())  # list of triangles
+        self.base_triangulation = base_triangulation  # underlying surface
 
     @classmethod
     def from_indices(cls, direction, triangulation, cyl_list):
@@ -29,12 +30,13 @@ class Cylinder:
         Produces a cylinder from a triangulation.
         cyl_list should be the list of indices of triangles in the cylinder
         """
-        tris = [triangulation.triangles[i] for i in cyl_list]
-        if tris[0].is_region_starter(direction):
+        tris = [(i, triangulation.triangles[i]) for i in cyl_list]
+        if tris[0][1].is_region_starter(direction):
             new_tris = tris
         else:
             new_tris = tris[1:] + tris[0:1]
-        return Cylinder(direction, new_tris)
+        tris_dict = {idx: tri for idx, tri in new_tris}
+        return Cylinder(direction, tris_dict, triangulation)
 
     def __iter__(self):
         return iter(self.triangles)
@@ -124,5 +126,6 @@ class Cylinder:
             off_diag_number = b
         elif self.direction == vector([0, 1]):  # vertical case
             off_diag_number = c
-        return off_diag_number * self.modulus  # ratio with inverse of modulus
-
+        answer = off_diag_number * self.modulus  # ratio with inverse of modulus
+        assert int(answer) in ZZ, f"num_twists not integer with off diagonal element {off_diag_number} and modulus {self.modulus}"
+        return int(answer)
