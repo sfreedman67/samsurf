@@ -201,8 +201,27 @@ def bicuspid_segments(triangulation, debug=False):
     return tri_segments
 
 
-
-
-
-
-
+def segments_for_plotting(tri_segments):
+    """
+    Takes the output of bicuspid_segments, and produces a simple
+    dictionary which can be plotted.
+    Loses information for triangles where both directions yield valid lists
+    #TODO: once intersection of marked lines implemented, don't lose the info
+    """
+    output = {}
+    for idx, (hor_segments, ver_segments) in tri_segments.items():
+        if 0 in hor_segments:
+            if 0 in ver_segments:
+                raise ValueError("Triangle {idx} has zero in both lists")
+            else:
+                tri_list = ver_segments[:]
+        else:
+            if 0 in ver_segments:
+                tri_list = hor_segments[:]
+            else:
+                tri_list = (ver_segments[:]
+                            if len(hor_segments) > len(ver_segments)
+                            else hor_segments[:])
+        output[idx] = [LinearXYPoly.from_polynomial(poly).get_coeffs()
+                       for poly in tri_list]
+    return output

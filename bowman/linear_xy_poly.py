@@ -43,7 +43,7 @@ class LinearXYPoly:
         if isinstance(coeffs_list, list):  # if input is list
             assert len(coeffs_list) == 3, "Input must have 3 coefficients"
         else:
-            raise ValueError("Input is not list of coefficients or polynomial")
+            raise ValueError("Input is not list of coefficients")
 
         if base_field is None:
             self.base_field = common_quadratic_field(coeffs_list)
@@ -57,10 +57,10 @@ class LinearXYPoly:
     @classmethod
     def from_polynomial(cls, polynomial):
 
-        self.poly_ring = parent(polynomial)
-        x, y = self.poly_ring.gens()
-        self.x, self.y = x, y
-        self.base_field = self.poly_ring.base_ring()
+        poly_ring = parent(polynomial)
+        x, y = poly_ring.gens()
+        # self.x, self.y = x, y
+        # self.base_field = self.poly_ring.base_ring()
 
         assert polynomial.degree(x) in [0, 1], "Polynomial not linear in x"
         assert polynomial.degree(y) in [0, 1], "Polynomial not linear in y"
@@ -69,8 +69,8 @@ class LinearXYPoly:
             polynomial.coefficient([0, 1]),
             polynomial.coefficient([0, 0])]
         # outputs coefficient of x, y, 1
-        self.coeffs = tuple([self.base_field(x) for x in coeffs_list])
-
+        return LinearXYPoly(coeffs_list,
+                            base_field=parent(polynomial).base_ring())
 
     def __str__(self):
         a, b, c = self.coeffs
