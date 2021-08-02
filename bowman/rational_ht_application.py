@@ -4,14 +4,29 @@ import itertools
 from sage.all import *
 from bowman.linear_xy_poly import LinearXYPoly
 from bowman.cylinder import Cylinder
+from sage.rings.number_field.number_field import is_QuadraticField
 
 
-def perp_vector_2D(vec):
-    """
-    Returns the perpendicular vector to a 2D vector
-    """
-    a, b = vec
-    return vector([b, -a])
+def common_field(list_of_fields):
+    # finds the largest field in list_of_fields
+    #TODO: only works with quadratic fields, for now
+    output = QQ
+    found_quadratic = False
+    for field in list_of_fields:
+        if field == QQ:
+            continue
+        else:
+            if is_QuadraticField(field):
+                if not found_quadratic:
+                    output = field  # update when first quadratic field found
+                    found_quadratic = True
+                elif field.discriminant() == output.discriminant():
+                    continue
+                else:
+                    raise ValueError(f"Input {field} is different field from {output}")
+            else:
+                raise ValueError(f"Inputs must be quadratic field, which {field} is not.")
+    return output
 
 
 def project_polynomial(number_field, proj_matrix, poly):
@@ -45,7 +60,7 @@ def produce_segment_three_polys(list_of_poly, debug=False):
     Output: linear P such that P(x, y) = 0.
     """
 
-    base_field = list_of_poly[0].base_field
+    base_field = common_field(poly.base_field for poly in list_of_poly)
     z_i_poly_field = PolynomialRing(base_field, 3, 'r')
     z0, z1, z2 = z_i_poly_field.gens()
     z = [z0, z1, z2]
@@ -71,54 +86,81 @@ def produce_segment_three_polys(list_of_poly, debug=False):
     return Q_rat.substitute(substitution_dict)
 
 
-def reduce_cylinder_constraints(cylinder, debug=False):
+def reduce_cylinder_constraints(cylinder, global_veech_elem, debug=False):
     """
     Finds all the segments on a cylinder where periodic points might lie.
     Inputs:
     * cylinder: Cylinder object
         Represents all the cylinders in a given direction
+    global_veech_elem is the parabolic element along the cylinder direction
+    for the whole surface.
     Output:
         List of line segments where periodic points lie.
         Two segments are produced for each pair of regions in a given cylinder
     #TODO: This code assumes cylinder direction is horizontal, and other
     direction is vertical.
     """
-    found_segments = []
-    for reg_1, reg_2 in itertools.product(cylinder.regions_dict, repeat=2):
-        # iterating over pairs of regions
-        other_cyl_1, other_con_1 = cylinder.regions_dict[reg_1]
-        other_cyl_2, other_con_2 = cylinder.regions_dict[reg_2]
-        # regions_dict stores other cylinder, and embedded constraint, for a
-        # given region
+
+    found_segments = {}
+    count = 0
+    farthest_idx = ((cylinder.num_twists(global_veech_elem) + 1) *
+                    cylinder.num_triangles)
+    # farthest triangle a point travels to under action of global_veech_elem
+
+    for tri in cylinder:
+        found_segments[count] = tri, []
         if debug:
-            print(
-                f"Working on the possible region action "
-                f"{reg_1, other_cyl_1, other_con_1} -> "
-                f"{reg_2, other_cyl_1, other_con_2}")
+            print(f"working on triangle {tri}")
+        cylin_constraint = tri.constraint_in_direction(cylinder.direction)
+        other_constraint = tri.constraint_in_direction(cylinder.other_direction)
 
-        cylin_constraint = cylinder.constraint
-        # constraint coming from cylinder cyl
-        other_constraint = other_con_1
-        # constraint from other cylinder that reg_1 is in
-        acted_constraint = other_con_2.matrix_coords(cylinder.veech_elem)
-        # constraint corresponding to new region after applying veech_elem,
-        # in terms of original coordinates
-
-        modding_offsets = [i * cylinder.circumference for i
-                           in range(cylinder.num_twists + 1)]
-        # possible amounts to move back by after cut and paste
-        # each offset value produces its own line
-        for offset in modding_offsets:
-            final_constraint = acted_constraint.sub_from_x(offset)
-            # constraint after moving back
-            segment = produce_segment_three_polys(
-                [cylin_constraint, other_constraint, final_constraint])
-            found_segments.append(segment)
-            #TODO: Make segment into a proper segment, rather than a polynomial
+        for idx in range(0, int(farthest_idx), 2):
+            final_constraint = cylinder.get_third_constraint(tri, idx, global_veech_elem)
+            constraints = [cylin_constraint, other_constraint, final_constraint]
+            segment = produce_segment_three_polys(constraints)
             if debug:
                 print(f"constraints are {constraints}, got line {segment}")
+            found_segments[count][1].append(segment)
+        count += 1
 
     return found_segments
+
+    # found_segments = []
+    # for reg_1, reg_2 in itertools.product(cylinder.regions_dict, repeat=2):
+    #     # iterating over pairs of regions
+    #     other_cyl_1, other_con_1 = cylinder.regions_dict[reg_1]
+    #     other_cyl_2, other_con_2 = cylinder.regions_dict[reg_2]
+    #     # regions_dict stores other cylinder, and embedded constraint, for a
+    #     # given region
+    #     if debug:
+    #         print(
+    #             f"Working on the possible region action "
+    #             f"{reg_1, other_cyl_1, other_con_1} -> "
+    #             f"{reg_2, other_cyl_1, other_con_2}")
+
+    #     cylin_constraint = cylinder.constraint
+    #     # constraint coming from cylinder cyl
+    #     other_constraint = other_con_1
+    #     # constraint from other cylinder that reg_1 is in
+    #     acted_constraint = other_con_2.matrix_coords(cylinder.veech_elem)
+    #     # constraint corresponding to new region after applying veech_elem,
+    #     # in terms of original coordinates
+
+    #     modding_offsets = [i * cylinder.circumference for i
+    #                        in range(cylinder.num_twists + 1)]
+    #     # possible amounts to move back by after cut and paste
+    #     # each offset value produces its own line
+    #     for offset in modding_offsets:
+    #         final_constraint = acted_constraint.sub_from_x(offset)
+    #         # constraint after moving back
+    #         segment = produce_segment_three_polys(
+    #             [cylin_constraint, other_constraint, final_constraint])
+    #         found_segments.append(segment)
+    #         #TODO: Make segment into a proper segment, rather than a polynomial
+    #         if debug:
+    #             print(f"constraints are {constraints}, got line {segment}")
+
+    # return found_segments
 
 
 

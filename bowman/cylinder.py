@@ -1,6 +1,13 @@
 from sage.all import *
 from bowman.triangulation import Triangulation
-from rational_ht_application import perp_vector_2D
+
+
+def perp_vector_2D(vec):
+    """
+    Returns the perpendicular vector to a 2D vector
+    """
+    a, b = vec
+    return vector([b, -a])
 
 
 class Cylinder:
@@ -11,10 +18,33 @@ class Cylinder:
     on bicuspid surfaces, for now
     """
 
-    def __init__(self, direction, triangles, gluings):
+    def __init__(self, direction, triangles):
         self.direction = direction
-        self.triangles = triangles
-        self.gluings = gluings
+        self.triangles = triangles  # list of Triangle objects
+        # self.gluings = gluings
+
+    @classmethod
+    def from_indices(cls, direction, triangulation, cyl_list):
+        """
+        Produces a cylinder from a triangulation.
+        cyl_list should be the list of indices of triangles in the cylinder
+        """
+        tris = [triangulation.triangles[i] for i in cyl_list]
+        if tris[0].is_region_starter(direction):
+            new_tris = tris
+        else:
+            new_tris = tris[1:] + tris[0:1]
+        return Cylinder(direction, new_tris)
+
+    def __iter__(self):
+        return iter(self.triangles)
+
+    def __getitem__(self, key):
+        return self.triangles[key]
+
+    @property
+    def num_triangles(self):
+        return len(self.triangles)
 
     @property
     def height(self):
@@ -26,11 +56,21 @@ class Cylinder:
 
     @property
     def circumference(self):
-        return self.width_between_tri_idx(0, len(self.triangles))
+        return self.width_between_tri_idx(0, self.num_triangles)
 
     @property
     def modulus(self):
         return self.height / self.circumference
+
+    @property
+    def other_direction(self):
+        if self.direction == vector([1, 0]):
+            return vector([0, 1])
+        elif self.direction == vector([0, 1]):
+            return vector([1, 0])
+        else:
+            raise ValueError(f"Cylinder direction must be horizontal"
+                             f"or vertical")
 
     def width_between_tri_idx(self, start_idx, end_idx):
         """
@@ -45,12 +85,12 @@ class Cylinder:
         # calculate distance, skipping triangles sharing origin point
         dist_so_far = 0
         for i in range(start_idx, end_idx, 2):
-            curr_idx = i % len(self.triangles)
+            curr_idx = i % self.num_triangles
             curr_tri = self.triangles[curr_idx]
             dist_so_far += curr_tri.len_in_direction(self.direction)
         return dist_so_far
 
-    def get_third_constraint(self, base_tri, idx_traveled):
+    def get_third_constraint(self, base_tri, idx_traveled, veech_elem):
         """
         Finds the third constraint for the case where the periodic point starts
         in base_tri, and after veech action moves to the triangle idx_traveled
@@ -64,12 +104,11 @@ class Cylinder:
         start_idx = self.triangles.index(base_tri)
         end_idx = start_idx + idx_traveled
         width_travelled = self.width_between_tri_idx(start_idx, end_idx)
-        other_tri = self.triangles[end_idx % len(self.triangles)]
+        other_tri = self.triangles[end_idx % self.num_triangles]
         return other_tri.constraint_in_direction(
-            self.direction, offset=-width_travelled)
+            self.other_direction,
+            offset=-width_travelled).matrix_coords(veech_elem)
 
-
-    @property
     def num_twists(self, global_veech_elem):
         """
         num_twists: int
@@ -85,28 +124,5 @@ class Cylinder:
             off_diag_number = b
         elif self.direction == vector([0, 1]):  # vertical case
             off_diag_number = c
-        return off_diag_number / self.modulus
-
-
-"""
-Old documentation:
-
-Inputs:
-* direction: 2-tuple
-    Represents the direction of the cylinder in 2D space.
-* height, circumference: number
-    Geometric invariants of the cylinder, used in embedding
-* veech_elem: 2x2 matrix
-    Parabolic element corresponding to the cylinder direction
-* other_dir: 2-tuple
-    The direction of the other cylinders intersecting this cylinder.
-* regions_dict: Dictionary, int -> (Cylinder, LinearXYPoly)
-    The data about the regions this cylinder is split into by cylinders
-    in the other direction. A dictionary where the keys are unique int,
-    representing a specific region. The first value points to the
-    cylinder in other direction this region is a part of, and the next
-    value points to a LinearXYPoly representing the ratio of heights
-    in the coordinates of this embedding.
-"""
-
+        return off_diag_number * self.modulus  # ratio with inverse of modulus
 

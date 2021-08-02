@@ -2,40 +2,75 @@
 # for linear poly ax+by+c
 
 from sage.all import *
+from sage.rings.number_field.number_field import is_QuadraticField
+
+
+def common_quadratic_field(list_of_nums):
+    # returns QQ if all the numbers in list_of_nums is rational
+    # otherwise returns the quadratic field they're all in
+    output = QQ
+    found_quadratic = False
+    for num in list_of_nums:
+        if num in QQ:
+            continue
+        else:
+            num_field = parent(num)
+            if is_QuadraticField(num_field):
+                if not found_quadratic:
+                    output = num_field  # update when first quadratic field found
+                    found_quadratic = True
+                elif num_field.discriminant() == output.discriminant():
+                    continue
+                else:
+                    raise ValueError(f"Input {num} in different field from {output}")
+            else:
+                raise ValueError(f"Inputs must be in quadratic field, which {num} is not.")
+    return output
 
 
 class LinearXYPoly:
     """
     A linear polynomial in x, y
     Can be initialized from either list of coefficients or polynomial object
+    #TODO: the base field must be QQ or a Quadratic extension
     """
 
-    def __init__(self, input_val, base_field=QQ):
+    def __init__(self, coeffs_list, base_field=None):
         """
-        Input can be the list of coefficients [a,b,c]
-        Or a linear polynomial object in k[x,y]
+        Input must be the list of coefficients [a,b,c]
         """
-        self.base_field = base_field
-        self.poly_ring = PolynomialRing(base_field, 2, 'xy')
+
+        if isinstance(coeffs_list, list):  # if input is list
+            assert len(coeffs_list) == 3, "Input must have 3 coefficients"
+        else:
+            raise ValueError("Input is not list of coefficients or polynomial")
+
+        if base_field is None:
+            self.base_field = common_quadratic_field(coeffs_list)
+        else:
+            self.base_field = base_field
+        self.coeffs = tuple([self.base_field(x) for x in coeffs_list])
+        self.poly_ring = PolynomialRing(self.base_field, 2, 'xy')
         x, y = self.poly_ring.gens()
         self.x, self.y = x, y
 
-        if isinstance(input_val, list):  # if input is list
-            assert len(input_val) == 3, "Input must have 3 coefficients"
-            self.coeffs = tuple(input_val)
+    @classmethod
+    def from_polynomial(cls, polynomial):
 
-        elif isinstance(input_val, type(x + y + 1)):  # if input is polynomial
-            assert input_val.degree(x) in [0, 1], "Polynomial not linear in x"
-            assert input_val.degree(y) in [0, 1], "Polynomial not linear in y"
-            coeffs_list = [
-                input_val.coefficient([1, 0]),
-                input_val.coefficient([0, 1]),
-                input_val.coefficient([0, 0])]
-            # outputs coefficient of x, y, 1
-            self.coeffs = tuple([base_field(x) for x in coeffs_list])
+        self.poly_ring = parent(polynomial)
+        x, y = self.poly_ring.gens()
+        self.x, self.y = x, y
+        self.base_field = self.poly_ring.base_ring()
 
-        else:
-            raise ValueError("Input is not list of coefficients or polynomial")
+        assert polynomial.degree(x) in [0, 1], "Polynomial not linear in x"
+        assert polynomial.degree(y) in [0, 1], "Polynomial not linear in y"
+        coeffs_list = [
+            polynomial.coefficient([1, 0]),
+            polynomial.coefficient([0, 1]),
+            polynomial.coefficient([0, 0])]
+        # outputs coefficient of x, y, 1
+        self.coeffs = tuple([self.base_field(x) for x in coeffs_list])
+
 
     def __str__(self):
         a, b, c = self.coeffs
@@ -44,32 +79,36 @@ class LinearXYPoly:
     def __repr__(self):
         return f"LinearXYPoly({self.get_coeffs()})"
 
+    def can_deal_with_num(self, num):
+        # tries to deal with num in self's base field, throws error if it
+        # can't be dealth with
+        if num in self.base_field:
+            return
+        elif self.base_field == QQ and is_QuadraticField(parent(num)):
+            self.base_field = parent(num)
+            return
+        else:
+            raise ValueError(f"{num} is not in polynomial's base field.")
+            return
+
     def __sub__(self, num):
         """
         num is a number. Returns the polynomial corresponding to self,
         with other subtracted from constant term.
         """
-        assert num in self.base_field, "Can't subtract numbers outside base_field"
+        can_deal_with_num(self, num)
         a, b, c = self.coeffs
         return LinearXYPoly([a, b, c - num], base_field=self.base_field)
 
-    def __mul__(self, num):
+    def __rmul__(self, num):
         """
         num is a number. Returns the polynomial with num multiplied to
         the coefficients
         """
-        assert num in self.base_field, "Can't multiply numbers outside base_field"
+        self.can_deal_with_num(num)
         a, b, c = self.coeffs
         new_coeffs = [num * a, num * b, num * c]
         return LinearXYPoly(new_coeffs, base_field=self.base_field)
-
-    def sub_from_x(self, num):
-        """
-        num is a number. Returns the polynomial with (x - num) substituted
-        in place of x.
-        """
-        a, b, c = self.coeffs
-        return LinearXYPoly([a, b, c - a * num], base_field=self.base_field)
 
     def get_poly(self):
         """
@@ -81,10 +120,10 @@ class LinearXYPoly:
     def get_coeffs(self):
         return list(self.coeffs)
 
-    def matrix_coords(self, matrix):
+    def matrix_coords(self, mat):
         """
-        Outputs the polynomial obtained by first applying matrix to x, y, and
-        then applying self on the new coordinates.
+        Outputs the polynomial obtained by first applying matrix mat to x, y,
+        and then applying self on the new coordinates.
         Treats x, y as a basis and apply the 2x2 matrix to the polynomial.
         Example:
         * poly = ax + by + c
@@ -92,7 +131,8 @@ class LinearXYPoly:
         * output = (ap + br)x + (aq + bs)y + c
         """
         a, b, c = self.coeffs
-        p, q, r, s = *matrix[0], *matrix[1]  # unpack matrix [[p, q], [r, s]]
+        p, q, r, s = *mat[0], *mat[1]  # unpack matrix [[p, q], [r, s]]
+        [self.can_deal_with_num(num) for num in (p, q, r, s)]
         return LinearXYPoly([a*p + b*r, a*q + b*s, c],
                             base_field=self.base_field)
 

@@ -2,6 +2,15 @@ from collections import namedtuple
 import functools
 
 from sage.all import *
+from bowman.linear_xy_poly import LinearXYPoly
+
+
+def perp_vector_2D(vec):
+    """
+    Returns the perpendicular vector to a 2D vector
+    """
+    a, b = vec
+    return vector([b, -a])
 
 
 def is_valid_barycentric_coordinate(a0, a1, a2):
@@ -133,4 +142,42 @@ class Triangle():
     @property
     def area(self):
         return QQ(1/2) * abs(sage.all.matrix([self.v0, -self.v2]).determinant())
+
+# Methods that only work for Rectilinear Triangles
+
+    def edge_in_direction(self, direction):
+        perp_dir = perp_vector_2D(direction)
+        for edge in self:
+            if edge.dot_product(perp_dir) == 0:
+                return edge
+
+    def len_in_direction(self, direction):
+        """
+        The length of the edge along direction dir
+        dir is either vector([1, 0]) (horizontal) or vector([0, 1])
+        (vertical)
+        """
+        return self.edge_in_direction(direction).norm()
+
+    def constraint_in_direction(self, direction, offset=0):
+        perp_dir = perp_vector_2D(direction)
+        cyl_height = self.len_in_direction(perp_dir)
+        if direction == vector([1, 0]):  # horizontal case
+            return (1 / cyl_height) * LinearXYPoly([0, 1, offset])  # (y+c)/h
+        elif direction == vector([0, 1]):  # vertical case
+            return (1 / cyl_height) * LinearXYPoly([1, 0, offset])  # (x+c)/h
+
+    def is_region_starter(self, direction):
+        """
+        returns true if the triangle is the first triangle in its region
+        along the given direction
+        """
+        # find the vector pointing at the direction where this triangle's
+        # edge should point
+        if direction == vector([1, 0]):  # horizontal case
+            pointing = vector([-1, 0])
+        elif direction == vector([0, 1]):  # vertical case
+            pointing = vector([0, 1])
+        return pointing.dot_product(self.edge_in_direction(direction)) > 0
+        # returns true if the edge along direction points the right way
 
