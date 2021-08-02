@@ -470,6 +470,18 @@ class Triangulation:
 
         return barycentric_coords
 
+    def plot_constraints(self, dict):
+        """Takes as input a dictionary relating each triangle to a list of constraints.
+        This function then plots these constraints on the triangulation."""
+        tris = self.triangles
+        num_tris = len(tris)
+        new_triangulation = self
+        for i in range(num_tris):
+            coords = self.return_intersections(tris[i], dict[i]). #list of pairs of barycentric coords
+            for j in range(len(coords)):
+                new_triangulation = new_triangulation.mark_line(0, coords[j][0], coords[j][1], (1, 0.0, 0.0))
+        return new_triangulation
+
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
