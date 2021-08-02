@@ -477,9 +477,14 @@ class Triangulation:
         num_tris = len(tris)
         new_triangulation = self
         for i in range(num_tris):
-            coords = self.return_intersections(tris[i], dict[i]). #list of pairs of barycentric coords
+            coords = self.return_intersections(i, dict[i]) #list of pairs of barycentric coords
+            #print("coords: ", coords)
             for j in range(len(coords)):
-                new_triangulation = new_triangulation.mark_line(0, coords[j][0], coords[j][1], (1, 0.0, 0.0))
+                #print("j, coords:, ", j, coords[j])
+                if(len(coords) == 0 or len(coords[j]) < 2):
+                    continue
+                else:
+                    new_triangulation = new_triangulation.mark_line(0, coords[j][0], coords[j][1], (1, 0.0, 0.0))
         return new_triangulation
 
     def mark_point(self, triangle_id, coords, rgbcolor):
