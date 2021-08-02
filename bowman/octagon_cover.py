@@ -6,27 +6,35 @@ from bowman.triangulation import Triangulation
 
 from sage.all import *
 
-def holonomy_representation(generator_images):
-    """Constructs the tuple to be fed into the OctagonCover constructor.
-
-    generator_images := a tuple of nine nonnegative integers. Of the first
-                        eight, the evens correspond to the four standard
-                        generators of the fundamental group of the unpunctured
-                        surface, and the odds correspond to those additional
-                        generators adjoined as a result of the four punctures
-                        on the edges. Finally, the last component indicates the
-                        holonomy of the final puncture in the center of the
-                        octagon."""
-    holonomy_rep = tuple(generator_images[:-1])
-    for i in range(len(holonomy_rep) // 2):
-        holonomy_rep = holonomy_rep + (-holonomy_rep[2 * i + 1], -holonomy_rep[2 * i])
-    holonomy_rep = holonomy_rep + (generator_images[-1], -generator_images[-1])
-    return holonomy_rep
-
 class OctagonCover(Triangulation):
 
-    def __init__(self, degree, holonomy_rep):
+    def __make_octagon_cover(self, triangulation):
+        #self = OctagonCover(degree, (0, 0, 0, 0, 0, 0, 0, 0, 0))
+        self.triangles = triangulation.triangles
+        self.gluings = triangulation.gluings
+        return self
+
+    def __init__(self, degree, generator_images=None):
+
+        def holonomy_representation(generator_images):
+            """Constructs the tuple to be fed into the OctagonCover constructor.
+
+            generator_images := a tuple of nine nonnegative integers. Of the first
+                                eight, the evens correspond to the four standard
+                                generators of the fundamental group of the unpunctured
+                                surface, and the odds correspond to those additional
+                                generators adjoined as a result of the four punctures
+                                on the edges. Finally, the last component indicates the
+                                holonomy of the final puncture in the center of the
+                                octagon."""
+            holonomy_rep = tuple(generator_images[:-1])
+            for i in range(len(holonomy_rep) // 2):
+                holonomy_rep = holonomy_rep + (-holonomy_rep[2 * i + 1], -holonomy_rep[2 * i])
+            holonomy_rep = holonomy_rep + (generator_images[-1], -generator_images[-1])
+            return holonomy_rep
+
         self.degree = degree
+        holonomy_rep = holonomy_representation(generator_images)
 
         # Step 1: Construct the triangles.
         k = sage.all.QuadraticField(2)
@@ -110,5 +118,59 @@ class OctagonCover(Triangulation):
                 ratio = displacement[nonzero_component] / direction[nonzero_component]
                 if displacement == ratio * direction:
                     is_found_preimage = True
+                else:
+                    tri_id, coords, _ = self.step_flow(tri_id, coords, direction)
             perm[i] = tri_id // 16
         return perm
+
+    def mark_line(self, triangle_id, start_coords, end_coords, rgbcolor):
+        return self.__make_octagon_cover(super().mark_line(triangle_id, start_coords, end_coords, rgbcolor))
+
+    def mark_point(self, triangle_id, coords, rgbcolor):
+        return self.__make_octagon_cover(super().mark_point(triangle_id, coords, rgbcolor))
+
+    def mark_flow(self, start_tri_id, start_coords, direction, rgbcolor):
+        return self.__make_octagon_cover(super().mark_flow(start_tri_id, start_coords, direction, rgbcolor))
+
+    def plot(self):
+        """Plot as individual octagons"""
+
+        tris_seen = {0: self.triangles[0].vertices()}
+        plots_tris_temp = []
+
+        #for each octagon
+        for i in range(self.degree):
+            #produce an empty graphic to hold the octagon
+            octagon_curr = Graphics()
+            for j in range(16):
+                index = i * 16 + j
+                #add triangle at each index
+                tris_seen[index] = self.triangles[index].vertices()
+                octagon_curr += self.triangles[index].plot()
+            #add octagon to plot
+            plots_tris_temp.append(octagon_curr)
+
+        def center(vertices):
+            x = sum(vx for vx, vy in vertices) / 3
+            y = sum(vy for vx, vy in vertices) / 3
+            return x, y
+
+        def midpoint(v1, v2):
+            v1x, v1y = v1
+            v2x, v2y = v2
+            return sage.all.vector([(v1x + v2x) / 2, (v1y + v2y) / 2])
+
+        def displacement(v1, v2):
+            a, b = v1
+            c, d = v2
+            return 1 / 30 * sage.all.vector([b - d, c - a])
+
+        for i in range(self.degree):
+            for j in range(16):
+                idx = i*16 + j
+                (a, b, c) = tris_seen[idx]
+                plots_tris_temp[i] += sage.all.text(str(idx), center(tris_seen[idx]), fontsize=14, color='orange').plot()
+                plots_tris_temp[i] += sum(sage.all.text(str(idx), midpoint(v1, v2) + displacement(v1, v2)).plot()
+                                         for idx, (v1, v2) in [(0, (a, b)), (1, (b, c)), (2, (c, a))])
+
+        return graphics_array(plots_tris_temp, 1, self.degree)
