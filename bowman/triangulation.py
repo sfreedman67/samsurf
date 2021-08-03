@@ -338,38 +338,46 @@ class Triangulation:
         new_triangulation = new_triangulation.apply_matrix(matinv)
         return new_triangulation, cylinders
 
-    def _return_triangle_coords(self, triangle_id):
+    def _return_triangle_coords(self, id_tri):
         """Helper funciton returning triangle orientation type for rectilinear triangle
-        located at triangle_id."""
-        horiz_vec = vector([1, 0])
-        vert_vec = vector([0, 1])
-        tri = self.triangles[triangle_id]
-        for i in range(0, 3):
-            if(tri[i][1] == 0):
-                horiz_vec = tri[i]
-                continue
-            if(tri[i][0] == 0):
-                vert_vec = tri[i]
-                continue
-        # check orientation
-        if(vert_vec[1] > 0 and horiz_vec[0] < 0):
-            # then type 1 triangle
-            horiz_vec[0] = abs(horiz_vec[0])
-            return vert_vec, horiz_vec, horiz_vec+vert_vec
-        if(vert_vec[1] < 0 and horiz_vec[0] > 0):
+        located at id_tri."""
+        tri = self.triangles[id_tri]
+        for k, edge in enumerate(tri):
+            x, y = edge
+            if(y == 0):
+                vec_horiz = edge
+                idx_horiz = k
+            elif(x == 0):
+                vec_vert = edge
+                idx_vert = k
+            else:
+                vec_hyp = edge
+                idx_hyp = k
+        
+        # check orientation (with right angle at the origin, type := quadrant containing the hypotenuse)
+        if(vec_vert[1] < 0 and vec_horiz[0] > 0):
+            # type 1
+            coords_horiz = vector([QQ(0), QQ(0)])
+            coords_vert = -vec_vert
+            coords_hyp = vec_horiz
+        elif(vec_vert[1] > 0 and vec_horiz[0] > 0):
             # type 2
-            vert_vec[1] = abs(vert_vec[1])
-            return vert_vec, horiz_vec, vector([0, 0])
-        if(vert_vec[1] > 0 and horiz_vec[0] > 0):
+            coords_horiz = vector([QQ(0), QQ(0)])
+            coords_vert = vec_horiz
+            coords_hyp = vec_horiz + vec_vert
+        elif(vec_vert[1] > 0 and vec_horiz[0] < 0):
             # type 3
-            return vert_vec+horiz_vec, horiz_vec, vector([0, 0])
-        if(vert_vec[1] < 0 and horiz_vec[0] < 0):
-            # type 4
-            horiz_vec[0] = abs(horiz_vec[0])
-            vert_vec[1] = abs(vert_vec[1])
-            return vert_vec, horiz_vec+vert_vec, vector([0, 0])
+            coords_horiz = -vec_horiz + vec_vert
+            coords_vert = -vec_horiz
+            coords_hyp = vec_vert
         else:
-            raise ValueError("Did not obtain triangle type.")
+            # type 4
+            coords_horiz = vec_hyp
+            coords_vert = -vec_vert
+            coords_hyp = vector([QQ(0), QQ(0)])
+
+        idx_to_coords = {idx_vert: coords_vert, idx_horiz: coords_horiz, idx_hyp: coords_hyp}
+        return [idx_to_coords[k] for k in range(3)]
 
     def _return_line_params(self, p1, p2):
         """Take two cartesian coordinates p1 and p2, and return the two parameters
@@ -421,9 +429,14 @@ class Triangulation:
         # make sure not to check parallel lines.
         line_intersections = []
         for i in range(len(constraints_list)):
-            line_slope = -constraints_list[i][0] / constraints_list[i][1]
-            line_intercept = -constraints_list[i][2] / constraints_list[i][1]
-            cons_line = (line_slope, line_intercept)
+            # make sure not dividing by 0
+            #cons_line = (0, 0)
+            if(constraints_list[i][1] == 0):
+                cons_line = (oo, -constraints_list[i][2] / constraints_list[i][0])
+            else:
+                line_slope = -constraints_list[i][0] / constraints_list[i][1]
+                line_intercept = -constraints_list[i][2] / constraints_list[i][1]
+                cons_line = (line_slope, line_intercept)
             intersections = []
             for j in range(3):
                 tri_line = tri_lines[j]
@@ -432,7 +445,6 @@ class Triangulation:
                 intersection_pt = self._get_intersection_pt(cons_line, tri_line)
                 intersections.append(intersection_pt)
             line_intersections.append(intersections)
-        
         # Keep the points that lie on a triangle edge.
         x_min = min([r[0][0], r[1][0], r[2][0]])
         x_max = max([r[0][0], r[1][0], r[2][0]])
@@ -449,42 +461,39 @@ class Triangulation:
                     pt = vector(pt)
                     good_coords.append(pt)
             kept_coords.append(good_coords)
-        
+
         # convert intersection pts to barycentric coordinates
-        T = matrix([[r[0][0] - r[2][0], r[1][0] - r[2][0]], 
-                    [r[0][1] - r[2][1], r[1][1] - r[2][1]]])
-        Tinv = T.inverse()
+        return [[Triangulation.cart_to_bary(p, r) for p in coords] for coords in kept_coords]
 
-        barycentric_coords = []
-        for i in range(len(kept_coords)):
-            constraint_coords = []
-            for j in range(len(kept_coords[i])):
-                pt = kept_coords[i][j]
-                # get barycentric coordinate
-                lambda12 = Tinv * (pt - r[2])
-                lambda3 = 1 - lambda12[0] - lambda12[1]
-                v = vector([lambda12[0], lambda12[1], lambda3]) # barycentric coordinate
-                v = tuple(v/sum(v))     # normalize so sums to 1
-                constraint_coords.append(v)
-            barycentric_coords.append(constraint_coords)
+    @staticmethod
+    def cart_to_bary(cart_pt, r):
+        """
+            cart_py := cartesian coordinate
+            r := list of three triangle vertices
+        """
+        (x0, y0), (x1, y1), (x2, y2) = r
+        x, y = cart_pt
 
-        return barycentric_coords
+        T = matrix([[x0 - x2, x1 - x2, x2], 
+                    [y0 - y2, y1 - y2, y2],
+                    [0, 0, 1]])
+
+        lambda1, lambda2, _ = T.inverse() * vector([x, y, 1])
+        return (lambda1, lambda2, 1 - lambda1 - lambda2)
 
     def plot_constraints(self, dict):
         """Takes as input a dictionary relating each triangle to a list of constraints.
         This function then plots these constraints on the triangulation."""
         tris = self.triangles
         num_tris = len(tris)
-        new_triangulation = self
+        new_triangulation = Triangulation(self.triangles, self.gluings)
         for i in range(num_tris):
             coords = self.return_intersections(i, dict[i]) #list of pairs of barycentric coords
-            #print("coords: ", coords)
             for j in range(len(coords)):
-                #print("j, coords:, ", j, coords[j])
                 if(len(coords) == 0 or len(coords[j]) < 2):
                     continue
                 else:
-                    new_triangulation = new_triangulation.mark_line(0, coords[j][0], coords[j][1], (1, 0.0, 0.0))
+                    new_triangulation = new_triangulation.mark_line(i, coords[j][0], coords[j][1], (1, 0, 0))
         return new_triangulation
 
     def mark_point(self, triangle_id, coords, rgbcolor):

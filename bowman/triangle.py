@@ -56,6 +56,9 @@ class Triangle():
                     raise ValueError("Invalid barycentric coordinates.")
             self.lines_marked = tuple(lines_marked)
 
+    def __repr__(self):
+        return f"Triangle(v0={self.v0}, v1={self.v1}, v2={self.v2}"
+
     def mark_point(self, coords, rgbcolor):
         """Determine if the given coordinates COORDS are valid barycentric coordinates in the Triangle self and add to points_marked if valid.
         return 0 if the cooridnates are valid, 1 otherwise
@@ -80,7 +83,10 @@ class Triangle():
             start_coords_marked, end_coords_marked, _ = self.lines_marked[i]
             if start_coords == start_coords_marked and end_coords == end_coords_marked:
                 return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked[0:i] + ((start_coords, end_coords, rgbcolor),) + self.lines_marked[i+1:])
-
+        try:
+            tri = Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked + ((start_coords, end_coords, rgbcolor),))
+        except ValueError:
+            print(self.v0, self.v1, self.v2)
         return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked + ((start_coords, end_coords, rgbcolor),))
 
     def __getitem__(self, key):
