@@ -27,8 +27,20 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
 
     @property
     def has_self_equivalences(self):
-        return len({tuple(tuple(row) for row in x)
-                    for x in gen_geom_equivs(self.triangulation, self.triangulation)}) > 1
+        """
+        Checks if there is an equivalence from triangulation to itself
+        whose matrix is not the identity or the 180 degree rotation
+        #TODO: Whether this is the correct notion of self equivalence is a
+        conversation for another time
+        """
+        self_geom_equiv_matrices = [equiv[0] for equiv in
+                                    gen_geom_equivs(self.triangulation,
+                                                    self.triangulation)]
+        # first element of an equivalence is the matrix
+        allowed_equiv_matrices = [matrix([[1, 0], [0, 1]]),
+                                  matrix([[-1, 0], [0, -1]])]
+        return any(x not in allowed_equiv_matrices
+                   for x in self_geom_equiv_matrices)
 
     @property
     def neighbors(self):

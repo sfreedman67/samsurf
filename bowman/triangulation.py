@@ -797,6 +797,7 @@ class Triangulation:
                  for tri in range(len(self.triangles))
                  for edge in range(3)}
         h_min = min(code[0] for code in codes)
+        # minimum hash same for two comb  equiv triangulations
         return {code for code in codes if code[0] == h_min}
 
     @property
