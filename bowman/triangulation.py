@@ -417,7 +417,7 @@ class Triangulation:
                             each constraint passes through the triangle edges.
         """
         # unpack coordinates of triangle with appropriate origin location.
-        r = self._return_triangle_coords(triangle_id)
+        r = self._return_triangle_coords(triangle_id)   
         # get triangle lines
         tri_lines = []
         for i in range(3):
@@ -495,6 +495,26 @@ class Triangulation:
                 else:
                     new_triangulation = new_triangulation.mark_line(i, coords[j][0], coords[j][1], (1, 0, 0))
         return new_triangulation
+
+    def track_marked_point(self, coord, triangle_id, veech_elem):
+        """
+        coord := tuple of three nonnegative real numbers summing to 1
+        triangle_id := triangle index of triangulation
+        veech_elem := element of veech group for t the surface.
+        The function marks the triangulation with the point,
+        and applies the veech element.  It then returns the triangle id and new barycentric
+        coordinate of the marked point, of form (tri_id, coord).
+        """
+        new_triangulation = self.mark_point(triangle_id, coord, (1, 0, 0))
+        new_triangulation = new_triangulation.apply_matrix(veech_elem)
+        new_triangulation = new_triangulation.make_delaunay()
+
+        # now find the marked point and return the coordinate and triangle
+        tris = new_triangulation.triangles
+        for i, tri in enumerate(tris):
+            pts_marked = tri.points_marked # list containing pairs ((a, b, c), (r, g, b)) for bary and rgb color
+            if len(pts_marked) != 0:
+                return new_triangulation, i, pts_marked[0][0]
 
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
