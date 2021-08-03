@@ -669,13 +669,13 @@ class Triangulation:
 
         return Triangulation(tris_new, self.gluings)
 
-    def mark_flow(self, start_tri_id, start_coords, direction, time, rgbcolor):
+    def mark_flow(self, start_tri_id, start_coords, velocity, time, rgbcolor):
         """Marks the trajectory of a given point under the straight line flow
            in a given direction.
 
         start_tri_id := the triangle to which the point belongs, provided as an integer.
         start_coords := the vector from the zeroth vertex to the point.
-        direction    := the direction of the flow.
+        velocity     := the velocity of the flow.
         time         := the amount of time to flow for."""
 
         points_seen = []
@@ -687,13 +687,13 @@ class Triangulation:
             points_seen.append((start_tri_id, start_coords))
 
             # Extend the straight line from the previous point.
-            s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, direction)
+            s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
             end_coords_indexed = sorted([((out_edge + 1) % 3, s),
                                          (out_edge, 1 - s),
                                          ((out_edge + 2) % 3, 0)])
             end_coords = tuple(coord for _, coord in end_coords_indexed)
 
-            if time_traveled + t <= time / direction.norm():
+            if time_traveled + t <= time:
                 tris_new = tris_new[0:start_tri_id] + (start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
                 # Prepare for the next depth of recursion.
@@ -704,12 +704,12 @@ class Triangulation:
                 start_coords = tuple(coord for _, coord in start_coords_indexed)
                 time_traveled = time_traveled + t
             else:
-                remainder = time / direction.norm() - time_traveled
+                remainder = time - time_traveled
                 change_of_basis = sage.all.matrix([
                     [start_tri[0][0], -start_tri[2][0]],
                     [start_tri[0][1], -start_tri[2][1]]
                 ])
-                end_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2] + remainder * direction
+                end_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2] + remainder * velocity
                 end_coords_partial = change_of_basis**(-1) * end_pos
                 end_coords = (1 - end_coords_partial[0] - end_coords_partial[1], end_coords_partial[0], end_coords_partial[1])
                 tris_new = tris_new[0:start_tri_id] + (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
