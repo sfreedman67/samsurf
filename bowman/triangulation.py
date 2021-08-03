@@ -14,6 +14,7 @@ from bowman import algo
 from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
 from bowman.radical import Radical
+from bowman.geom_equiv import gen_geom_equivs
 
 
 def return_shear_mat(dir):
@@ -250,6 +251,34 @@ class Triangulation:
         (Positive values of t coorespondes to contraction in the x-direction)"""
         g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
         return self.apply_matrix(g_t)
+
+    def geom_equiv_relabelling(self, equiv_trin, tri_idx, edge_idx=None):
+        """
+        Given a cut-and-paste equivalent triangulation to self, tells you what
+        triangle or edge in self corresponds to the input indices on the other
+        triangulation
+        INPUT:
+        * equiv_trin: a triangulation, which is cut-and-paste equivalent to self
+        (i.e. geometric equivalent with the identity as the equivalence matrix)
+        * tri_idx: int, index of triangle on equiv_trin
+        * edge_idx: if None, returns triangle on self corresponding to tri_idx
+                    if int in [0, 1, 2], returns edge on self corresponding to
+                    (tri_idx, edge_idx) on equiv_trin
+        """
+        equivs = gen_geom_equivs(equiv_trin, self)
+        # geometric equivalences from equiv_trin to self
+        equiv = [e for e in equivs if e[0] == matrix([[1, 0], [0, 1]])][0]
+        # a cut and paste equivalence between the two
+        edge_rel_dict = equiv[1]  # the edge relabelings stored in equiv[1]
+        tri_rel_dict = {e1[0]: e2[0] for e1, e2 in edge_rel_dict.items()}
+        if edge_idx is None:
+            return tri_rel_dict[tri_idx]
+        elif edge_idx in [0, 1, 2]:
+            return edge_rel_dict[(tri_idx, edge_idx)]
+        else:
+            error_msg = (f"edge_idx must be None for triangle relabelling or" +
+                         f" in [0, 1, 2] for edge relabelling, not {edge_idx}")
+            raise ValueError(error_msg)
 
     def check_horiz(self):
         """Check if every triangle has a horizontal edge.  Returns True if so."""
