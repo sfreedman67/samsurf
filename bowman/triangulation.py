@@ -515,7 +515,7 @@ class Triangulation:
         This function then plots these constraints on the triangulation."""
         tris = self.triangles
         num_tris = len(tris)
-        new_triangulation = Triangulation(self.triangles, self.gluings)
+        new_triangulation = Triangulation(self.triangles, self.gluings) #keeps order of triangles?
         for i in range(num_tris):
             coords = self.return_intersections(i, dict[i]) #list of pairs of barycentric coords
             for j in range(len(coords)):
@@ -534,6 +534,7 @@ class Triangulation:
         and applies the veech element.  It then returns the triangle id and new barycentric
         coordinate of the marked point, of form (tri_id, coord).
         """
+
         new_triangulation = self.mark_point(triangle_id, coord, (1, 0, 0))
         new_triangulation = new_triangulation.apply_matrix(veech_elem)
         new_triangulation = new_triangulation.make_delaunay()
@@ -542,9 +543,62 @@ class Triangulation:
         tris = new_triangulation.triangles
         for i, tri in enumerate(tris):
             pts_marked = tri.points_marked # list containing pairs ((a, b, c), (r, g, b)) for bary and rgb color
-            if len(pts_marked) != 0:
+            if pts_marked:
                 return new_triangulation, i, pts_marked[0][0]
+        return new_triangulation, triangle_id, coord
 
+    def plot_transformed_constraints(self, pts_info):
+        """
+        self     := segments triangulation
+        pts_info := pts_info is a list.  Each element is a list containing a collection of triples
+                of form (bary_coord, tri_indx, vector) which posses information to be passed
+                into mark_flow to plot a line, starting at bary_coord, in tri_indx, in direction
+                of vector.
+        """
+        tris = self.triangles # use self.triangles as this was order pts_info given in
+        # when reinitialize below, does triangulation change in any major way? ie indices of tris?
+        new_triangulation = Triangulation(self.triangles, self.gluings) #carries over marked segments?
+        for i in range(len(tris)):
+            tri_dat = pts_info[i] # tri_dat list of tuples (coord, indx, vector)
+            for dat in tri_dat:
+                base_pt, indx, vec = dat
+                new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (1, 0, 0))
+        return new_triangulation
+
+    def main_constraint_plotter(self, veech_elem):
+        """
+        self   := a triangulation (with marked segments)
+        veech_elem              := global veech element for triangulation
+        This function returns a new triangulation with transformed segments
+        under the veech element.
+        """
+        new_pts_info = []
+        for i, tri in enumerate(self.triangles):
+            mp_info = []
+            for base_coord, dir_coord, color in tri.lines_marked:  #lines_marked elems: (start, end, color)
+                # make the vectors
+                vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
+                vector_transformed = veech_elem * vector_orig
+                transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
+                # transformed_triangulation has a marked point
+                # recall self is a triangulation with marked segments
+                real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx) #get index of triangle in original
+                mp_info.append((new_coord, real_tri_indx, vector_transformed))
+            new_pts_info.append(mp_info)
+        # new_pts_info is a list of form [[(., ., .), (., ., .)...], ...] of length num_triangles
+        transformed_segments_triangulation = self.plot_transformed_constraints(new_pts_info)
+        return transformed_segments_triangulation
+
+    @staticmethod
+    def bary_coords_vec(coord1, coord2, triangle):
+        # given the two barycentric coordinates, outputs vector from one to the other
+        a1, b1, c1 = coord1
+        a2, b2, c2 = coord2
+        v0, v1, v2 = triangle[0], triangle[1], triangle[2]
+        vec1 = (b1*v0) - (c1*v2)
+        vec2 = (b2*v0) - (c2*v2)
+        return vec2 - vec1
+        
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
@@ -601,16 +655,22 @@ class Triangulation:
 
         # Step 1: Identify the outgoing edge.
         p = (start_pos, start_pos - start_tri[0], start_pos + start_tri[2])
+        out_edge_is_assigned = False
         for i in range(3):
             change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
             if not change_of_basis.determinant().is_zero():
                 sector_coords = change_of_basis**(-1) * direction
-                out_edge = i
                 if sector_coords[0].sign() > 0 and sector_coords[1].sign() > 0:
-                    break
+                    out_edge = i
+                    out_edge_is_assigned = True
 
+        for i in range(3):
+            if start_coords[i] == 1:
+                assert(start_tri.is_interior(i, direction)) # Error means pointing away from triangle.
+                
         # Step 2: Determine the vector coordinates of the next point.
         linear_system = sage.all.column_matrix((start_tri[out_edge], direction))
+        #print("martrix: ", linear_system)
         line = start_pos
         for i in range(out_edge):
             line = line - start_tri[i]
@@ -624,6 +684,9 @@ class Triangulation:
         start_tri_id := the triangle to which the point belongs, provided as an integer.
         start_coords := the vector from the zeroth vertex to the point.
         direction    := the direction of the flow."""
+
+        if self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction):
+            return start_tri_id, start_coords, direction
 
         s, out_edge, _ = self.__step_flow_helper__(start_tri_id, start_coords, direction)
 
@@ -652,6 +715,7 @@ class Triangulation:
             points_seen.append((start_tri_id, start_coords))
 
             # Extend the straight line from the previous point.
+            assert(not self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction))
             s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, direction)
             end_coords_indexed = sorted([((out_edge + 1) % 3, s),
                                          (out_edge, 1 - s),
@@ -683,17 +747,22 @@ class Triangulation:
         time_traveled = 0
 
         while (start_tri_id, start_coords) not in points_seen:
+            #print(start_coords)
             start_tri = tris_new[start_tri_id]
             points_seen.append((start_tri_id, start_coords))
 
             # Extend the straight line from the previous point.
-            s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
-            end_coords_indexed = sorted([((out_edge + 1) % 3, s),
-                                         (out_edge, 1 - s),
-                                         ((out_edge + 2) % 3, 0)])
-            end_coords = tuple(coord for _, coord in end_coords_indexed)
+            if tris_new[start_tri_id].is_toward_conepoint(start_coords, velocity):
+                print("Oh, no! A cone point!")
+                break
+            else:
+                s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
+                end_coords_indexed = sorted([((out_edge + 1) % 3, s),
+                                             (out_edge, 1 - s),
+                                             ((out_edge + 2) % 3, 0)])
+                end_coords = tuple(coord for _, coord in end_coords_indexed)
 
-            if time_traveled + t <= time:
+            if time_traveled + t < time:
                 tris_new = tris_new[0:start_tri_id] + (start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
                 # Prepare for the next depth of recursion.

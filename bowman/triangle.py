@@ -83,10 +83,7 @@ class Triangle():
             start_coords_marked, end_coords_marked, _ = self.lines_marked[i]
             if start_coords == start_coords_marked and end_coords == end_coords_marked:
                 return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked[0:i] + ((start_coords, end_coords, rgbcolor),) + self.lines_marked[i+1:])
-        try:
-            tri = Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked + ((start_coords, end_coords, rgbcolor),))
-        except ValueError:
-            print(self.v0, self.v1, self.v2)
+
         return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked + ((start_coords, end_coords, rgbcolor),))
 
     def __getitem__(self, key):
@@ -101,6 +98,25 @@ class Triangle():
 
     def __iter__(self):
         return iter([self.v0, self.v1, self.v2])
+
+    def is_interior(self, vertex_id, direction):
+        right_edge = self[vertex_id]
+        left_edge = -self[(vertex_id + 2) % 3]
+        change_of_basis = sage.all.column_matrix([left_edge, right_edge])
+        sector_coords = change_of_basis**(-1) * direction
+        return sector_coords[0] >= 0 and sector_coords[1] >= 0
+
+    def is_toward_conepoint(self, coords, direction):
+        start_pos = coords[1] * self[0] - coords[2] * self[2]
+
+        p = (start_pos, start_pos - self[0], start_pos + self[2])
+        for i in range(3):
+            change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
+            if not change_of_basis.determinant().is_zero():
+                sector_coords = change_of_basis**(-1) * direction
+                if sector_coords[0].sign() == 0 or sector_coords[1].sign() == 0:
+                    return True
+        return False
 
     def reflect(self, idx):
         def reflect_vector(v, w):
