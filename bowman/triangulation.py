@@ -569,20 +569,29 @@ class Triangulation:
         This function returns a new triangulation with transformed segments
         under the veech element.
         """
+
+        def midpoint_barys(p0, p1):
+            return tuple((a + b) / QQ(2) for a, b in zip(p0, p1))
+
+        def subdivide_line_marked(line_marked):
+            start_orig, end_orig, color = line_marked
+            midpoint_line_marked = midpoint_barys(start_orig, end_orig)
+            s0 = (midpoint_line_marked, start_orig, color)
+            s1 = (midpoint_line_marked, end_orig, color)
+            return [s0, s1]
+
         new_pts_info = []
         for i, tri in enumerate(self.triangles):
             mp_info = []
-            for base_coord, dir_coord, color in tri.lines_marked:  #lines_marked elems: (start, end, color)
-                # make the vectors
-                vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
-                vector_transformed = veech_elem * vector_orig
-                transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
-                # transformed_triangulation has a marked point
-                # recall self is a triangulation with marked segments
-                real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx) #get index of triangle in original
-                mp_info.append((new_coord, real_tri_indx, vector_transformed))
+            lines_subdivided = [segment for line_marked in tri.lines_marked
+                                for segment in subdivide_line_marked(line_marked)]
+            for base_coord, dir_coord, color in lines_subdivided:
+                    vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
+                    vector_transformed = veech_elem * vector_orig
+                    transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
+                    real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
+                    mp_info.append((new_coord, real_tri_indx, vector_transformed))
             new_pts_info.append(mp_info)
-        # new_pts_info is a list of form [[(., ., .), (., ., .)...], ...] of length num_triangles
         return self.plot_transformed_constraints(new_pts_info)
 
     @staticmethod
@@ -605,7 +614,7 @@ class Triangulation:
                        color.
         """
         if not is_valid_barycentric_coordinate(*coords):
-            raise ValueError("Invalid barycentric coordinates.")
+            raise ValueError(f"Invalid barycentric coordinates {coords}.")
 
         tris_new = self.triangles[0:]
 
@@ -637,8 +646,11 @@ class Triangulation:
         rgbcolor     := a tuple of three real numbers between 0 and 1, where
                         the componenets are the RGB values of a color.
         """
-        if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
-            raise ValueError("Invalid barycentric coordinates.")
+        if not is_valid_barycentric_coordinate(*start_coords):
+            raise ValueError(f"Invalid barycentric coordinates {start_coords}.")
+
+        if not is_valid_barycentric_coordinate(*end_coords):
+            raise ValueError(f"Invalid barycentric coordinates {end_coords}.")
 
         tri_new = self.triangles[triangle_id].mark_line(start_coords, end_coords, rgbcolor)
         tris_new = self.triangles[:triangle_id] + (tri_new,) + self.triangles[triangle_id + 1:]
@@ -785,6 +797,7 @@ class Triangulation:
                 time_traveled = time_traveled + t
             else:
                 remainder = time - time_traveled
+                print(f"remaining time {remainder}")
                 change_of_basis = sage.all.matrix([
                     [start_tri[0][0], -start_tri[2][0]],
                     [start_tri[0][1], -start_tri[2][1]]

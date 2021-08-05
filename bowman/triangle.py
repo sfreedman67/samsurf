@@ -14,9 +14,11 @@ def perp_vector_2D(vec):
 
 
 def is_valid_barycentric_coordinate(a0, a1, a2):
-    if a0 + a1 + a2 != 1:
+    if sign(a0 + a1 + a2 - 1) != int(0):
+        print(f"Sum {a0 + a1 + a2 - 1} of type {parent(a0 + a1 + a2 -1)} not equal to 0")
         return False
-    if a0 < 0 or a1 < 0 or a2 < 0:
+    if any(sign(a) == int(-1) for a in [a0, a1, a2]):
+        print(f"Sign issue: Checking coords {[a0, a1, a2]}, signs are {[sign(a) for a in [a0, a1, a2]]}")
         return False
     return True
 
@@ -45,15 +47,18 @@ class Triangle():
         else:
             for point_marked, _ in points_marked:
                 if not is_valid_barycentric_coordinate(*(point_marked)):
-                    raise ValueError("Invalid barycentric coordinates.")
+                    raise ValueError(f"Invalid barycentric coordinates {point_marked}.")
             self.points_marked = tuple(points_marked)
 
         if lines_marked is None:
             self.lines_marked = tuple()
         else:
             for start_coords, end_coords, _ in lines_marked:
-                if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
-                    raise ValueError("Invalid barycentric coordinates.")
+                if not is_valid_barycentric_coordinate(*start_coords):
+                    raise ValueError(f"Invalid barycentric coordinates {start_coords}.")
+
+                if not is_valid_barycentric_coordinate(*end_coords):
+                    raise ValueError(f"Invalid barycentric coordinates {end_coords}.")
             self.lines_marked = tuple(lines_marked)
 
     def __repr__(self):
@@ -64,7 +69,7 @@ class Triangle():
         return 0 if the cooridnates are valid, 1 otherwise
         """
         if not is_valid_barycentric_coordinate(*coords):
-            raise ValueError("Invalid barycentric coordinates.")
+            raise ValueError(f"Invalid barycentric coordinates {coords}.")
 
         for i in range(len(self.points_marked)):
             point_marked, _ = self.points_marked[i]
@@ -76,8 +81,11 @@ class Triangle():
         return Triangle(self.v0, self.v1, self.v2, self.points_marked + ((coords, rgbcolor),), self.lines_marked)
 
     def mark_line(self, start_coords, end_coords, rgbcolor):
-        if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
-            raise ValueError("Invalid barycentric coordinates.")
+        if not is_valid_barycentric_coordinate(*start_coords):
+            raise ValueError(f"Invalid barycentric coordinates {start_coords}.")
+
+        if not is_valid_barycentric_coordinate(*end_coords):
+            raise ValueError(f"Invalid barycentric coordinates {end_coords}.")
 
         for i in range(len(self.lines_marked)):
             start_coords_marked, end_coords_marked, _ = self.lines_marked[i]
