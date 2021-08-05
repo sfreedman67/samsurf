@@ -650,24 +650,36 @@ class Triangulation:
         return Triangulation(tris_new, self.gluings)
 
     def __step_flow_helper__(self, start_tri_id, start_coords, direction):
+        """Helper function for Triangulation.step_flow. Note that this method
+        functions as expected unless DIRECTION is in the direction of a vertex
+        of the starting triangle, so verify using Triangle.is_toward_conepoint
+        that this is not the case before calling."""
         start_tri = self.triangles[start_tri_id]
         start_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2]
 
+        for i in range(3):
+            if start_coords[i] == 1:
+                assert(start_tri.is_interior(i, direction)) # Error means pointing away from triangle.
+
         # Step 1: Identify the outgoing edge.
         p = (start_pos, start_pos - start_tri[0], start_pos + start_tri[2])
+
         out_edge_is_assigned = False
         for i in range(3):
             change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
-            if not change_of_basis.determinant().is_zero():
+            if not change_of_basis.is_singular():
                 sector_coords = change_of_basis**(-1) * direction
                 if sector_coords[0].sign() > 0 and sector_coords[1].sign() > 0:
                     out_edge = i
                     out_edge_is_assigned = True
 
-        for i in range(3):
-            if start_coords[i] == 1:
-                assert(start_tri.is_interior(i, direction)) # Error means pointing away from triangle.
-                
+        if not out_edge_is_assigned:
+            for i in range(3):
+                if not p[i].is_zero() and not p[(i + 1) % 3].is_zero():
+                    return start_coords[i], i, 0
+
+        assert(out_edge_is_assigned)
+
         # Step 2: Determine the vector coordinates of the next point.
         linear_system = sage.all.column_matrix((start_tri[out_edge], direction))
         #print("martrix: ", linear_system)
@@ -754,7 +766,7 @@ class Triangulation:
             # Extend the straight line from the previous point.
             if tris_new[start_tri_id].is_toward_conepoint(start_coords, velocity):
                 print("Oh, no! A cone point!")
-                break
+                assert(False)
             else:
                 s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
                 end_coords_indexed = sorted([((out_edge + 1) % 3, s),

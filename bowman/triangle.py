@@ -111,11 +111,9 @@ class Triangle():
 
         p = (start_pos, start_pos - self[0], start_pos + self[2])
         for i in range(3):
-            change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
-            if not change_of_basis.determinant().is_zero():
-                sector_coords = change_of_basis**(-1) * direction
-                if sector_coords[0].sign() == 0 or sector_coords[1].sign() == 0:
-                    return True
+            test_matrix = sage.all.column_matrix([p[i], direction])
+            if test_matrix.is_singular():
+                return True
         return False
 
     def reflect(self, idx):
