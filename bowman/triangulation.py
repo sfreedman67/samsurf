@@ -556,12 +556,9 @@ class Triangulation:
                 of vector.
         """
         tris = self.triangles # use self.triangles as this was order pts_info given in
-        # when reinitialize below, does triangulation change in any major way? ie indices of tris?
-        new_triangulation = Triangulation(self.triangles, self.gluings) #carries over marked segments?
-        for i in range(len(pts_info)):
-            tri_dat = pts_info[i] # tri_dat list of tuples (coord, indx, vector)
-            for dat in tri_dat:
-                base_pt, indx, vec = dat
+        new_triangulation = self 
+        for tri_dat in pts_info:
+            for base_pt, indx, vec in tri_dat:
                 new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (1, 0, 0))
         return new_triangulation
 
@@ -586,8 +583,7 @@ class Triangulation:
                 mp_info.append((new_coord, real_tri_indx, vector_transformed))
             new_pts_info.append(mp_info)
         # new_pts_info is a list of form [[(., ., .), (., ., .)...], ...] of length num_triangles
-        transformed_segments_triangulation = self.plot_transformed_constraints(new_pts_info)
-        return transformed_segments_triangulation
+        return self.plot_transformed_constraints(new_pts_info)
 
     @staticmethod
     def bary_coords_vec(coord1, coord2, triangle):
