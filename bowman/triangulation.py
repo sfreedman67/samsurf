@@ -763,10 +763,13 @@ class Triangulation:
             points_seen.append((start_tri_id, start_coords))
             vertex_id = sum(tuple(m + 1 for m in range(3) if start_coords[m] == 1) + (-1,))
 
-            # Extend the straight line from the previous point.
             if tris_new[start_tri_id].is_toward_conepoint(start_coords, velocity):
                 t = time - time_traveled
+            elif vertex_id > -1 and not start_tri.is_interior(vertex_id, velocity):
+                # TODO: Handle bad input.
+                break
             else:
+                # Otherwise, we are safe to call __step_flow_helper__.
                 s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
                 end_coords_indexed = sorted([((out_edge + 1) % 3, s),
                                              (out_edge, 1 - s),
@@ -784,9 +787,6 @@ class Triangulation:
                                              ((in_edge + 2) % 3, 0)])
                 start_coords = tuple(coord for _, coord in start_coords_indexed)
                 time_traveled = time_traveled + t
-            elif vertex_id > -1 and not start_tri.is_interior(vertex_id, velocity):
-                # TODO: Handle bad input.
-                break
             else:
                 remainder = time - time_traveled
                 change_of_basis = sage.all.matrix([
