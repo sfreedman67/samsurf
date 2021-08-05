@@ -136,8 +136,8 @@ class Triangle():
 
         # Plot the marked lines.
         for start_coords, end_coords, line_marked_color in self.lines_marked:
-            start_cartesian = basepoint + start_coords[1]*self.v0 - start_coords[2]*self.v2
-            end_cartesian = basepoint + end_coords[1]*self.v0 - end_coords[2]*self.v2
+            start_cartesian = basepoint + RR(start_coords[1])*self.v0 - RR(start_coords[2])*self.v2
+            end_cartesian = basepoint + RR(end_coords[1])*self.v0 - RR(end_coords[2])*self.v2
             triangle_plot = triangle_plot + sage.all.line2d([start_cartesian.numerical_approx(), end_cartesian.numerical_approx()], rgbcolor = line_marked_color).plot() 
 
         # Plot the marked points.

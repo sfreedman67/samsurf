@@ -230,7 +230,7 @@ class Triangulation:
 
         side_square = (c + rootd) / 2
 
-        dimensions = [(side_square, 1), (length_rectangle - side_square, 1), (side_square, side_square)]
+        dimensions = [(side_square, k_rootd(1)), (length_rectangle - side_square, k_rootd(1)), (side_square, side_square)]
         triangles = [tri for dims in dimensions for tri in Triangulation._triangulate_rectangle(*dims)]
 
         gluings_boundary = {(0, 2): (5, 2), (2, 2): (3, 2), (2, 0): (1, 0), (4, 0): (5, 0)}
@@ -558,7 +558,7 @@ class Triangulation:
         tris = self.triangles # use self.triangles as this was order pts_info given in
         # when reinitialize below, does triangulation change in any major way? ie indices of tris?
         new_triangulation = Triangulation(self.triangles, self.gluings) #carries over marked segments?
-        for i in range(len(tris)):
+        for i in range(len(pts_info)):
             tri_dat = pts_info[i] # tri_dat list of tuples (coord, indx, vector)
             for dat in tri_dat:
                 base_pt, indx, vec = dat
