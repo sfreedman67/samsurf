@@ -15,10 +15,10 @@ def perp_vector_2D(vec):
 
 def is_valid_barycentric_coordinate(a0, a1, a2):
     if sign(a0 + a1 + a2 - 1) != int(0):
-        print(f"Sum {a0 + a1 + a2 - 1} of type {parent(a0 + a1 + a2 -1)} not equal to 0")
+        #print(f"Sum {a0 + a1 + a2 - 1} of type {parent(a0 + a1 + a2 -1)} not equal to 0")
         return False
     if any(sign(a) == int(-1) for a in [a0, a1, a2]):
-        print(f"Sign issue: Checking coords {[a0, a1, a2]}, signs are {[sign(a) for a in [a0, a1, a2]]}")
+        #print(f"Sign issue: Checking coords {[a0, a1, a2]}, signs are {[sign(a) for a in [a0, a1, a2]]}")
         return False
     return True
 

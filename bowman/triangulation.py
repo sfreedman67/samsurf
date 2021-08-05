@@ -534,7 +534,6 @@ class Triangulation:
         and applies the veech element.  It then returns the triangle id and new barycentric
         coordinate of the marked point, of form (tri_id, coord).
         """
-
         new_triangulation = self.mark_point(triangle_id, coord, (1, 0, 0))
         new_triangulation = new_triangulation.apply_matrix(veech_elem)
         new_triangulation = new_triangulation.make_delaunay()
@@ -559,9 +558,7 @@ class Triangulation:
         new_triangulation = self 
         for tri_dat in pts_info:
             for base_pt, indx, vec in tri_dat:
-                print("CALLING MK FLOW WITH ", base_pt, indx, vec)
-                print("going to flow on triangle", [x for x in self.triangles[indx]])
-                new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (1, 0, 0))
+                new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (0, 0.9, 0.1))
         return new_triangulation
 
     def main_constraint_plotter(self, veech_elem):
@@ -576,9 +573,8 @@ class Triangulation:
             return tuple((a + b) / QQ(2) for a, b in zip(p0, p1))
 
         def subdivide_line_marked(line_marked):
-            start_orig, end_orig, color = line_marked # GETTING INPUT WHERE STAND AND END ARE THE SAME
+            start_orig, end_orig, color = line_marked
             midpoint_line_marked = midpoint_barys(start_orig, end_orig)
-            print("start, end, midpoint ", start_orig, end_orig, midpoint_line_marked)
             s0 = (midpoint_line_marked, start_orig, color)
             s1 = (midpoint_line_marked, end_orig, color)
             return [s0, s1]
@@ -586,13 +582,10 @@ class Triangulation:
         new_pts_info = []
         for i, tri in enumerate(self.triangles):
             mp_info = []
-            # ERROR IS HAPPENINGN HERE, Plugging in lines makred where start and end is the same
             lines_subdivided = [segment for line_marked in tri.lines_marked
                                 for segment in subdivide_line_marked(line_marked)]
-            print("lines subdivided is ", lines_subdivided)
             for base_coord, dir_coord, color in lines_subdivided:
                     if base_coord != dir_coord:
-                        print("base_coord", base_coord, " dir coord ", dir_coord)
                         vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
                         vector_transformed = veech_elem * vector_orig
                         transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
