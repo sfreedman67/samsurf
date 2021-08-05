@@ -759,14 +759,13 @@ class Triangulation:
         time_traveled = 0
 
         while (start_tri_id, start_coords) not in points_seen:
-            #print(start_coords)
             start_tri = tris_new[start_tri_id]
             points_seen.append((start_tri_id, start_coords))
+            vertex_id = sum(tuple(m + 1 for m in range(3) if start_coords[m] == 1) + (-1,))
 
             # Extend the straight line from the previous point.
             if tris_new[start_tri_id].is_toward_conepoint(start_coords, velocity):
-                print("Oh, no! A cone point!")
-                assert(False)
+                t = time - time_traveled
             else:
                 s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
                 end_coords_indexed = sorted([((out_edge + 1) % 3, s),
@@ -774,6 +773,7 @@ class Triangulation:
                                              ((out_edge + 2) % 3, 0)])
                 end_coords = tuple(coord for _, coord in end_coords_indexed)
 
+            # Figure out whether we have run the length of our trajectory.
             if time_traveled + t < time:
                 tris_new = tris_new[0:start_tri_id] + (start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
@@ -784,6 +784,9 @@ class Triangulation:
                                              ((in_edge + 2) % 3, 0)])
                 start_coords = tuple(coord for _, coord in start_coords_indexed)
                 time_traveled = time_traveled + t
+            elif vertex_id > -1 and not start_tri.is_interior(vertex_id, velocity):
+                # TODO: Handle bad input.
+                break
             else:
                 remainder = time - time_traveled
                 change_of_basis = sage.all.matrix([
