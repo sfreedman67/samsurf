@@ -559,6 +559,8 @@ class Triangulation:
         new_triangulation = self 
         for tri_dat in pts_info:
             for base_pt, indx, vec in tri_dat:
+                print("CALLING MK FLOW WITH ", base_pt, indx, vec)
+                print("going to flow on triangle", [x for x in self.triangles[indx]])
                 new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (1, 0, 0))
         return new_triangulation
 
@@ -574,8 +576,9 @@ class Triangulation:
             return tuple((a + b) / QQ(2) for a, b in zip(p0, p1))
 
         def subdivide_line_marked(line_marked):
-            start_orig, end_orig, color = line_marked
+            start_orig, end_orig, color = line_marked # GETTING INPUT WHERE STAND AND END ARE THE SAME
             midpoint_line_marked = midpoint_barys(start_orig, end_orig)
+            print("start, end, midpoint ", start_orig, end_orig, midpoint_line_marked)
             s0 = (midpoint_line_marked, start_orig, color)
             s1 = (midpoint_line_marked, end_orig, color)
             return [s0, s1]
@@ -583,14 +586,18 @@ class Triangulation:
         new_pts_info = []
         for i, tri in enumerate(self.triangles):
             mp_info = []
+            # ERROR IS HAPPENINGN HERE, Plugging in lines makred where start and end is the same
             lines_subdivided = [segment for line_marked in tri.lines_marked
                                 for segment in subdivide_line_marked(line_marked)]
+            print("lines subdivided is ", lines_subdivided)
             for base_coord, dir_coord, color in lines_subdivided:
-                    vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
-                    vector_transformed = veech_elem * vector_orig
-                    transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
-                    real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
-                    mp_info.append((new_coord, real_tri_indx, vector_transformed))
+                    if base_coord != dir_coord:
+                        print("base_coord", base_coord, " dir coord ", dir_coord)
+                        vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
+                        vector_transformed = veech_elem * vector_orig
+                        transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
+                        real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
+                        mp_info.append((new_coord, real_tri_indx, vector_transformed))
             new_pts_info.append(mp_info)
         return self.plot_transformed_constraints(new_pts_info)
 
