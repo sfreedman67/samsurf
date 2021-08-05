@@ -690,7 +690,8 @@ class Triangulation:
 
         if not out_edge_is_assigned:
             for i in range(3):
-                if not p[i].is_zero() and not p[(i + 1) % 3].is_zero():
+                change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
+                if change_of_basis.is_singular():
                     return start_coords[i], i, 0
 
         assert(out_edge_is_assigned)
@@ -804,7 +805,6 @@ class Triangulation:
                 time_traveled = time_traveled + t
             else:
                 remainder = time - time_traveled
-                print(f"remaining time {remainder}")
                 change_of_basis = sage.all.matrix([
                     [start_tri[0][0], -start_tri[2][0]],
                     [start_tri[0][1], -start_tri[2][1]]
