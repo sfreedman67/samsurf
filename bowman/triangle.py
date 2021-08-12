@@ -2,13 +2,26 @@ from collections import namedtuple
 import functools
 
 from sage.all import *
+from bowman.linear_xy_poly import LinearXYPoly
+
+
+def perp_vector_2D(vec):
+    """
+    Returns the perpendicular vector to a 2D vector
+    """
+    a, b = vec
+    return vector([b, -a])
+
 
 def is_valid_barycentric_coordinate(a0, a1, a2):
-    if a0 + a1 + a2 != 1:
+    if sign(a0 + a1 + a2 - 1) != int(0):
+        #print(f"Sum {a0 + a1 + a2 - 1} of type {parent(a0 + a1 + a2 -1)} not equal to 0")
         return False
-    if a0 < 0 or a1 < 0 or a2 < 0:
+    if any(sign(a) == int(-1) for a in [a0, a1, a2]):
+        #print(f"Sign issue: Checking coords {[a0, a1, a2]}, signs are {[sign(a) for a in [a0, a1, a2]]}")
         return False
     return True
+
 
 class Triangle():
     """ A triangle with a list of marked points
@@ -34,23 +47,29 @@ class Triangle():
         else:
             for point_marked, _ in points_marked:
                 if not is_valid_barycentric_coordinate(*(point_marked)):
-                    raise ValueError("Invalid barycentric coordinates.")
+                    raise ValueError(f"Invalid barycentric coordinates {point_marked}.")
             self.points_marked = tuple(points_marked)
 
         if lines_marked is None:
             self.lines_marked = tuple()
         else:
             for start_coords, end_coords, _ in lines_marked:
-                if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
-                    raise ValueError("Invalid barycentric coordinates.")
+                if not is_valid_barycentric_coordinate(*start_coords):
+                    raise ValueError(f"Invalid barycentric coordinates {start_coords}.")
+
+                if not is_valid_barycentric_coordinate(*end_coords):
+                    raise ValueError(f"Invalid barycentric coordinates {end_coords}.")
             self.lines_marked = tuple(lines_marked)
+
+    def __repr__(self):
+        return f"Triangle(v0={self.v0}, v1={self.v1}, v2={self.v2}"
 
     def mark_point(self, coords, rgbcolor):
         """Determine if the given coordinates COORDS are valid barycentric coordinates in the Triangle self and add to points_marked if valid.
         return 0 if the cooridnates are valid, 1 otherwise
         """
         if not is_valid_barycentric_coordinate(*coords):
-            raise ValueError("Invalid barycentric coordinates.")
+            raise ValueError(f"Invalid barycentric coordinates {coords}.")
 
         for i in range(len(self.points_marked)):
             point_marked, _ = self.points_marked[i]
@@ -62,8 +81,11 @@ class Triangle():
         return Triangle(self.v0, self.v1, self.v2, self.points_marked + ((coords, rgbcolor),), self.lines_marked)
 
     def mark_line(self, start_coords, end_coords, rgbcolor):
-        if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
-            raise ValueError("Invalid barycentric coordinates.")
+        if not is_valid_barycentric_coordinate(*start_coords):
+            raise ValueError(f"Invalid barycentric coordinates {start_coords}.")
+
+        if not is_valid_barycentric_coordinate(*end_coords):
+            raise ValueError(f"Invalid barycentric coordinates {end_coords}.")
 
         for i in range(len(self.lines_marked)):
             start_coords_marked, end_coords_marked, _ = self.lines_marked[i]
@@ -85,6 +107,23 @@ class Triangle():
     def __iter__(self):
         return iter([self.v0, self.v1, self.v2])
 
+    def is_interior(self, vertex_id, direction):
+        right_edge = self[vertex_id]
+        left_edge = -self[(vertex_id + 2) % 3]
+        change_of_basis = sage.all.column_matrix([left_edge, right_edge])
+        sector_coords = change_of_basis**(-1) * direction
+        return sector_coords[0] >= 0 and sector_coords[1] >= 0
+
+    def is_toward_conepoint(self, coords, direction):
+        start_pos = coords[1] * self[0] - coords[2] * self[2]
+
+        p = (start_pos, start_pos - self[0], start_pos + self[2])
+        for i in range(3):
+            test_matrix = sage.all.column_matrix([p[i], direction])
+            if test_matrix.is_singular():
+                return True
+        return False
+
     def reflect(self, idx):
         def reflect_vector(v, w):
             w_parallel = (v.dot_product(w) / v.dot_product(v)) * v
@@ -105,8 +144,8 @@ class Triangle():
 
         # Plot the marked lines.
         for start_coords, end_coords, line_marked_color in self.lines_marked:
-            start_cartesian = basepoint + start_coords[1]*self.v0 - start_coords[2]*self.v2
-            end_cartesian = basepoint + end_coords[1]*self.v0 - end_coords[2]*self.v2
+            start_cartesian = basepoint + RR(start_coords[1])*self.v0 - RR(start_coords[2])*self.v2
+            end_cartesian = basepoint + RR(end_coords[1])*self.v0 - RR(end_coords[2])*self.v2
             triangle_plot = triangle_plot + sage.all.line2d([start_cartesian.numerical_approx(), end_cartesian.numerical_approx()], rgbcolor = line_marked_color).plot() 
 
         # Plot the marked points.
@@ -131,3 +170,42 @@ class Triangle():
     @property
     def area(self):
         return QQ(1/2) * abs(sage.all.matrix([self.v0, -self.v2]).determinant())
+
+# Methods that only work for Rectilinear Triangles
+
+    def edge_in_direction(self, direction):
+        perp_dir = perp_vector_2D(direction)
+        for edge in self:
+            if edge.dot_product(perp_dir) == 0:
+                return edge
+
+    def len_in_direction(self, direction):
+        """
+        The length of the edge along direction dir
+        dir is either vector([1, 0]) (horizontal) or vector([0, 1])
+        (vertical)
+        """
+        return self.edge_in_direction(direction).norm()
+
+    def constraint_in_direction(self, direction, offset=0):
+        perp_dir = perp_vector_2D(direction)
+        cyl_height = self.len_in_direction(perp_dir)
+        if direction == vector([1, 0]):  # horizontal case
+            return (1 / cyl_height) * LinearXYPoly([0, 1, offset])  # (y+c)/h
+        elif direction == vector([0, 1]):  # vertical case
+            return (1 / cyl_height) * LinearXYPoly([1, 0, offset])  # (x+c)/h
+
+    def is_region_starter(self, direction):
+        """
+        returns true if the triangle is the first triangle in its region
+        along the given direction
+        """
+        # find the vector pointing at the direction where this triangle's
+        # edge should point
+        if direction == vector([1, 0]):  # horizontal case
+            pointing = vector([-1, 0])
+        elif direction == vector([0, 1]):  # vertical case
+            pointing = vector([0, 1])
+        return pointing.dot_product(self.edge_in_direction(direction)) > 0
+        # returns true if the edge along direction points the right way
+

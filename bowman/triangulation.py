@@ -1,6 +1,7 @@
 import itertools
 from collections import defaultdict, deque
 from functools import lru_cache
+from typing import overload
 
 from sage.all import *
 # import flatsurf
@@ -13,10 +14,11 @@ from bowman import algo
 from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
 from bowman.radical import Radical
+from bowman.geom_equiv import gen_geom_equivs
 
 
 def return_shear_mat(dir):
-    """Generate a shear that projects vector dir onto the real line, or rotates 
+    """Generate a shear that projects vector dir onto the real line, or rotates
     dir by 90 degrees if dir is verticle."""
     dir_x, dir_y = dir
 
@@ -228,7 +230,7 @@ class Triangulation:
 
         side_square = (c + rootd) / 2
 
-        dimensions = [(side_square, 1), (length_rectangle - side_square, 1), (side_square, side_square)]
+        dimensions = [(side_square, k_rootd(1)), (length_rectangle - side_square, k_rootd(1)), (side_square, side_square)]
         triangles = [tri for dims in dimensions for tri in Triangulation._triangulate_rectangle(*dims)]
 
         gluings_boundary = {(0, 2): (5, 2), (2, 2): (3, 2), (2, 0): (1, 0), (4, 0): (5, 0)}
@@ -249,6 +251,34 @@ class Triangulation:
         (Positive values of t coorespondes to contraction in the x-direction)"""
         g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
         return self.apply_matrix(g_t)
+
+    def geom_equiv_relabelling(self, equiv_trin, tri_idx, edge_idx=None):
+        """
+        Given a cut-and-paste equivalent triangulation to self, tells you what
+        triangle or edge in self corresponds to the input indices on the other
+        triangulation
+        INPUT:
+        * equiv_trin: a triangulation, which is cut-and-paste equivalent to self
+        (i.e. geometric equivalent with the identity as the equivalence matrix)
+        * tri_idx: int, index of triangle on equiv_trin
+        * edge_idx: if None, returns triangle on self corresponding to tri_idx
+                    if int in [0, 1, 2], returns edge on self corresponding to
+                    (tri_idx, edge_idx) on equiv_trin
+        """
+        equivs = gen_geom_equivs(equiv_trin, self)
+        # geometric equivalences from equiv_trin to self
+        equiv = [e for e in equivs if e[0] == matrix([[1, 0], [0, 1]])][0]
+        # a cut and paste equivalence between the two
+        edge_rel_dict = equiv[1]  # the edge relabelings stored in equiv[1]
+        tri_rel_dict = {e1[0]: e2[0] for e1, e2 in edge_rel_dict.items()}
+        if edge_idx is None:
+            return tri_rel_dict[tri_idx]
+        elif edge_idx in [0, 1, 2]:
+            return edge_rel_dict[(tri_idx, edge_idx)]
+        else:
+            error_msg = (f"edge_idx must be None for triangle relabelling or" +
+                         f" in [0, 1, 2] for edge relabelling, not {edge_idx}")
+            raise ValueError(error_msg)
 
     def check_horiz(self):
         """Check if every triangle has a horizontal edge.  Returns True if so."""
@@ -297,15 +327,15 @@ class Triangulation:
         return cylinders
 
     def make_directional_triangulation(self, direction):
-        """This function takes a triangulation of a translation surface along with a 
+        """This function takes a triangulation of a translation surface along with a
         cylinder direction, and returns a triangulation where all triangles have
         an edge parallel to the specified cylinder direction.  It also returns the cylinder
         refinement for each cylinder of the surface, in the specified direction.
-        
+
         INPUT.      direction := a 2D vector pointing in the cylinder direction of interest.
-        OUTPUT.     new_triangulation := triangulation with every triangle having edge in 
+        OUTPUT.     new_triangulation := triangulation with every triangle having edge in
                         specified direction
-                    cylinders := a list, each of whose elements are lists of indices corresponding 
+                    cylinders := a list, each of whose elements are lists of indices corresponding
                         to the triangles in the refinement of a cylinder.
         """
         mat = return_shear_mat(direction)
@@ -322,7 +352,7 @@ class Triangulation:
             while True:
                 if(new_triangulation.is_delaunay):
                     counter += 1
-                    new_triangulation = new_triangulation.apply_gt_flow(2)  
+                    new_triangulation = new_triangulation.apply_gt_flow(2)
                 else:
                     new_triangulation = new_triangulation.make_delaunay()
                     break
@@ -335,6 +365,243 @@ class Triangulation:
         new_triangulation = new_triangulation.apply_matrix(matinv)
         return new_triangulation, cylinders
 
+    def _return_triangle_coords(self, id_tri):
+        """Helper funciton returning triangle orientation type for rectilinear triangle
+        located at id_tri."""
+        tri = self.triangles[id_tri]
+        for k, edge in enumerate(tri):
+            x, y = edge
+            if(y == 0):
+                vec_horiz = edge
+                idx_horiz = k
+            elif(x == 0):
+                vec_vert = edge
+                idx_vert = k
+            else:
+                vec_hyp = edge
+                idx_hyp = k
+        
+        # check orientation (with right angle at the origin, type := quadrant containing the hypotenuse)
+        if(vec_vert[1] < 0 and vec_horiz[0] > 0):
+            # type 1
+            coords_horiz = vector([QQ(0), QQ(0)])
+            coords_vert = -vec_vert
+            coords_hyp = vec_horiz
+        elif(vec_vert[1] > 0 and vec_horiz[0] > 0):
+            # type 2
+            coords_horiz = vector([QQ(0), QQ(0)])
+            coords_vert = vec_horiz
+            coords_hyp = vec_horiz + vec_vert
+        elif(vec_vert[1] > 0 and vec_horiz[0] < 0):
+            # type 3
+            coords_horiz = -vec_horiz + vec_vert
+            coords_vert = -vec_horiz
+            coords_hyp = vec_vert
+        else:
+            # type 4
+            coords_horiz = vec_hyp
+            coords_vert = -vec_vert
+            coords_hyp = vector([QQ(0), QQ(0)])
+
+        idx_to_coords = {idx_vert: coords_vert, idx_horiz: coords_horiz, idx_hyp: coords_hyp}
+        return [idx_to_coords[k] for k in range(3)]
+
+    def _return_line_params(self, p1, p2):
+        """Take two cartesian coordinates p1 and p2, and return the two parameters
+        which determine the line cutting through both."""
+        r = p1[1] - p2[1]
+        ru = p1[0] - p2[0]
+        m = 0
+        if(ru == 0):
+            return (oo, p1[0])
+        else:
+            m = r/ru # need QQ?
+        b = p1[1] - (m*p1[0])
+        return (m, b)
+
+    def _get_intersection_pt(self, line1, line2):
+        """Takes two line parameters and returns intersection pt in
+        cartesian coordinates.  line1/2 = (m, b) for slope m, intercept b."""
+        if(line1[0] == oo):
+            return (line1[1], (line1[1]*line2[0])+line2[1])
+        if(line2[0] == oo):
+            return (line2[1], (line2[1]*line1[0])+line1[1])
+        if(line1[0] == line2[0]):
+            raise ValueError("Lines are parallel.")
+        x = -(line1[1] - line2[1]) / (line1[0] - line2[0])
+        y = line1[0] * x + line1[1]
+        return (x, y)
+
+    def return_intersections(self, triangle_id, constraints_list):
+        """Take a triangle and a list of constraints of form [a, b, c]
+        where a, b, c are the parameters that define a line (a for x, b for y).
+        Return barycentric coordinates that correspond to where on the triangle
+        the lines intersect, with respect to the determined coordinate system.
+
+        triangle_id         := the index of the triangle in self.triangles.
+        constraints list    := list of constraints, each constrain is a list of three parameters
+        RETURNS:            collection of points, corresponding to the points at which 
+                            each constraint passes through the triangle edges.
+        """
+        # unpack coordinates of triangle with appropriate origin location.
+        r = self._return_triangle_coords(triangle_id)   
+        # get triangle lines
+        tri_lines = []
+        for i in range(3):
+            j =  (i+1) % 3
+            p1, p2 = r[i], r[j]
+            line = self._return_line_params(p1, p2)
+            tri_lines.append(line)
+        # check where constraint lines intersect triangle lines.
+        # make sure not to check parallel lines.
+        line_intersections = []
+        for i in range(len(constraints_list)):
+            # make sure not dividing by 0
+            #cons_line = (0, 0)
+            if(constraints_list[i][1] == 0):
+                cons_line = (oo, -constraints_list[i][2] / constraints_list[i][0])
+            else:
+                line_slope = -constraints_list[i][0] / constraints_list[i][1]
+                line_intercept = -constraints_list[i][2] / constraints_list[i][1]
+                cons_line = (line_slope, line_intercept)
+            intersections = []
+            for j in range(3):
+                tri_line = tri_lines[j]
+                if(tri_line[0] == cons_line[0]): #parallel
+                    continue
+                intersection_pt = self._get_intersection_pt(cons_line, tri_line)
+                intersections.append(intersection_pt)
+            line_intersections.append(intersections)
+        # Keep the points that lie on a triangle edge.
+        x_min = min([r[0][0], r[1][0], r[2][0]])
+        x_max = max([r[0][0], r[1][0], r[2][0]])
+        y_min = min([r[0][1], r[1][1], r[2][1]])
+        y_max = max([r[0][1], r[1][1], r[2][1]])
+        kept_coords = []
+        for i in range(len(line_intersections)):
+            good_coords = []
+            for j in range(len(line_intersections[i])):
+                pt = line_intersections[i][j]
+                if(pt[0] < x_min or pt[0] > x_max or pt[1] < y_min or pt[1] > y_max):
+                    continue
+                else:
+                    pt = vector(pt)
+                    good_coords.append(pt)
+            kept_coords.append(good_coords)
+
+        # convert intersection pts to barycentric coordinates
+        return [[Triangulation.cart_to_bary(p, r) for p in coords] for coords in kept_coords]
+
+    @staticmethod
+    def cart_to_bary(cart_pt, r):
+        """
+            cart_py := cartesian coordinate
+            r := list of three triangle vertices
+        """
+        (x0, y0), (x1, y1), (x2, y2) = r
+        x, y = cart_pt
+
+        T = matrix([[x0 - x2, x1 - x2, x2], 
+                    [y0 - y2, y1 - y2, y2],
+                    [0, 0, 1]])
+
+        lambda1, lambda2, _ = T.inverse() * vector([x, y, 1])
+        return (lambda1, lambda2, 1 - lambda1 - lambda2)
+
+    def plot_constraints(self, dict):
+        """Takes as input a dictionary relating each triangle to a list of constraints.
+        This function then plots these constraints on the triangulation."""
+        tris = self.triangles
+        num_tris = len(tris)
+        new_triangulation = Triangulation(self.triangles, self.gluings) #keeps order of triangles?
+        for i in range(num_tris):
+            coords = self.return_intersections(i, dict[i]) #list of pairs of barycentric coords
+            for j in range(len(coords)):
+                if(len(coords) == 0 or len(coords[j]) < 2):
+                    continue
+                else:
+                    new_triangulation = new_triangulation.mark_line(i, coords[j][0], coords[j][1], (1, 0, 0))
+        return new_triangulation
+
+    def track_marked_point(self, coord, triangle_id, veech_elem):
+        """
+        coord := tuple of three nonnegative real numbers summing to 1
+        triangle_id := triangle index of triangulation
+        veech_elem := element of veech group for t the surface.
+        The function marks the triangulation with the point,
+        and applies the veech element.  It then returns the triangle id and new barycentric
+        coordinate of the marked point, of form (tri_id, coord).
+        """
+        new_triangulation = self.mark_point(triangle_id, coord, (1, 0, 0))
+        new_triangulation = new_triangulation.apply_matrix(veech_elem)
+        new_triangulation = new_triangulation.make_delaunay()
+
+        # now find the marked point and return the coordinate and triangle
+        tris = new_triangulation.triangles
+        for i, tri in enumerate(tris):
+            pts_marked = tri.points_marked # list containing pairs ((a, b, c), (r, g, b)) for bary and rgb color
+            if pts_marked:
+                return new_triangulation, i, pts_marked[0][0]
+        return new_triangulation, triangle_id, coord
+
+    def plot_transformed_constraints(self, pts_info):
+        """
+        self     := segments triangulation
+        pts_info := pts_info is a list.  Each element is a list containing a collection of triples
+                of form (bary_coord, tri_indx, vector) which posses information to be passed
+                into mark_flow to plot a line, starting at bary_coord, in tri_indx, in direction
+                of vector.
+        """
+        tris = self.triangles # use self.triangles as this was order pts_info given in
+        new_triangulation = self 
+        for tri_dat in pts_info:
+            for base_pt, indx, vec in tri_dat:
+                new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (0, 0.9, 0.1))
+        return new_triangulation
+
+    def main_constraint_plotter(self, veech_elem):
+        """
+        self   := a triangulation (with marked segments)
+        veech_elem              := global veech element for triangulation
+        This function returns a new triangulation with transformed segments
+        under the veech element.
+        """
+
+        def midpoint_barys(p0, p1):
+            return tuple((a + b) / QQ(2) for a, b in zip(p0, p1))
+
+        def subdivide_line_marked(line_marked):
+            start_orig, end_orig, color = line_marked
+            midpoint_line_marked = midpoint_barys(start_orig, end_orig)
+            s0 = (midpoint_line_marked, start_orig, color)
+            s1 = (midpoint_line_marked, end_orig, color)
+            return [s0, s1]
+
+        new_pts_info = []
+        for i, tri in enumerate(self.triangles):
+            mp_info = []
+            lines_subdivided = [segment for line_marked in tri.lines_marked
+                                for segment in subdivide_line_marked(line_marked)]
+            for base_coord, dir_coord, color in lines_subdivided:
+                    if base_coord != dir_coord:
+                        vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
+                        vector_transformed = veech_elem * vector_orig
+                        transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
+                        real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
+                        mp_info.append((new_coord, real_tri_indx, vector_transformed))
+            new_pts_info.append(mp_info)
+        return self.plot_transformed_constraints(new_pts_info)
+
+    @staticmethod
+    def bary_coords_vec(coord1, coord2, triangle):
+        # given the two barycentric coordinates, outputs vector from one to the other
+        a1, b1, c1 = coord1
+        a2, b2, c2 = coord2
+        v0, v1, v2 = triangle[0], triangle[1], triangle[2]
+        vec1 = (b1*v0) - (c1*v2)
+        vec2 = (b2*v0) - (c2*v2)
+        return vec2 - vec1
+        
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
@@ -345,7 +612,7 @@ class Triangulation:
                        color.
         """
         if not is_valid_barycentric_coordinate(*coords):
-            raise ValueError("Invalid barycentric coordinates.")
+            raise ValueError(f"Invalid barycentric coordinates {coords}.")
 
         tris_new = self.triangles[0:]
 
@@ -377,8 +644,11 @@ class Triangulation:
         rgbcolor     := a tuple of three real numbers between 0 and 1, where
                         the componenets are the RGB values of a color.
         """
-        if not is_valid_barycentric_coordinate(*start_coords) or not is_valid_barycentric_coordinate(*end_coords):
-            raise ValueError("Invalid barycentric coordinates.")
+        if not is_valid_barycentric_coordinate(*start_coords):
+            raise ValueError(f"Invalid barycentric coordinates {start_coords}.")
+
+        if not is_valid_barycentric_coordinate(*end_coords):
+            raise ValueError(f"Invalid barycentric coordinates {end_coords}.")
 
         tri_new = self.triangles[triangle_id].mark_line(start_coords, end_coords, rgbcolor)
         tris_new = self.triangles[:triangle_id] + (tri_new,) + self.triangles[triangle_id + 1:]
@@ -386,21 +656,40 @@ class Triangulation:
         return Triangulation(tris_new, self.gluings)
 
     def __step_flow_helper__(self, start_tri_id, start_coords, direction):
+        """Helper function for Triangulation.step_flow. Note that this method
+        functions as expected unless DIRECTION is in the direction of a vertex
+        of the starting triangle, so verify using Triangle.is_toward_conepoint
+        that this is not the case before calling."""
         start_tri = self.triangles[start_tri_id]
         start_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2]
 
+        for i in range(3):
+            if start_coords[i] == 1:
+                assert(start_tri.is_interior(i, direction)) # Error means pointing away from triangle.
+
         # Step 1: Identify the outgoing edge.
         p = (start_pos, start_pos - start_tri[0], start_pos + start_tri[2])
+
+        out_edge_is_assigned = False
         for i in range(3):
             change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
-            if not change_of_basis.determinant().is_zero():
+            if not change_of_basis.is_singular():
                 sector_coords = change_of_basis**(-1) * direction
-                out_edge = i
                 if sector_coords[0].sign() > 0 and sector_coords[1].sign() > 0:
-                    break
+                    out_edge = i
+                    out_edge_is_assigned = True
+
+        if not out_edge_is_assigned:
+            for i in range(3):
+                change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
+                if change_of_basis.is_singular():
+                    return start_coords[i], i, 0
+
+        assert(out_edge_is_assigned)
 
         # Step 2: Determine the vector coordinates of the next point.
         linear_system = sage.all.column_matrix((start_tri[out_edge], direction))
+        #print("martrix: ", linear_system)
         line = start_pos
         for i in range(out_edge):
             line = line - start_tri[i]
@@ -414,6 +703,9 @@ class Triangulation:
         start_tri_id := the triangle to which the point belongs, provided as an integer.
         start_coords := the vector from the zeroth vertex to the point.
         direction    := the direction of the flow."""
+
+        if self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction):
+            return start_tri_id, start_coords, direction
 
         s, out_edge, _ = self.__step_flow_helper__(start_tri_id, start_coords, direction)
 
@@ -442,6 +734,7 @@ class Triangulation:
             points_seen.append((start_tri_id, start_coords))
 
             # Extend the straight line from the previous point.
+            assert(not self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction))
             s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, direction)
             end_coords_indexed = sorted([((out_edge + 1) % 3, s),
                                          (out_edge, 1 - s),
@@ -475,15 +768,23 @@ class Triangulation:
         while (start_tri_id, start_coords) not in points_seen:
             start_tri = tris_new[start_tri_id]
             points_seen.append((start_tri_id, start_coords))
+            vertex_id = sum(tuple(m + 1 for m in range(3) if start_coords[m] == 1) + (-1,))
 
-            # Extend the straight line from the previous point.
-            s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
-            end_coords_indexed = sorted([((out_edge + 1) % 3, s),
-                                         (out_edge, 1 - s),
-                                         ((out_edge + 2) % 3, 0)])
-            end_coords = tuple(coord for _, coord in end_coords_indexed)
+            if tris_new[start_tri_id].is_toward_conepoint(start_coords, velocity):
+                t = time - time_traveled
+            elif vertex_id > -1 and not start_tri.is_interior(vertex_id, velocity):
+                # TODO: Handle bad input.
+                break
+            else:
+                # Otherwise, we are safe to call __step_flow_helper__.
+                s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
+                end_coords_indexed = sorted([((out_edge + 1) % 3, s),
+                                             (out_edge, 1 - s),
+                                             ((out_edge + 2) % 3, 0)])
+                end_coords = tuple(coord for _, coord in end_coords_indexed)
 
-            if time_traveled + t <= time:
+            # Figure out whether we have run the length of our trajectory.
+            if time_traveled + t < time:
                 tris_new = tris_new[0:start_tri_id] + (start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
                 # Prepare for the next depth of recursion.
@@ -686,6 +987,7 @@ class Triangulation:
                  for tri in range(len(self.triangles))
                  for edge in range(3)}
         h_min = min(code[0] for code in codes)
+        # minimum hash same for two comb  equiv triangulations
         return {code for code in codes if code[0] == h_min}
 
     @property

@@ -45,7 +45,8 @@ def generators_veech(trin):
                 trin_neighbor = idr_neighbor.triangulation
                 code_neighbor = trin_neighbor.code
                 if code_neighbor in code_to_idr:
-                    ve = geom_equiv.gen_geom_equiv(trin_neighbor, code_to_idr[code_neighbor].triangulation)
+                    ve = geom_equiv.gen_geom_equiv(trin_neighbor, code_to_idr[code_neighbor].triangulation)[0]
+                    # first element of an equivalence is the matrix
                     m = sigma(ve)
                     edge_opp = edge_curr.apply_mobius(m).reverse()
                     edges_paired[edge_curr] = edge_opp

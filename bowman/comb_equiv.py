@@ -1,5 +1,10 @@
 # TODO: Move to triangulation as a method?
 def canonical_relabel(trin, tri_init, edge_init):
+    """
+    flag = (triangle, edge) pair
+    INPUT:
+    * trin - a triangulation
+    """
     flags_to_visit = [(tri_init, edge_init)]
     relabelling = {}
     while flags_to_visit:
