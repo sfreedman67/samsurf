@@ -1,3 +1,5 @@
-# Studying Veech Surfaces
+# Computing periodic points of Veech surfaces
 
-This repository contains a variety of functionality for analyzing translation surfaces, and particularly Veech surfaces.  For example this contains an implementation of the algorithm given by Bowman for computing the Veech group of a translation surface.  
+This repository, particularly the `bowman` folder, contains an algorithm that can be used to compute the periodic points of particular Veech surfaces.  
+
+At the present moment, the program works for Veech surfaces that are both vertically and horizontally periodic.   
