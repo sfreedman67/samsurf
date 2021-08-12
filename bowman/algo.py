@@ -22,8 +22,6 @@ class BoundaryIsNotZippedPairwiseError(Exception):
 
 
 def generators_veech(trin):
-    # We about to fuck some shit up
-
     if not trin.is_delaunay:
         raise ValueError("Need to start with Delaunay Triangulation")
     r0 = trin.idr
