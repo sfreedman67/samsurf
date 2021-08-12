@@ -3,5 +3,6 @@ from bowman import triangulation as trin
 
 class TestAlgo:
     def test_generators_veech(self):
-        X = trin.Triangulation.regular_octagon()
+        x = trin.Triangulation.regular_octagon()
+        f = x.generators_veech
         assert False
