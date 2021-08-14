@@ -14,7 +14,7 @@ from bowman import algo
 from bowman.triangle import Triangle, is_valid_barycentric_coordinate
 from bowman.hinge import Hinge
 from bowman.radical import Radical
-from bowman.geom_equiv import gen_geom_equivs
+from bowman.geom_equiv import gen_geom_equivs, is_cut_paste_equiv
 
 
 def return_shear_mat(dir):
@@ -843,14 +843,38 @@ class Triangulation:
     def is_delaunay_strict(self):
         return all(hinge.incircle_det > 0 for hinge in self.hinges)
 
-    def make_delaunay(self):
-        """Makes a new Delaunay triangulation"""
-        while not self.is_delaunay:
+    def make_delaunay(self, equiv_trin=None):
+        """
+        Makes a new Delaunay triangulation from self.
+        Randomly flips hinges until it is delaunay.
+        Input:
+        * equiv_trin: Triangulation
+            Tries to return a delaunay triangulation which is 
+            geometrically equivalent to the triangulation equiv_trin
+        """
+
+        # first, find a candidate delaunay triangulation from self
+        candidate = None
+        if self.is_delaunay:
+            candidate = self  # candidate delaunay triangulation
+        while candidate is None:
             idx = randint(0, len(self.hinges) - 1)
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
-                return self.flip_hinge(h.id_edge).make_delaunay()
-        return self
+                candidate = self.flip_hinge(h.id_edge).make_delaunay()
+                # candidate delaunay triangulation
+
+        if equiv_trin is None:
+            return candidate
+        else:
+            concyclic_hinges = [h.id_edge for h in candidate.hinges if
+                                h.is_convex and h.incircle_det == 0]
+            for possible_trin in candidate.flips_generator(concyclic_hinges):
+                # checks all possible hinge flips for concyclic hinges
+                if is_cut_paste_equiv(equiv_trin, possible_trin):
+                    return possible_trin
+            # if for loop exited, no possible_trin matches
+            raise ValueError("equiv_trin has no Delaunay equivalent to self")
 
     def make_nontrivial(self):
         shear = sage.all.matrix([[QQ(1), QQ(0.1)], [QQ(0), QQ(1)]])
@@ -922,6 +946,20 @@ class Triangulation:
         for id_edge in ids_edges:
             triangulation = triangulation.flip_hinge(id_edge)
         return triangulation
+
+    def flips_generator(self, ids_list):
+        """
+        Given a list of hinge ids, provides a generator
+        Outputs of the generator are triangulations, with a subset of
+        the hinge flips in ids_list applied to it
+        """
+        if len(ids_list) == 0:
+            yield self
+            return
+        else:
+            yield from self.flips_generator(ids_list[:-1])
+            yield from [trin.flip_hinge(ids_list[-1]) for trin
+                        in self.flips_generator(ids_list[:-1])]
 
     def plot_halfplanes(self, count=None):
         figure = sum(itertools.islice((x.plot()
