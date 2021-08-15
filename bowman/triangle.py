@@ -22,7 +22,7 @@ def is_valid_barycentric_coordinate(a0, a1, a2):
         return False
     return True
 
-def intersect(start1, end1, start2, end2):
+def intersect_lines(start1, end1, start2, end2):
     direction_matrix = matrix([
         [end1[1] - start1[1], end2[1] - start2[1]],
         [end1[2] - start1[2], end2[2] - start2[2]]
@@ -58,6 +58,11 @@ def intersect(start1, end1, start2, end2):
             return True, tuple(bary_coords)
         else:
             return False, None
+
+def is_point_on_line(point, line):
+    diff = vector(line[1]) - vector(line[0])
+    t = diff.dot_product(vector(point) - vector(line[0])) / diff.dot_product(diff)
+    return 0 <= t and t <= 1
 
 class Triangle():
     """ A triangle with a list of marked points
@@ -131,8 +136,24 @@ class Triangle():
         return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked + ((start_coords, end_coords, rgbcolor),))
 
     @property
-    def intersections(self):
-        return []
+    def intersection(self):
+        if len(self.lines_marked) == 0:
+            return None
+        intersection = self.lines_marked[0][0:2]
+        intersection_points = []
+        for line in self.lines_marked:
+            line = line[0:2]
+            if len(intersection) == 2:
+                # Intersection set so far is a line.
+                is_nonempty, intersection_next = intersect_lines(*intersection, *line)
+                if not is_nonempty:
+                    return None
+                intersection = intersection_next
+            if len(intersection) == 3:
+                # Intersection set has been reduced to a point.
+                if not is_point_on_line(intersection, line):
+                    return None
+        return intersection
 
     def __getitem__(self, key):
         if key == 0:
