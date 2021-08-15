@@ -22,6 +22,42 @@ def is_valid_barycentric_coordinate(a0, a1, a2):
         return False
     return True
 
+def intersect(start1, end1, start2, end2):
+    direction_matrix = matrix([
+        [end1[1] - start1[1], end2[1] - start2[1]],
+        [end1[2] - start1[2], end2[2] - start2[2]]
+    ])
+    gap = vector([start2[1] - start1[1], start2[2] - start1[2]])
+    if direction_matrix.is_singular():
+        t_start = (vector(start2) - vector(start1)).dot_product(vector(end1) - vector(start1))
+        t_start = t_start / (vector(end1) - vector(start1)).dot_product(vector(end1) - vector(start1))
+        t_end = (vector(end2) - vector(start1)).dot_product(vector(end1) - vector(start1))
+        t_end = t_end / (vector(end1) - vector(start1)).dot_product(vector(end1) - vector(start1))
+        if max(t_start, t_end) < 0 or min(t_start, t_end) > 1:
+            return False, None
+        elif max(t_start, t_end) == 0:
+            return True, start1
+        elif min(t_start, t_end) == 1:
+            return True, end1
+        else:
+            if 0 < t_start and t_start < 1:
+                if t_start < t_end:
+                    start1 = start2
+                if t_start > t_end:
+                    end1 = start2
+            if 0 < t_end and t_end < 1:
+                if t_end > t_start:
+                    end1 = end2
+                if t_end < t_start:
+                    start1 = end2
+        return True, (start1, end1)
+    else:
+        s1, s2 = tuple(direction_matrix**(-1) * gap)
+        if 0 <= s1 and s1 <= 1 and -1 <= s2 and s2 <= 0:
+            bary_coords = vector(start1) + s1 * (vector(end1) - vector(start1))
+            return True, tuple(bary_coords)
+        else:
+            return False, None
 
 class Triangle():
     """ A triangle with a list of marked points
@@ -93,6 +129,10 @@ class Triangle():
                 return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked[0:i] + ((start_coords, end_coords, rgbcolor),) + self.lines_marked[i+1:])
 
         return Triangle(self.v0, self.v1, self.v2, self.points_marked, self.lines_marked + ((start_coords, end_coords, rgbcolor),))
+
+    @property
+    def intersections(self):
+        return []
 
     def __getitem__(self, key):
         if key == 0:
