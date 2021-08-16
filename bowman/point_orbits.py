@@ -42,7 +42,7 @@ def points_preserved(trin, veech_elem, points_set):
     So if the orbit of a point under veech_elem is not entirely in points_set,
     it will not be in the output.
     """
-    points_sofar = points_set.copy()  # The points stable so far
+    points_sofar = points_set  # The points stable so far
     points_old = set()  # Tracks the stable set one iteration ago
     while points_sofar != points_old:
         points_old = points_sofar
@@ -53,7 +53,12 @@ def points_preserved(trin, veech_elem, points_set):
 
 def reduce_periodic_points(trin, candidate_points):
     """
+    Given a set candidate_points and triangulation trin,
+    such that all periodic points of trin are in candidate_points
+    returns the periodic points.
     """
-    pass
-# perform the above for every veech group generator
-# output is list of periodic points!
+    points_sofar = candidate_points  # the set of candidate periodic points
+    for veech_elem in trin.generators_veech.gens:
+        points_sofar = points_preserved(trin, veech_elem, points_sofar)
+        # for each veech group generator, check which points have stable orbit
+    return points_sofar
