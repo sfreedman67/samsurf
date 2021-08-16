@@ -48,6 +48,10 @@ class Triangulation:
         else:
             return False
 
+    def copy(self):
+        # create a copy which doesn't mutate the original
+        return Triangulation(self.triangles, self.gluings.copy())
+
     @classmethod
     def _from_flatsurf(cls, trin):
         DT = trin.delaunay_triangulation()
@@ -279,6 +283,27 @@ class Triangulation:
             error_msg = (f"edge_idx must be None for triangle relabelling or" +
                          f" in [0, 1, 2] for edge relabelling, not {edge_idx}")
             raise ValueError(error_msg)
+
+    def geom_equiv_relabel_point(self, equiv_trin, tri_idx, pt_coords):
+        """
+        Given a cut-and-paste equivalent triangulation to self, finds the new
+        location of a given point (triangle id + bary coordinates inside that
+        triangle)
+        OUTPUT:
+        tuple (new_tri_idx, new_pt_coords)
+        """
+        new_tri_idx = self.geom_equiv_relabelling(equiv_trin, tri_idx)
+        edge_relabelling = {
+            edge: self.geom_equiv_relabelling(equiv_trin, tri_idx, edge)[1]
+            for edge in [0, 1, 2]}  # how edges of the triangle are permuted
+        new_pt_coords = [None] * 3  # initialize coordinates
+        for edge_id, relabelling in edge_relabelling.items():
+            new_pt_coords[relabelling - 1 % 3] = pt_coords[edge_id - 1 % 3]
+            # barycentric coordinates (x:y:z) correspond to heights from edges
+            # (1, 2, 0), so we offset by 1 mod 3
+            # e.g. if relabelling of 2 is 0, then midpoint of 2 gets sent to
+            # midpoint of 0
+        return (new_tri_idx, tuple(new_pt_coords))
 
     def check_horiz(self):
         """Check if every triangle has a horizontal edge.  Returns True if so."""
@@ -586,8 +611,8 @@ class Triangulation:
                     if base_coord != dir_coord:
                         vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
                         vector_transformed = veech_elem * vector_orig
-                        transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
-                        real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
+                        transformed_triangulation, new_tri_idx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
+                        real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_idx)
                         mp_info.append((new_coord, real_tri_indx, vector_transformed))
             new_pts_info.append(mp_info)
         return self.plot_transformed_constraints(new_pts_info)
@@ -856,19 +881,12 @@ class Triangulation:
         # first, find a candidate delaunay triangulation from self
         candidate = None
         if self.is_delaunay:
-            print("This triangulation is delaunay!")
-            self.plot().show()
             candidate = self  # candidate delaunay triangulation
         while candidate is None:
             idx = randint(0, len(self.hinges) - 1)
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
-                #debug stuff
-                candidate = self.flip_hinge(h.id_edge)
-                print(f"Found a non-delaunay hinge {h.id_edge}, flipping")
-                candidate.plot().show()
-                candidate = candidate.make_delaunay()
-                # candidate = self.flip_hinge(h.id_edge).make_delaunay()
+                candidate = self.flip_hinge(h.id_edge).make_delaunay()
                 # candidate delaunay triangulation
 
         # now find the presentation of candidate which is cut&paste equivalent
