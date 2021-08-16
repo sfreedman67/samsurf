@@ -601,9 +601,9 @@ class Triangulation:
         vec1 = (b1*v0) - (c1*v2)
         vec2 = (b2*v0) - (c2*v2)
         return vec2 - vec1
-        
+
     def mark_point(self, triangle_id, coords, rgbcolor):
-        """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
+        """ in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
         triangle_id := the ID, i.e., index in self.triangles, of the triangle to be marked.
         coords      := a tuple of three nonnegative real numbers that sum to 1 representing the barycentric
@@ -850,20 +850,28 @@ class Triangulation:
         Input:
         * equiv_trin: Triangulation
             Tries to return a delaunay triangulation which is 
-            geometrically equivalent to the triangulation equiv_trin
+            cut&paste equivalent to the triangulation equiv_trin
         """
 
         # first, find a candidate delaunay triangulation from self
         candidate = None
         if self.is_delaunay:
+            print("This triangulation is delaunay!")
+            self.plot().show()
             candidate = self  # candidate delaunay triangulation
         while candidate is None:
             idx = randint(0, len(self.hinges) - 1)
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
-                candidate = self.flip_hinge(h.id_edge).make_delaunay()
+                #debug stuff
+                candidate = self.flip_hinge(h.id_edge)
+                print(f"Found a non-delaunay hinge {h.id_edge}, flipping")
+                candidate.plot().show()
+                candidate = candidate.make_delaunay()
+                # candidate = self.flip_hinge(h.id_edge).make_delaunay()
                 # candidate delaunay triangulation
 
+        # now find the presentation of candidate which is cut&paste equivalent
         if equiv_trin is None:
             return candidate
         else:
@@ -1166,6 +1174,16 @@ class Triangulation:
     @property
     def area(self):
         return sum(t.area for t in self.triangles)
+
+    @property
+    def points_marked(self):
+        return {idx: self.triangles[idx].points_marked
+                for idx in range(len(self.triangles))}
+
+    @property
+    def lines_marked(self):
+        return {idx: self.triangles[idx].lines_marked
+                for idx in range(len(self.triangles))}
 
 
 if __name__ == "__main__":
