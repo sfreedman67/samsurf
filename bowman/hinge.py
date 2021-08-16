@@ -14,7 +14,8 @@ class Hinge:
     :param id_edge: an edge vector, the shared edge identified by tri
     :param tri_opp: a Triangle, the triangle opposite tri
     :param id_edge_op: an edge vector, the shared edge identified by tri_opp
-    -
+    id_edge and id_edge_op are tuples of (triangle id, edge id), not vectors
+
     - See document for examples of labeling tri, tri_opp and edges.
     """
     def __init__(self, tri, id_edge, tri_opp, id_edge_opp):
