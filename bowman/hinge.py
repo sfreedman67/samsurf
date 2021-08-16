@@ -96,7 +96,7 @@ class Hinge:
             change_of_basis = sage.all.matrix([[(v1-v0)[0],(v2-v0)[0]],[(v1-v0)[1],(v2-v0)[1]]])**(-1)
             new_coords = change_of_basis * (cartesian_coords - v0)
             new_coords_ordered = sorted([(self.id_edge[1], new_coords[1]),
-                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
+                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] - new_coords[1]),
                                          ((self.id_edge[1] + 2) % 3, new_coords[0])])
             if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
                 tri = tri.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)
