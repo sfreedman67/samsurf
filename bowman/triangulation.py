@@ -392,7 +392,7 @@ class Triangulation:
                     is_new_point = new_constraints[k][0] == new_constraints[k][1]
                     if is_orig_point and is_new_point:
                         if orig_constraints[j] == new_constraints[k]:
-                            intersection.append(local_intersection)
+                            intersection.append(orig_constraints[j])
                     elif is_orig_point and not is_new_point:
                         if is_point_on_line(orig_constraints[j][0], new_constraints[k]):
                             intersection.append(orig_constraints[j][0])
