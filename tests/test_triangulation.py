@@ -172,7 +172,7 @@ class TestHinge(TestCase):
         self.assertFalse(h2.is_convex)
 
 
-class TestTriangulation(TestCase):
+class TestGeneratorsVeech(TestCase):
     def test_generators_veech_octagon(self):
         Y = triangulation.Triangulation.regular_octagon()
         fund_dom = Y.generators_veech
