@@ -11,11 +11,13 @@ from bowman import idr
 from bowman import comb_equiv
 from bowman import geom_equiv
 from bowman import algo
-from bowman.triangle import Triangle, is_valid_barycentric_coordinate
+from bowman.triangle import Triangle, is_valid_barycentric_coordinate, intersect_lines, is_point_on_line
 from bowman.hinge import Hinge
 from bowman.radical import Radical
 from bowman.geom_equiv import gen_geom_equivs
 
+from bowman.rational_ht_application import bicuspid_segments, segments_for_plotting
+from bowman.geom_equiv import gen_geom_equivs
 
 def return_shear_mat(dir):
     """Generate a shear that projects vector dir onto the real line, or rotates
@@ -364,6 +366,52 @@ class Triangulation:
         new_triangulation = new_triangulation.apply_gt_flow(-(counter*2))
         new_triangulation = new_triangulation.apply_matrix(matinv)
         return new_triangulation, cylinders
+
+    def compute_constraints_transformed(self, veech_elem):
+        """Returns a list of line segments (pairs of barycentric coordinates)
+        that are defined by the constraints given by the Rational Height Lemma.
+        VEECH_ELEM transforms these line segments before their return."""
+        constraints_dict = segments_for_plotting(bicuspid_segments(self))
+        marked_tris = self.plot_constraints(constraints_dict).main_constraint_plotter(veech_elem).triangles
+        constraints_transformed_list = [[(line[0],line[1]) for line in marked_tris[i].lines_marked] for i in range(len(self.triangles))]
+        return constraints_transformed_list
+
+    def compute_candidate_periodic_points(self, tri_id):
+        veech_gens_list = self.generators_veech.gens
+        num_veech_gens = len(veech_gens_list)
+        for i in range(num_veech_gens):
+            orig_constraints = self.compute_constraints_transformed(matrix([[1,0],[0,1]]))[tri_id]
+            try:
+                new_constraints = self.compute_constraints_transformed(veech_gens_list[i])[tri_id]
+            except:
+                continue
+            intersection = []
+            for j in range(len(orig_constraints)):
+                for k in range(len(new_constraints)):
+                    is_orig_point = orig_constraints[j][0] == orig_constraints[j][1]
+                    is_new_point = new_constraints[k][0] == new_constraints[k][1]
+                    if is_orig_point and is_new_point:
+                        if orig_constraints[j] == new_constraints[k]:
+                            intersection.append(local_intersection)
+                    elif is_orig_point and not is_new_point:
+                        if is_point_on_line(orig_constraints[j][0], new_constraints[k]):
+                            intersection.append(orig_constraints[j][0])
+                    elif is_new_point and not is_orig_point:
+                        if is_point_on_line(new_constraints[k][0], orig_constraints[j]):
+                            intersection.append(new_constraints[k][0])
+                    else:
+                        is_intersect, local_intersection = intersect_lines(*orig_constraints[j], *new_constraints[k])
+                        if is_intersect:
+                            intersection.append(local_intersection)
+            is_all_points = True
+            print(f"Intersection for {i}th Veech element:")
+            for j in range(len(intersection)):
+                is_all_points = is_all_points and len(intersection[j]) == 3
+                if len(intersection[j]) != 3:
+                    print("Line found:", intersection[j])
+            if is_all_points:
+                return intersection
+        raise ValueError(f"Triangle {tri_id} does not have a finite set of candidate points.")
 
     def _return_triangle_coords(self, id_tri):
         """Helper funciton returning triangle orientation type for rectilinear triangle
