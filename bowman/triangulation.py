@@ -382,13 +382,9 @@ class Triangulation:
 
         # 1. Identify those generators for which the transformed constraints
         #    can be computed.
-        bad_gens = []
-        for gen in veech_gens_list:
-            try:
-                self.compute_constraints_transformed(gen)
-            except:
-                bad_gens.append(gen)
-        good_gens = [gen for gen in veech_gens_list if gen not in bad_gens]
+        horizontal_shears = [gen for gen in veech_gens_list if gen[1][0] == 0]
+        vertical_shears = [gen for gen in veech_gens_list if gen[0][1] == 0]
+        good_gens = horizontal_shears + vertical_shears
         good_gens = good_gens + [gen**(-1) for gen in good_gens]
         num_good_gens = len(good_gens)
         print(f"Identified {num_good_gens} good generators.")
