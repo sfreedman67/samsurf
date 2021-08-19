@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import overload
 
 from sage.all import *
+from random import randrange
 # import flatsurf
 
 from bowman import halfplane
@@ -378,40 +379,62 @@ class Triangulation:
 
     def compute_candidate_periodic_points(self, tri_id):
         veech_gens_list = self.generators_veech.gens
-        num_veech_gens = len(veech_gens_list)
-        for i in range(num_veech_gens):
-            orig_constraints = self.compute_constraints_transformed(matrix([[1,0],[0,1]]))[tri_id]
+
+        # 1. Identify those generators for which the transformed constraints
+        #    can be computed.
+        bad_gens = []
+        for gen in veech_gens_list:
             try:
-                new_constraints = self.compute_constraints_transformed(veech_gens_list[i])[tri_id]
+                self.compute_constraints_transformed(gen)
             except:
-                continue
-            intersection = []
-            for j in range(len(orig_constraints)):
-                for k in range(len(new_constraints)):
-                    is_orig_point = orig_constraints[j][0] == orig_constraints[j][1]
-                    is_new_point = new_constraints[k][0] == new_constraints[k][1]
-                    if is_orig_point and is_new_point:
-                        if orig_constraints[j] == new_constraints[k]:
-                            intersection.append(orig_constraints[j])
-                    elif is_orig_point and not is_new_point:
-                        if is_point_on_line(orig_constraints[j][0], new_constraints[k]):
-                            intersection.append(orig_constraints[j][0])
-                    elif is_new_point and not is_orig_point:
-                        if is_point_on_line(new_constraints[k][0], orig_constraints[j]):
-                            intersection.append(new_constraints[k][0])
-                    else:
-                        is_intersect, local_intersection = intersect_lines(*orig_constraints[j], *new_constraints[k])
-                        if is_intersect:
-                            intersection.append(local_intersection)
-            is_all_points = True
-            print(f"Intersection for {i}th Veech element:")
-            for j in range(len(intersection)):
-                is_all_points = is_all_points and len(intersection[j]) == 3
-                if len(intersection[j]) != 3:
-                    print("Line found:", intersection[j])
-            if is_all_points:
-                return intersection
-        raise ValueError(f"Triangle {tri_id} does not have a finite set of candidate points.")
+                bad_gens.append(gen)
+        good_gens = [gen for gen in veech_gens_list if gen not in bad_gens]
+        good_gens = good_gens + [gen**(-1) for gen in good_gens]
+        num_good_gens = len(good_gens)
+        print(f"Identified {num_good_gens} good generators.")
+
+        gen = matrix([[1,0],[0,1]])
+        initial_constraints = self.compute_constraints_transformed(gen)[tri_id]
+        lines = {geo_elem for geo_elem in initial_constraints if geo_elem[0] != geo_elem[1]}
+        points = {geo_elem[0] for geo_elem in initial_constraints if geo_elem[0] == geo_elem[1]}
+
+        while lines:
+            print(f"Number of lines to eliminate: {len(lines)}.")
+            gen = gen * good_gens[randrange(num_good_gens)]
+            print(f"Applying {gen}...")
+            new_constraints = self.compute_constraints_transformed(gen)[tri_id]
+            new_lines = {geo_elem for geo_elem in new_constraints if geo_elem[0] != geo_elem[1]}
+            new_points = {geo_elem[0] for geo_elem in new_constraints if geo_elem[0] == geo_elem[1]} 
+
+            # a. Intersect the current points with...
+            # ...the new points.
+            next_points = list(points & new_points)
+            # ...the new lines.
+            for line in new_lines:
+                for point in points:
+                    if is_point_on_line(point, line):
+                        next_points.append(point)
+
+            # b. Intersect the current lines with the new points.
+            for line in lines:
+                for point in new_points:
+                    if is_point_on_line(point, line):
+                        next_points.append(point)
+
+            # c. Intersect the current lines with the new lines.
+            next_lines = []
+            for line in lines:
+                for new_line in new_lines:
+                    is_intersect, local_obj = intersect_lines(*line, *new_line)
+                    if is_intersect:
+                        if len(local_obj) == 2:
+                            next_lines.append(local_obj)
+                        else:
+                            next_points.append(local_obj)
+
+            points = set(next_points)
+            lines = set(next_lines)
+        return points
 
     def _return_triangle_coords(self, id_tri):
         """Helper funciton returning triangle orientation type for rectilinear triangle
