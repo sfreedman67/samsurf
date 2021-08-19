@@ -18,12 +18,12 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
     def is_trivial(self):
         return self.polygon is None or len(self.polygon.edges) <= 2
 
-    def cross_segment(self, idx_segment):
-        hinges_degenerated = self.labels_segment[idx_segment]
+    def get_idr_neighboring(self, idx_side):
+        return self.get_trin_neighboring(idx_side).idr
 
-        triangulation_new = self.triangulation.flip_hinges(hinges_degenerated)
-
-        return triangulation_new.idr
+    def get_trin_neighboring(self, idx_side):
+        hinges_degenerated = self.labels_segment[idx_side]
+        return self.triangulation.flip_hinges(hinges_degenerated)
 
     @property
     def has_self_equivalences(self):
@@ -44,7 +44,7 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
 
     @property
     def neighbors(self):
-        return [self.cross_segment(k) for k in range(len(self.polygon.edges))]
+        return [self.get_idr_neighboring(k) for k in range(len(self.polygon.edges))]
 
     @property
     def area(self):

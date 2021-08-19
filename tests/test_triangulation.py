@@ -2,12 +2,10 @@ import unittest
 from unittest import TestCase
 
 from sage.all import *
+import flatsurf as fs
 
-from context import bowman
-import bowman.triangulation
 from bowman import triangulation
-import bowman.halfplane
-from bowman import halfplane
+from bowman import geom_equiv
 
 
 class TestApplyMatrixToTriangle(unittest.TestCase):
@@ -177,7 +175,7 @@ class TestGeneratorsVeech(TestCase):
         Y = triangulation.Triangulation.regular_octagon()
         fund_dom = Y.generators_veech
         self.assertEqual(len(fund_dom), 2)
-        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-3/4))
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-3 / 4))
         self.assertEqual(fund_dom.genus, 0)
         self.assertEqual(fund_dom.cusps, 2)
         self.assertEqual(fund_dom.points_orbifold, [4])
@@ -186,7 +184,17 @@ class TestGeneratorsVeech(TestCase):
         X = triangulation.Triangulation.ronen_l(44)
         fund_dom = X.generators_veech
         self.assertEqual(len(fund_dom), 142)
-        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-21/2))
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-21 / 2))
         self.assertEqual(fund_dom.genus, 1)
         self.assertEqual(fund_dom.cusps, 9)
         self.assertEqual(fund_dom.points_orbifold, [2, 2, 2])
+
+    def test_generators_veech_origamis(self):
+        G = PermutationGroup(['(2, 3)', '(1, 2)'])
+        right, up = G.gens()
+        X = triangulation.Triangulation._from_flatsurf(fs.translation_surfaces.origami(right, up))
+        self.fail("add a test")
+
+    def test_generators_veech_prym(self):
+        X = triangulation.Triangulation.prym_eigenform_type_aplus(16, 2, 0, 1)
+        fund_dom = X.generators_veech

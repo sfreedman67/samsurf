@@ -968,7 +968,7 @@ class Triangulation:
                                   if segment not in segments_crossed]
 
             for idx_segment, segment in segments_uncrossed:
-                idr_new = IDR.cross_segment(idx_segment)
+                idr_new = IDR.get_idr_neighboring(idx_segment)
                 segments_crossed |= {segment, segment.reverse()}
 
                 if idr_new.polygon not in idrs_visited:
