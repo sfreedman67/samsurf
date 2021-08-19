@@ -15,7 +15,7 @@ from bowman import algo
 from bowman.triangle import Triangle, is_valid_barycentric_coordinate, intersect_lines, is_point_on_line
 from bowman.hinge import Hinge
 from bowman.radical import Radical
-from bowman.geom_equiv import gen_geom_equivs
+from bowman.geom_equiv import gen_geom_equivs, is_cut_paste_equiv
 
 from bowman.rational_ht_application import bicuspid_segments, segments_for_plotting
 from bowman.geom_equiv import gen_geom_equivs
@@ -50,6 +50,10 @@ class Triangulation:
             return self.__key() == other.__key()
         else:
             return False
+
+    def copy(self):
+        # create a copy which doesn't mutate the original
+        return Triangulation(self.triangles, self.gluings.copy())
 
     @classmethod
     def _from_flatsurf(cls, trin):
@@ -282,6 +286,27 @@ class Triangulation:
             error_msg = (f"edge_idx must be None for triangle relabelling or" +
                          f" in [0, 1, 2] for edge relabelling, not {edge_idx}")
             raise ValueError(error_msg)
+
+    def geom_equiv_relabel_point(self, equiv_trin, tri_idx, pt_coords):
+        """
+        Given a cut-and-paste equivalent triangulation to self, finds the new
+        location of a given point (triangle id + bary coordinates inside that
+        triangle)
+        OUTPUT:
+        tuple (new_tri_idx, new_pt_coords)
+        """
+        new_tri_idx = self.geom_equiv_relabelling(equiv_trin, tri_idx)
+        edge_relabelling = {
+            edge: self.geom_equiv_relabelling(equiv_trin, tri_idx, edge)[1]
+            for edge in [0, 1, 2]}  # how edges of the triangle are permuted
+        new_pt_coords = [None] * 3  # initialize coordinates
+        for edge_id, relabelling in edge_relabelling.items():
+            new_pt_coords[relabelling - 1 % 3] = pt_coords[edge_id - 1 % 3]
+            # barycentric coordinates (x:y:z) correspond to heights from edges
+            # (1, 2, 0), so we offset by 1 mod 3
+            # e.g. if relabelling of 2 is 0, then midpoint of 2 gets sent to
+            # midpoint of 0
+        return (new_tri_idx, tuple(new_pt_coords))
 
     def check_horiz(self):
         """Check if every triangle has a horizontal edge.  Returns True if so."""
@@ -653,8 +678,8 @@ class Triangulation:
                     if base_coord != dir_coord:
                         vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
                         vector_transformed = veech_elem * vector_orig
-                        transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
-                        real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
+                        transformed_triangulation, new_tri_idx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
+                        real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_idx)
                         mp_info.append((new_coord, real_tri_indx, vector_transformed))
             new_pts_info.append(mp_info)
         return self.plot_transformed_constraints(new_pts_info)
@@ -668,9 +693,9 @@ class Triangulation:
         vec1 = (b1*v0) - (c1*v2)
         vec2 = (b2*v0) - (c2*v2)
         return vec2 - vec1
-        
+
     def mark_point(self, triangle_id, coords, rgbcolor):
-        """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
+        """ in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
         triangle_id := the ID, i.e., index in self.triangles, of the triangle to be marked.
         coords      := a tuple of three nonnegative real numbers that sum to 1 representing the barycentric
@@ -910,14 +935,39 @@ class Triangulation:
     def is_delaunay_strict(self):
         return all(hinge.incircle_det > 0 for hinge in self.hinges)
 
-    def make_delaunay(self):
-        """Makes a new Delaunay triangulation"""
-        while not self.is_delaunay:
+    def make_delaunay(self, equiv_trin=None):
+        """
+        Makes a new Delaunay triangulation from self.
+        Randomly flips hinges until it is delaunay.
+        Input:
+        * equiv_trin: Triangulation
+            Tries to return a delaunay triangulation which is 
+            cut&paste equivalent to the triangulation equiv_trin
+        """
+
+        # first, find a candidate delaunay triangulation from self
+        candidate = None
+        if self.is_delaunay:
+            candidate = self  # candidate delaunay triangulation
+        while candidate is None:
             idx = randint(0, len(self.hinges) - 1)
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
-                return self.flip_hinge(h.id_edge).make_delaunay()
-        return self
+                candidate = self.flip_hinge(h.id_edge).make_delaunay()
+                # candidate delaunay triangulation
+
+        # now find the presentation of candidate which is cut&paste equivalent
+        if equiv_trin is None:
+            return candidate
+        else:
+            concyclic_hinges = [h.id_edge for h in candidate.hinges if
+                                h.is_convex and h.incircle_det == 0]
+            for possible_trin in candidate.flips_generator(concyclic_hinges):
+                # checks all possible hinge flips for concyclic hinges
+                if is_cut_paste_equiv(equiv_trin, possible_trin):
+                    return possible_trin
+            # if for loop exited, no possible_trin matches
+            raise ValueError("equiv_trin has no Delaunay equivalent to self")
 
     def make_nontrivial(self):
         shear = sage.all.matrix([[QQ(1), QQ(0.1)], [QQ(0), QQ(1)]])
@@ -989,6 +1039,20 @@ class Triangulation:
         for id_edge in ids_edges:
             triangulation = triangulation.flip_hinge(id_edge)
         return triangulation
+
+    def flips_generator(self, ids_list):
+        """
+        Given a list of hinge ids, provides a generator
+        Outputs of the generator are triangulations, with a subset of
+        the hinge flips in ids_list applied to it
+        """
+        if len(ids_list) == 0:
+            yield self
+            return
+        else:
+            yield from self.flips_generator(ids_list[:-1])
+            yield from [trin.flip_hinge(ids_list[-1]) for trin
+                        in self.flips_generator(ids_list[:-1])]
 
     def plot_halfplanes(self, count=None):
         figure = sum(itertools.islice((x.plot()
@@ -1195,6 +1259,16 @@ class Triangulation:
     @property
     def area(self):
         return sum(t.area for t in self.triangles)
+
+    @property
+    def points_marked(self):
+        return {idx: self.triangles[idx].points_marked
+                for idx in range(len(self.triangles))}
+
+    @property
+    def lines_marked(self):
+        return {idx: self.triangles[idx].lines_marked
+                for idx in range(len(self.triangles))}
 
 
 if __name__ == "__main__":

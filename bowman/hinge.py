@@ -14,7 +14,8 @@ class Hinge:
     :param id_edge: an edge vector, the shared edge identified by tri
     :param tri_opp: a Triangle, the triangle opposite tri
     :param id_edge_op: an edge vector, the shared edge identified by tri_opp
-    -
+    id_edge and id_edge_op are tuples of (triangle id, edge id), not vectors
+
     - See document for examples of labeling tri, tri_opp and edges.
     """
     def __init__(self, tri, id_edge, tri_opp, id_edge_opp):
@@ -96,7 +97,7 @@ class Hinge:
             change_of_basis = sage.all.matrix([[(v1-v0)[0],(v2-v0)[0]],[(v1-v0)[1],(v2-v0)[1]]])**(-1)
             new_coords = change_of_basis * (cartesian_coords - v0)
             new_coords_ordered = sorted([(self.id_edge[1], new_coords[1]),
-                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
+                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] - new_coords[1]),
                                          ((self.id_edge[1] + 2) % 3, new_coords[0])])
             if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
                 tri = tri.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)
