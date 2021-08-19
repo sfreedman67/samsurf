@@ -399,7 +399,7 @@ class Triangulation:
         VEECH_ELEM transforms these line segments before their return."""
         constraints_dict = segments_for_plotting(bicuspid_segments(self))
         marked_tris = self.plot_constraints(constraints_dict).main_constraint_plotter(veech_elem).triangles
-        constraints_transformed_list = [[(line[0],line[1]) for line in marked_tris[i].lines_marked] for i in range(len(self.triangles))]
+        constraints_transformed_list = [[(line[0],line[1]) for line in marked_tris[i].lines_marked if line[2] == (0,0.9,0.1)] for i in range(len(self.triangles))]
         return constraints_transformed_list
 
     def compute_candidate_periodic_points(self, tri_id):
@@ -407,9 +407,7 @@ class Triangulation:
 
         # 1. Identify those generators for which the transformed constraints
         #    can be computed.
-        horizontal_shears = [gen for gen in veech_gens_list if gen[1][0] == 0]
-        vertical_shears = [gen for gen in veech_gens_list if gen[0][1] == 0]
-        good_gens = horizontal_shears + vertical_shears
+        good_gens = veech_gens_list
         good_gens = good_gens + [gen**(-1) for gen in good_gens]
         num_good_gens = len(good_gens)
         print(f"Identified {num_good_gens} good generators.")
@@ -421,6 +419,9 @@ class Triangulation:
 
         while lines:
             print(f"Number of lines to eliminate: {len(lines)}.")
+            print("Lines:")
+            for line in lines:
+                print(line)
             gen = gen * good_gens[randrange(num_good_gens)]
             print(f"Applying {gen}...")
             new_constraints = self.compute_constraints_transformed(gen)[tri_id]
@@ -626,7 +627,7 @@ class Triangulation:
         """
         new_triangulation = self.mark_point(triangle_id, coord, (1, 0, 0))
         new_triangulation = new_triangulation.apply_matrix(veech_elem)
-        new_triangulation = new_triangulation.make_delaunay()
+        new_triangulation = new_triangulation.make_delaunay(self)
 
         # now find the marked point and return the coordinate and triangle
         tris = new_triangulation.triangles
