@@ -14,7 +14,9 @@ def sigma(mat):
 def _is_boundary_paired(idrs, pairings):
     edges_total = {x for idr in idrs for x in idr.polygon}
     boundary = {x for x in edges_total if x.reverse() not in edges_total}
-    return all(pairings[x] in boundary for x in boundary)
+    boundary_is_paired = all(x in pairings or x.reverse() in pairings for x in boundary)
+    pairings_contains_boundary = all(x in boundary or x.reverse() in boundary for x in boundary)
+    return boundary_is_paired and pairings_contains_boundary
 
 
 class BoundaryIsNotZippedPairwiseError(Exception):
