@@ -51,14 +51,14 @@ def points_preserved(trin, veech_elem, points_set):
     return points_sofar
 
 
-def reduce_periodic_points(trin, candidate_points):
+def reduce_periodic_points(trin, candidate_points, generators):
     """
     Given a set candidate_points and triangulation trin,
     such that all periodic points of trin are in candidate_points
     returns the periodic points.
     """
     points_sofar = candidate_points  # the set of candidate periodic points
-    for veech_elem in trin.generators_veech.gens:
+    for veech_elem in generators:
         points_sofar = points_preserved(trin, veech_elem, points_sofar)
         # for each veech group generator, check which points have stable orbit
     return points_sofar

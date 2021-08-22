@@ -399,19 +399,19 @@ class Triangulation:
         VEECH_ELEM transforms these line segments before their return."""
         constraints_dict = segments_for_plotting(bicuspid_segments(self))
         marked_tris = self.plot_constraints(constraints_dict).main_constraint_plotter(veech_elem).triangles
+        # only add the transformed constraints, not including the originals (distinguished by color)
         constraints_transformed_list = [[(line[0],line[1]) for line in marked_tris[i].lines_marked if line[2] == (0,0.9,0.1)] for i in range(len(self.triangles))]
         return constraints_transformed_list
 
-    def compute_candidate_periodic_points(self, tri_id):
-        veech_gens_list = self.generators_veech.gens
+    def compute_candidate_periodic_points(self, tri_id, veech_gens_list, shear):
+        #veech_gens_list = self.generators_veech.gens
 
         # 1. Identify those generators for which the transformed constraints
         #    can be computed.
         good_gens = veech_gens_list
         good_gens = good_gens + [gen**(-1) for gen in good_gens]
-        num_good_gens = len(good_gens)
-        print(f"Identified {num_good_gens} good generators.")
-
+        #num_good_gens = len(good_gens)
+        #print(f"Identified {num_good_gens} good generators.")
         gen = matrix([[1,0],[0,1]])
         initial_constraints = self.compute_constraints_transformed(gen)[tri_id]
         lines = {geo_elem for geo_elem in initial_constraints if geo_elem[0] != geo_elem[1]}
@@ -422,7 +422,12 @@ class Triangulation:
             print("Lines:")
             for line in lines:
                 print(line)
-            gen = gen * good_gens[randrange(num_good_gens)]
+            # could make non-random by picking a index we know works
+            # gen = gen * good_gens[randrange(num_good_gens)]
+            # gen = gen * good_gens[12]
+            # the following takes the input shear product power, and uses that
+            gen = gen * shear
+
             print(f"Applying {gen}...")
             new_constraints = self.compute_constraints_transformed(gen)[tri_id]
             new_lines = {geo_elem for geo_elem in new_constraints if geo_elem[0] != geo_elem[1]}
@@ -947,16 +952,16 @@ class Triangulation:
         """
 
         # first, find a candidate delaunay triangulation from self
-        candidate = None
-        if self.is_delaunay:
-            candidate = self  # candidate delaunay triangulation
-        while candidate is None:
-            idx = randint(0, len(self.hinges) - 1)
+
+        # candidate delaunay triangulation
+        while not self.is_delaunay:
+            idx = randint(0, len(self.hinges) - 1)   ###### WHERE PROBLEM IS #####
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
-                candidate = self.flip_hinge(h.id_edge).make_delaunay()
+                self = self.flip_hinge(h.id_edge)
                 # candidate delaunay triangulation
 
+        candidate = self
         # now find the presentation of candidate which is cut&paste equivalent
         if equiv_trin is None:
             return candidate
@@ -1047,6 +1052,20 @@ class Triangulation:
         Outputs of the generator are triangulations, with a subset of
         the hinge flips in ids_list applied to it
         """
+        """
+        def powerset(iterable):
+            "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+            s = list(iterable)
+            return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
+
+        for subset in powerset(ids_list):
+            #trin = Triangulation(self.triangles, self.gluings)
+            trin = self
+            for id_hinge in subset:
+                trin = trin.flip_hinges(id_hinge)
+
+            yield trin
+        """
         if len(ids_list) == 0:
             yield self
             return
@@ -1054,6 +1073,7 @@ class Triangulation:
             yield from self.flips_generator(ids_list[:-1])
             yield from [trin.flip_hinge(ids_list[-1]) for trin
                         in self.flips_generator(ids_list[:-1])]
+                        
 
     def plot_halfplanes(self, count=None):
         figure = sum(itertools.islice((x.plot()
