@@ -196,5 +196,14 @@ class TestGeneratorsVeech(TestCase):
         self.fail("add a test")
 
     def test_generators_veech_prym(self):
-        X = triangulation.Triangulation.prym_eigenform_type_aplus(16, 2, 0, 1)
+        # X = triangulation.Triangulation.prym_eigenform_type_aplus(16, 1, 0, 1)
+        X = triangulation.Triangulation.prym_eigenform_type_aplus(9, 2, 0, 1)
         fund_dom = X.generators_veech
+        lhs = fund_dom.area
+        rhs = 2 * pi * ((2 - 2 * fund_dom.genus) - fund_dom.cusps + sum(-1 + (1/m) for m in fund_dom.points_orbifold))
+        print(RR(lhs), RR(rhs))
+        print(fund_dom.genus)
+        print(fund_dom.chi_orb)
+        print(fund_dom.cusps)
+        print(fund_dom.points_orbifold)
+

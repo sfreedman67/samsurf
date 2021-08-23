@@ -4,7 +4,7 @@ from sage.all import *
 from collections import namedtuple
 
 from bowman import radical
-
+from bowman import halfplane
 
 class Point(namedtuple("Point", ["u", "v2"])):
 
@@ -58,7 +58,7 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
 
     @classmethod
     def from_two_points(cls, p0, p1):
-        pass
+        return Edge(halfplane.HalfPlane.from_two_points(p0, p1), p0, p1)
 
     @property
     def is_ideal(self):

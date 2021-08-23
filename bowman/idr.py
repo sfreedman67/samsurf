@@ -5,8 +5,11 @@ import collections
 from bowman.geom_equiv import gen_geom_equivs
 
 
-class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangulation"])):
-    __slots__ = ()
+class IDR:
+    def __init__(self, polygon, labels_segment, triangulation, folded=False):
+        self.polygon = polygon
+        self.labels_segment = labels_segment
+        self.triangulation = triangulation
 
     def __repr__(self):
         return f"IDR with {len(self.polygon.edges)} sides"

@@ -28,8 +28,23 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
             return Circle(QQ(-1), -b / a, -c / a)
 
     @classmethod
-    def from_two_points(cls, p1, p2):
-        pass
+    def from_two_points(cls, p0, p1):
+        """
+        Construct a halfplane with boundary oriented from p0 to p1
+        """
+        if p0 == p1:
+            raise ValueError("Points are not distinct")
+        elif p0 == oo or p1 == oo:
+            raise ValueError("Can't (yet) build halfplane when one point is oo")
+        elif p0.v2 != 0 and p1.v2 != 0:
+            if p0.u.C != 0 or p1.u.C != 0:
+                raise ValueError("Can (so far) only build halfplane between two interior points")
+            if p0.u == p1.u:
+                return Line.from_two_points_interior(p0, p1)
+            else:
+                return Circle.from_two_points_interior(p0, p1)
+        else:
+            raise ValueError("Can (so far) only build halfplane between two interior points")
 
     def __repr__(self):
         term_quadratic = f"[{self.a}](u^2 + v^2)+" if self.a != 0 else ""
@@ -39,6 +54,10 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
 
     @property
     def is_oriented(self):
+        """
+        is_oriented is True iff the shaded region is on the left of the boundary
+        (with respect to its boundary orientation)
+        """
         raise NotImplementedError
 
     @property
@@ -176,6 +195,11 @@ class Line(HalfPlane):
 
     @property
     def is_oriented(self):
+        """
+        When is_oriented is true/false, line is oriented pointing north/south
+        :return:
+        :rtype:
+        """
         return self.b == -1
 
     @property
@@ -225,6 +249,13 @@ class Line(HalfPlane):
             return None
         return oo
 
+    @classmethod
+    def from_two_points_interior(cls, p0, p1):
+        if p0.v2 < p1.v2:
+            return Line(QQ(0), QQ(-1), p0.u.A)
+        else:
+            return Line(QQ(0), QQ(1), -p0.u.A)
+
 
 class Circle(HalfPlane):
     __slots__ = ()
@@ -239,6 +270,11 @@ class Circle(HalfPlane):
 
     @property
     def is_oriented(self):
+        """
+        When is_oriented is true/false, circle is oriented CCW/CW
+        :return:
+        :rtype:
+        """
         return self.a == -1
 
     @property
@@ -291,3 +327,15 @@ class Circle(HalfPlane):
 
     def _intersect_line(self, other):
         return other._intersect_circle(self)
+
+    @classmethod
+    def from_two_points_interior(cls, p0, p1):
+        u_0, v2_0 = p0.u.A, p0.v2
+        u_1, v2_1 = p1.u.A, p1.v2
+        A = sage.all.matrix([[u_0, 1], [u_1, 1]])
+        Y = sage.all.vector([-u_0**2 - v2_0, -u_1**2 - v2_1])
+        b, c = A.solve_right(Y)
+        if p0 < p1:
+            return Circle(QQ(1), b, c)
+        else:
+            return Circle(QQ(-1), -b, -c)

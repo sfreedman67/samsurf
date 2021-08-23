@@ -4,7 +4,8 @@ from sage.all import *
 
 from bowman import geom_equiv
 from bowman.fund_dom import FundDom
-from bowman.polygon import Point, Edge
+from bowman.polygon import Point, Edge, Polygon
+from bowman.idr import IDR
 
 
 def sigma(mat):
@@ -71,13 +72,34 @@ def generators_veech(trin):
                     edges_paired[edge_opp] = edge_curr
                     generators.append(m)
                 elif idr_neighbor.has_self_equivalences:
-                    m_rot = next(m for m, _ in idr_neighbor.triangulation.get_self_geom_equivs()
+                    print(len(idr_neighbor.polygon.edges))
+                    ms = [m for m, _ in idr_neighbor.triangulation.self_geom_equivs]
+                    for m in ms:
+                        print(m)
+                        for idx_edge, edge in enumerate(idr_neighbor.polygon):
+                            print(idx_edge)
+                            print("")
+                            print(idr_neighbor.polygon.edges.index(edge.apply_mobius(sigma(m))))
+                            print("")
+                            print("")
+                        print("""""""")
+                    m_rot = next(m for m in ms
                                  if abs(m.trace()) < 2
                                  and edge_curr.end.apply_mobius(sigma(m)) == edge_curr.start)
+                    center = fixed_point_elliptic(sigma(m_rot))
                     e0 = edge_curr.reverse()
-                    idr_center = fixed_point_elliptic(sigma(m_rot))
-                    u0, u1 = edge_curr.start.u, idr_center.u
-                    raise ValueError(f"IDR has self-equivalences")
+                    e1 = Edge.from_two_points(e0.end, center)
+                    e2 = Edge.from_two_points(center, e0.start)
+                    p_chopped = Polygon([e0, e1, e2])
+                    idx_e0 = idr_neighbor.polygon.edges.index(e0)
+                    labels_new = {idx_e0: idr_neighbor.labels_segment[idx_e0]}
+                    idr_neighbor_chopped = IDR(p_chopped, labels_new, trin_neighbor, folded=True)
+                    generators.append(sigma(m_rot))
+                    edges_paired[e1] = e2
+                    edges_paired[e2] = e1
+                    code_to_idr[code_neighbor] = idr_neighbor_chopped
+                    fund_dom.add(idr_neighbor_chopped)
+                    edges_fund_dom |= {x for x in idr_neighbor_chopped.polygon}
                 else:
                     code_to_idr[code_neighbor] = idr_neighbor
                     fund_dom.add(idr_neighbor)
