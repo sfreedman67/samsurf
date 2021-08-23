@@ -4,11 +4,20 @@ from sage.all import *
 
 from bowman import geom_equiv
 from bowman.fund_dom import FundDom
+from bowman.polygon import Point, Edge
 
 
 def sigma(mat):
     [[a, b], [c, d]] = mat
     return sage.all.matrix([[a, -b], [-c, d]])
+
+
+def fixed_point_elliptic(mat):
+    [[a, b], [c, d]] = mat
+    delta = mat.trace() ** 2 - 4 * mat.determinant()
+    u = (a - d) / (2 * c)
+    v2 = (delta / (4 * c ** 2)).abs()
+    return Point(u, v2)
 
 
 def _is_boundary_paired(idrs, pairings):
@@ -39,14 +48,20 @@ def generators_veech(trin):
     while idrs_to_visit:
         idr_curr = idrs_to_visit.pop()
 
-        if idr_curr.has_self_equivalences:
-            ges = [m for m, _ in geom_equiv.gen_geom_equivs(idr_curr.triangulation, idr_curr.triangulation)]
-            raise ValueError(f"IDR has self-equivalences: {ges}")
-
         for idx, edge_curr in enumerate(idr_curr.polygon):
             if edge_curr.reverse() not in edges_fund_dom and edge_curr not in edges_paired:
                 trin_neighbor = idr_curr.get_trin_neighboring(idx)
                 code_neighbor = trin_neighbor.code
+                idr_neighbor = trin_neighbor.idr
+
+                for edge in idr_neighbor.polygon:
+                    if edge.start != oo and edge.start.u.C != 0:
+                        if not edge.start.u.C.is_square():
+                            assert False
+                    if edge.end != oo and edge.end.u.C != 0:
+                        if not edge.end.u.C.is_square():
+                            assert False
+
                 if code_neighbor in code_to_idr:
                     ve, _ = geom_equiv.gen_geom_equiv(trin_neighbor, code_to_idr[code_neighbor].triangulation)
                     # first element of an equivalence is the matrix
@@ -55,8 +70,15 @@ def generators_veech(trin):
                     edges_paired[edge_curr] = edge_opp
                     edges_paired[edge_opp] = edge_curr
                     generators.append(m)
+                elif idr_neighbor.has_self_equivalences:
+                    m_rot = next(m for m, _ in idr_neighbor.triangulation.get_self_geom_equivs()
+                                 if abs(m.trace()) < 2
+                                 and edge_curr.end.apply_mobius(sigma(m)) == edge_curr.start)
+                    e0 = edge_curr.reverse()
+                    idr_center = fixed_point_elliptic(sigma(m_rot))
+                    u0, u1 = edge_curr.start.u, idr_center.u
+                    raise ValueError(f"IDR has self-equivalences")
                 else:
-                    idr_neighbor = trin_neighbor.idr
                     code_to_idr[code_neighbor] = idr_neighbor
                     fund_dom.add(idr_neighbor)
                     edges_fund_dom |= {x for x in idr_neighbor.polygon}

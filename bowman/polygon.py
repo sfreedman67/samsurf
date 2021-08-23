@@ -36,6 +36,10 @@ class Point(namedtuple("Point", ["u", "v2"])):
 
         return p1.u < p2.u
 
+    def apply_mobius(self, m):
+        from bowman import mobius
+        return mobius.apply_mobius(m, self)
+
 
 class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     __slots__ = ()
@@ -51,6 +55,10 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
     def __repr__(self):
         ideal_descriptor = "Ideal" if self.is_ideal else ""
         return ideal_descriptor + f"Edge({self.start}->{self.end})"
+
+    @classmethod
+    def from_two_points(cls, p0, p1):
+        pass
 
     @property
     def is_ideal(self):
@@ -98,11 +106,10 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
             return sage.all.vector([a, dv_du])
 
     def apply_mobius(self, m):
-        from bowman.mobius import apply_mobius
-
+        from bowman import mobius
         return Edge(self.halfplane.apply_mobius(m),
-                    apply_mobius(m, self.start),
-                    apply_mobius(m, self.end))
+                    mobius.apply_mobius(m, self.start),
+                    mobius.apply_mobius(m, self.end))
 
     def plot(self):
         return HyperbolicPlane().UHP().get_geodesic(*self.coordinates).plot(axes=True)
@@ -138,6 +145,9 @@ class Polygon(namedtuple("Polygon", ["edges"])):
         if isinstance(other, Polygon):
             return self.__key() == other.__key()
         return NotImplemented
+
+    def __contains__(self, item):
+        return item in self.edges
 
     def __iter__(self):
         return iter(self.edges)

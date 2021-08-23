@@ -252,6 +252,9 @@ class Triangulation:
         g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
         return self.apply_matrix(g_t)
 
+    def get_self_geom_equivs(self):
+        return gen_geom_equivs(self, self)
+
     def geom_equiv_relabelling(self, equiv_trin, tri_idx, edge_idx=None):
         """
         Given a cut-and-paste equivalent triangulation to self, tells you what
