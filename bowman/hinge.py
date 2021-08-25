@@ -85,7 +85,7 @@ class Hinge:
         id_edge_opp = self.id_edge_opp[1]
         for bary_coord, color in self.tri_opp.points_marked:
             partial_coord = (bary_coord[(id_edge_opp + 2) % 3], bary_coord[(id_edge_opp + 1) % 3])
-            cartesian_coord = change_of_basis_tri * vector(partial_coord)
+            cartesian_coord = change_of_basis_opp * vector(partial_coord)
             cartesian_coords_list.append((cartesian_coord, color))
 
         return cartesian_coords_list
