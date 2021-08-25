@@ -246,7 +246,8 @@ class Triangle():
         dir is either vector([1, 0]) (horizontal) or vector([0, 1])
         (vertical)
         """
-        return self.edge_in_direction(direction).norm()
+        v0, v1 = self.edge_in_direction(direction)  # components of the edge
+        return sqrt(v0**2 + v1**2)  # the norm of the edge
 
     def constraint_in_direction(self, direction, offset=0):
         perp_dir = perp_vector_2D(direction)
