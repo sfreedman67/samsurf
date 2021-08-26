@@ -48,20 +48,11 @@ def generators_veech(trin):
     code_to_idr = {r0.triangulation.code: r0}
     while idrs_to_visit:
         idr_curr = idrs_to_visit.pop()
-
-        for idx, edge_curr in enumerate(idr_curr.polygon):
+        for idx_curr, edge_curr in enumerate(idr_curr.polygon):
             if edge_curr.reverse() not in edges_fund_dom and edge_curr not in edges_paired:
-                trin_neighbor = idr_curr.get_trin_neighboring(idx)
+                trin_neighbor = idr_curr.get_trin_neighboring(idx_curr)
                 code_neighbor = trin_neighbor.code
                 idr_neighbor = trin_neighbor.idr
-
-                for edge in idr_neighbor.polygon:
-                    if edge.start != oo and edge.start.u.C != 0:
-                        if not edge.start.u.C.is_square():
-                            assert False
-                    if edge.end != oo and edge.end.u.C != 0:
-                        if not edge.end.u.C.is_square():
-                            assert False
 
                 if code_neighbor in code_to_idr:
                     ve, _ = geom_equiv.gen_geom_equiv(trin_neighbor, code_to_idr[code_neighbor].triangulation)
@@ -72,34 +63,18 @@ def generators_veech(trin):
                     edges_paired[edge_opp] = edge_curr
                     generators.append(m)
                 elif idr_neighbor.has_self_equivalences:
-                    print(len(idr_neighbor.polygon.edges))
-                    ms = [m for m, _ in idr_neighbor.triangulation.self_geom_equivs]
-                    for m in ms:
-                        print(m)
-                        for idx_edge, edge in enumerate(idr_neighbor.polygon):
-                            print(idx_edge)
-                            print("")
-                            print(idr_neighbor.polygon.edges.index(edge.apply_mobius(sigma(m))))
-                            print("")
-                            print("")
-                        print("""""""")
-                    m_rot = next(m for m in ms
-                                 if abs(m.trace()) < 2
-                                 and edge_curr.end.apply_mobius(sigma(m)) == edge_curr.start)
-                    center = fixed_point_elliptic(sigma(m_rot))
-                    e0 = edge_curr.reverse()
-                    e1 = Edge.from_two_points(e0.end, center)
-                    e2 = Edge.from_two_points(center, e0.start)
-                    p_chopped = Polygon([e0, e1, e2])
-                    idx_e0 = idr_neighbor.polygon.edges.index(e0)
-                    labels_new = {idx_e0: idr_neighbor.labels_segment[idx_e0]}
-                    idr_neighbor_chopped = IDR(p_chopped, labels_new, trin_neighbor, folded=True)
+                    idr_neighbor_chopped, m_rot = chop_idr(idr_neighbor, edge_curr.reverse())
+                    edge_in = idr_neighbor_chopped.polygon.edges[-2]
+                    edge_out = idr_neighbor_chopped.polygon.edges[-1]
+
                     generators.append(sigma(m_rot))
-                    edges_paired[e1] = e2
-                    edges_paired[e2] = e1
+                    edges_paired[edge_in] = edge_out
+                    edges_paired[edge_out] = edge_in
+
                     code_to_idr[code_neighbor] = idr_neighbor_chopped
                     fund_dom.add(idr_neighbor_chopped)
                     edges_fund_dom |= {x for x in idr_neighbor_chopped.polygon}
+                    idrs_to_visit.append(idr_neighbor_chopped)
                 else:
                     code_to_idr[code_neighbor] = idr_neighbor
                     fund_dom.add(idr_neighbor)
@@ -110,3 +85,41 @@ def generators_veech(trin):
         raise BoundaryIsNotZippedPairwiseError
 
     return FundDom(fund_dom, generators, edges_paired)
+
+
+def chop_idr(idr, edge):
+    gen_rot = find_gen_ccw([m for m, _ in idr.triangulation.self_geom_equivs if m.trace().abs() < 2])
+    center = fixed_point_elliptic(sigma(gen_rot))
+    edge_translate = edge.apply_mobius(sigma(gen_rot))
+    idx_edge = idr.polygon.edges.index(edge)
+    idx_edge_translate = idr.polygon.edges.index(edge_translate)
+
+    if idx_edge < idx_edge_translate:
+        edges = idr.polygon.edges[idx_edge: idx_edge_translate]
+    else:
+        edges = idr.polygon.edges[idx_edge:] + idr.polygon.edges[: idx_edge_translate]
+
+    edge_end_center = Edge.from_two_points(edge_translate.start, center)
+    edge_center_start = Edge.from_two_points(center, edge.start)
+    p_chopped = Polygon([*edges, edge_end_center, edge_center_start])
+    idxs = [idr.polygon.edges.index(edge) for edge in edges]
+    labels_new = {k: idr.labels_segment[idxs[k]] for k in range(len(edges))}
+    idr_chopped = IDR(p_chopped, labels_new, idr.triangulation, folded=True)
+    return idr_chopped, gen_rot
+
+
+def find_gen_ccw(ms):
+    e1 = sage.all.vector([1, 0])
+    ms = [m for m in ms if sage.all.matrix([e1, m * e1]).determinant() > 0]
+    return max(ms, key=order)
+
+
+def order(m):
+    if abs(m.trace()) >= 2:
+        raise ValueError(f"{m} is not elliptic")
+    k = 1
+    A = m
+    while A != sage.all.identity_matrix(2):
+        A *= m
+        k += 1
+    return k

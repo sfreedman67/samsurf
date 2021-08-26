@@ -947,11 +947,6 @@ class Triangulation:
         halfplanes = list(halfplane_to_ids_hinge.keys())
 
         p = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
-
-        # TODO: I'm excluding degenerate polygons as IDR due to this
-        if p is None:
-            return idr.IDR(p, {}, self)
-
         labels_segment = {idx: halfplane_to_ids_hinge[segment.halfplane]
                           for idx, segment in enumerate(p.edges)}
 
