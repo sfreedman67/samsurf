@@ -421,7 +421,7 @@ class Triangulation:
         points = {geo_elem[0] for geo_elem in initial_constraints if geo_elem[0] == geo_elem[1]}
 
         while lines:
-            print(f"Number of lines to eliminate: {len(lines)}.")
+            #print(f"Number of lines to eliminate: {len(lines)}.")
             # print("Lines:")
             # for line in lines:
             #     print(line)
@@ -430,7 +430,7 @@ class Triangulation:
             # gen = gen * good_gens[randrange(num_good_gens)]
             gen = gen * veech_elem
 
-            print(f"Applying {gen}...")
+            #print(f"Applying {gen}...")
             new_constraints = self.compute_constraints_transformed(gen)[tri_id]
             new_lines = {geo_elem for geo_elem in new_constraints if geo_elem[0] != geo_elem[1]}
             new_points = {geo_elem[0] for geo_elem in new_constraints if geo_elem[0] == geo_elem[1]} 
