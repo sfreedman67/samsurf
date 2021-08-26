@@ -259,6 +259,10 @@ class Triangulation:
         g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
         return self.apply_matrix(g_t)
 
+    @property
+    def self_geom_equivs(self):
+        return gen_geom_equivs(self, self)
+
     def geom_equiv_relabelling(self, equiv_trin, tri_idx, edge_idx=None):
         """
         Given a cut-and-paste equivalent triangulation to self, tells you what
@@ -1083,11 +1087,6 @@ class Triangulation:
         halfplanes = list(halfplane_to_ids_hinge.keys())
 
         p = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
-
-        # TODO: I'm excluding degenerate polygons as IDR due to this
-        if p is None:
-            return idr.IDR(p, {}, self)
-
         labels_segment = {idx: halfplane_to_ids_hinge[segment.halfplane]
                           for idx, segment in enumerate(p.edges)}
 
@@ -1108,7 +1107,7 @@ class Triangulation:
                                   if segment not in segments_crossed]
 
             for idx_segment, segment in segments_uncrossed:
-                idr_new = IDR.cross_segment(idx_segment)
+                idr_new = IDR.get_idr_neighboring(idx_segment)
                 segments_crossed |= {segment, segment.reverse()}
 
                 if idr_new.polygon not in idrs_visited:

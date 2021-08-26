@@ -5,8 +5,11 @@ import collections
 from bowman.geom_equiv import gen_geom_equivs
 
 
-class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangulation"])):
-    __slots__ = ()
+class IDR:
+    def __init__(self, polygon, labels_segment, triangulation, folded=False):
+        self.polygon = polygon
+        self.labels_segment = labels_segment
+        self.triangulation = triangulation
 
     def __repr__(self):
         return f"IDR with {len(self.polygon.edges)} sides"
@@ -18,33 +21,26 @@ class IDR(collections.namedtuple("IDR", ["polygon", "labels_segment", "triangula
     def is_trivial(self):
         return self.polygon is None or len(self.polygon.edges) <= 2
 
-    def cross_segment(self, idx_segment):
-        hinges_degenerated = self.labels_segment[idx_segment]
+    def get_idr_neighboring(self, idx_side):
+        return self.get_trin_neighboring(idx_side).idr
 
-        triangulation_new = self.triangulation.flip_hinges(hinges_degenerated)
-
-        return triangulation_new.idr
+    def get_trin_neighboring(self, idx_side):
+        hinges_degenerated = self.labels_segment[idx_side]
+        return self.triangulation.flip_hinges(hinges_degenerated)
 
     @property
     def has_self_equivalences(self):
         """
         Checks if there is an equivalence from triangulation to itself
-        whose matrix is not the identity or the 180 degree rotation
-        #TODO: Whether this is the correct notion of self equivalence is a
-        conversation for another time
+        whose matrix is neither the identity nor the 180 degree rotation
         """
-        self_geom_equiv_matrices = [equiv[0] for equiv in
-                                    gen_geom_equivs(self.triangulation,
-                                                    self.triangulation)]
         # first element of an equivalence is the matrix
-        allowed_equiv_matrices = [matrix([[1, 0], [0, 1]]),
-                                  matrix([[-1, 0], [0, -1]])]
-        return any(x not in allowed_equiv_matrices
-                   for x in self_geom_equiv_matrices)
+        return any(m != sage.all.identity_matrix(2) and m != -sage.all.identity_matrix(2)
+                   for m, _ in gen_geom_equivs(self.triangulation, self.triangulation))
 
     @property
     def neighbors(self):
-        return [self.cross_segment(k) for k in range(len(self.polygon.edges))]
+        return [self.get_idr_neighboring(k) for k in range(len(self.polygon.edges))]
 
     @property
     def area(self):

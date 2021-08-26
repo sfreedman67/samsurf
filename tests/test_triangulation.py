@@ -1,13 +1,12 @@
+import itertools
 import unittest
 from unittest import TestCase
 
 from sage.all import *
+import flatsurf as fs
 
-from context import bowman
-import bowman.triangulation
 from bowman import triangulation
-import bowman.halfplane
-from bowman import halfplane
+from bowman import geom_equiv
 
 
 class TestApplyMatrixToTriangle(unittest.TestCase):
@@ -172,12 +171,12 @@ class TestHinge(TestCase):
         self.assertFalse(h2.is_convex)
 
 
-class TestTriangulation(TestCase):
+class TestGeneratorsVeech(TestCase):
     def test_generators_veech_octagon(self):
         Y = triangulation.Triangulation.regular_octagon()
         fund_dom = Y.generators_veech
         self.assertEqual(len(fund_dom), 2)
-        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-3/4))
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-3 / 4))
         self.assertEqual(fund_dom.genus, 0)
         self.assertEqual(fund_dom.cusps, 2)
         self.assertEqual(fund_dom.points_orbifold, [4])
@@ -186,7 +185,74 @@ class TestTriangulation(TestCase):
         X = triangulation.Triangulation.ronen_l(44)
         fund_dom = X.generators_veech
         self.assertEqual(len(fund_dom), 142)
-        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-21/2))
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-21 / 2))
         self.assertEqual(fund_dom.genus, 1)
         self.assertEqual(fund_dom.cusps, 9)
         self.assertEqual(fund_dom.points_orbifold, [2, 2, 2])
+
+    def test_generators_veech_origamis(self):
+        G = PermutationGroup(['(2, 3)', '(1, 2)'])
+        right, up = G.gens()
+        X = triangulation.Triangulation._from_flatsurf(fs.translation_surfaces.origami(right, up))
+        self.fail("add a test")
+
+    def test_generators_veech_prym_9_2_0_1(self):
+        X = triangulation.Triangulation.prym_eigenform_type_aplus(9, 2, 0, 1)  # D = 1 + 8 * 9 * 2 = 145
+        fund_dom = X.generators_veech
+        self.assertEqual(fund_dom.chi_orb, QQ(-160 / 3))
+        self.assertEqual(fund_dom.cusps, 32)
+        self.assertEqual(fund_dom.genus, 11)
+        self.assertEqual(fund_dom.points_orbifold.count(2), 0)
+        self.assertEqual(fund_dom.points_orbifold.count(3), 2)
+
+    def test_generators_veech_prym_16_1_0_1(self):
+        X = triangulation.Triangulation.prym_eigenform_type_aplus(16, 1, 0, 1)  # D = 1 + 8 * 16 * 1 = 129
+        fund_dom = X.generators_veech
+        self.assertEqual(fund_dom.chi_orb, QQ(-125 / 3))
+        self.assertEqual(fund_dom.cusps, 25)
+        self.assertEqual(fund_dom.genus, 9)
+        self.assertEqual(fund_dom.points_orbifold.count(2), 0)
+        self.assertEqual(fund_dom.points_orbifold.count(3), 1)
+
+    def test_generators_veech_prym_16_2_0_1(self):
+        X = triangulation.Triangulation.prym_eigenform_type_aplus(16, 2, 0, 1)  # D = 1 + 8 * 16 * 2 = 129
+        fund_dom = X.generators_veech
+        self.assertEqual(fund_dom.chi_orb, QQ(-100))
+        self.assertEqual(fund_dom.cusps, 34)
+        self.assertEqual(fund_dom.genus, 33)
+        self.assertEqual(fund_dom.points_orbifold.count(2), 0)
+        self.assertEqual(fund_dom.points_orbifold.count(3), 3)
+
+    def test_generators_veech_prym(self):
+        data = {}
+        with open('data_prym3.txt') as f:
+            for line in f:
+                D, chi, cusps, genus, e2, e3 = line.lstrip('(').rstrip(')\n').split(',')
+                D = QQ(D)
+                chi = QQ(chi.lstrip(' \'').rstrip('\''))
+                cusps = QQ(cusps)
+                genus = QQ(genus)
+                e2 = QQ(e2)
+                e3 = QQ(e3)
+                data[D] = (chi, cusps, genus, e2, e3)
+
+        for w, h, t, e in [(w, h, t, e)
+                           for (w, h, t, e) in itertools.product(range(20), repeat=4)
+                           if w > 0
+                           if h > 0
+                           if t < gcd(w, h)
+                           if gcd(gcd(gcd(w, h), t), e) == 1
+                           if e + sqrt(e**2 + 8 * w * h) > 0
+                           if w > e + sqrt(e**2 + 8 * w * h)]:
+            D = e**2 + 8 * w * h
+            if D in data:
+                chi, cusps, genus, e2, e3 = data[D]
+                X = triangulation.Triangulation.prym_eigenform_type_aplus(w, h, t, e)
+                fund_dom = X.generators_veech
+                self.assertEqual(fund_dom.chi_orb, chi)
+                self.assertEqual(fund_dom.cusps, cusps)
+                self.assertEqual(fund_dom.genus, genus)
+                self.assertEqual(fund_dom.points_orbifold.count(2), e2)
+                self.assertEqual(fund_dom.points_orbifold.count(3), e3)
+
+

@@ -38,7 +38,7 @@ class Radical:
         return Radical(-self.A, -self.B, self.C)
 
     def __repr__(self):
-        return f"{self.value}"
+        return f"Radical({self.A}, {self.B}, {self.C})"
 
     def __hash__(self):
         if self._hash is None:
