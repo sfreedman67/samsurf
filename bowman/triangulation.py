@@ -23,12 +23,13 @@ def return_shear_mat(dir):
     dir_x, dir_y = dir
 
     if dir_x != 0:
-        return matrix([[1, 0], [(-dir_y/dir_x), 1]])
+        return matrix([[1, 0], [(-dir_y / dir_x), 1]])
     else:
         return matrix([[0, -1], [1, 0]])
 
+
 class Triangulation:
-    def __init__(self, triangles = None, gluings = None):
+    def __init__(self, triangles=None, gluings=None):
         self.triangles = tuple(triangles) if triangles is not None else tuple()
         self.gluings = gluings if gluings is not None else {}
 
@@ -48,6 +49,9 @@ class Triangulation:
         else:
             return False
 
+    def __repr__(self):
+        return f"Triangulation with {len(self.triangles)} triangles"
+
     @classmethod
     def _from_flatsurf(cls, trin):
         DT = trin.delaunay_triangulation()
@@ -63,8 +67,8 @@ class Triangulation:
 
     @classmethod
     def square_torus(cls):
-        e0 = sage.all.vector([1, 0])
-        e1 = sage.all.vector([0, 1])
+        e0 = sage.all.vector([QQ(1), QQ(0)])
+        e1 = sage.all.vector([QQ(0), QQ(1)])
         t0 = Triangle(-e0 - e1, e0, e1)
         t1 = Triangle(e0 + e1, -e0, -e1)
         gluings = {(0, 0): (1, 0), (0, 1): (1, 1), (0, 2): (1, 2)}
@@ -103,16 +107,16 @@ class Triangulation:
         # Verify that the input satisfies the necessary conditions.
         assert w > 0 and h > 0 and t >= 0 and e >= 0
         assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
-        D = e**2 + 8 * w * h
+        D = e ** 2 + 8 * w * h
         k = QuadraticField(D)
         sqrtD = k.gen()
         l = (e + sqrtD) / 2
         assert sign(l) > 0 and sign(w - l) > 0
 
-        east_long = sage.all.vector([w,0])
-        east_short = sage.all.vector([l,0])
-        north_short = sage.all.vector([0,l])
-        north_east = sage.all.vector([t,h])
+        east_long = sage.all.vector([w, 0])
+        east_short = sage.all.vector([l, 0])
+        north_short = sage.all.vector([0, l])
+        north_east = sage.all.vector([t, h])
 
         triangles = [Triangle(east_short, -east_short + north_short, -north_short),
                      Triangle(-east_short, east_short - north_short, north_short),
@@ -125,10 +129,10 @@ class Triangulation:
                      Triangle(-east_long + east_short, east_long - east_short - north_east, north_east),
                      Triangle(east_long - east_short, -east_long + east_short + north_east, -north_east)]
 
-        gluings = {(0,0): (6,1), (0,1): (1,1), (0,2): (1,2), (1,0): (3,0),
-                   (2,0): (5,2), (2,1): (7,0), (2,2): (3,1), (3,2): (4,2),
-                   (4,0): (5,0), (4,1): (5,1), (6,0): (9,2), (6,2): (7,1),
-                   (7,2): (8,2), (8,0): (9,0), (8,1): (9,1)}
+        gluings = {(0, 0): (6, 1), (0, 1): (1, 1), (0, 2): (1, 2), (1, 0): (3, 0),
+                   (2, 0): (5, 2), (2, 1): (7, 0), (2, 2): (3, 1), (3, 2): (4, 2),
+                   (4, 0): (5, 0), (4, 1): (5, 1), (6, 0): (9, 2), (6, 2): (7, 1),
+                   (7, 2): (8, 2), (8, 0): (9, 0), (8, 1): (9, 1)}
         gluings.update({v: k for k, v in gluings.items()})
 
         return Triangulation(triangles, gluings)
@@ -142,16 +146,16 @@ class Triangulation:
         # Verify that the input satisfies the necessary conditions.
         assert w > 0 and h > 0 and t >= 0 and e >= 0
         assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
-        D = e**2 + 8 * w * h
+        D = e ** 2 + 8 * w * h
         k = QuadraticField(D)
         sqrtD = k.gen()
         l = (e + sqrtD) / 2
         assert sign(l) > 0 and sign(w - l) > 0
 
-        east_long = sage.all.vector([w - l,0])
-        east_short = sage.all.vector([l/2,0])
-        north_short = sage.all.vector([0,l/2])
-        north_east = sage.all.vector([t,h])
+        east_long = sage.all.vector([w - l, 0])
+        east_short = sage.all.vector([l / 2, 0])
+        north_short = sage.all.vector([0, l / 2])
+        north_east = sage.all.vector([t, h])
 
         triangles = [Triangle(east_short, north_east - east_short, -north_east),
                      Triangle(-east_short, -north_east + east_short, north_east),
@@ -164,23 +168,57 @@ class Triangulation:
                      Triangle(east_short, north_short - east_short, -north_short),
                      Triangle(-east_short, -north_short + east_short, north_short)]
 
-        gluings = {(0,0): (7,0), (0,1): (1,1), (0,2): (5,2), (1,0): (6,0),
-                   (1,2): (2,2), (2,0): (9,0), (2,1): (3,1), (3,0): (8,0),
-                   (3,2): (4,2), (4,0): (5,0), (4,1): (5,1), (6,1): (7,1),
-                   (6,2): (7,2), (8,1): (9,1), (8,2): (9,2)}
+        gluings = {(0, 0): (7, 0), (0, 1): (1, 1), (0, 2): (5, 2), (1, 0): (6, 0),
+                   (1, 2): (2, 2), (2, 0): (9, 0), (2, 1): (3, 1), (3, 0): (8, 0),
+                   (3, 2): (4, 2), (4, 0): (5, 0), (4, 1): (5, 1), (6, 1): (7, 1),
+                   (6, 2): (7, 2), (8, 1): (9, 1), (8, 2): (9, 2)}
         gluings.update({v: k for k, v in gluings.items()})
 
         return Triangulation(triangles, gluings)
 
+    @classmethod
+    def prym_eigenform_type_b_disc_8(cls):
+        intersections_cylinder = Graph({0: [3, 4], 1: [3, 4, 5], 2: [4, 5]})
+        perm_north = {(0, 3): (1, 3), (0, 4): (2, 4), (1, 3): (0, 3), (1, 4): (0, 4),
+                      (1, 5): (2, 5), (2, 4): (1, 4), (2, 5): (1, 5)}
+        perm_east = {(0, 3): (0, 4), (0, 4): (0, 3), (1, 3): (1, 4), (1, 4): (1, 5),
+                     (1, 5): (1, 3), (2, 4): (2, 5), (2, 5): (2, 4)}
+        # Corresponds to type B (1, 1, 0, 0)
+        k = QuadraticField(8)
+        a = k.gen()
+        l = a / 2
+        heights = [l / 2, k(1), l / 2, 1 - (l / 2), l - 1, 1 - (l / 2)]
+
+        return Triangulation.grid_graph(intersections_cylinder, perm_north, perm_east, heights)
+
+    @classmethod
+    def grid_graph(cls, graph_intersections_cylinder, perm_north, perm_east, heights):
+        intersections_cylinder = list(graph_intersections_cylinder.edge_iterator(labels=False))
+        rectangles = [Triangulation.triangulate_rectangle(heights[idx_v], heights[idx_h])
+                      for idx_h, idx_v in intersections_cylinder]
+        triangles = [tri for rectangle in rectangles for tri in rectangle.triangles]
+        # glue diagonal of each rectangle
+        gluings = {(k, 1): (k + 1, 1) for k in range(0, len(triangles), 2)}
+        for idx_intersection, intersection in enumerate(intersections_cylinder):
+            # glue right edge of R_e to left edge of R_{east[e]}
+            idx_intersection_east = intersections_cylinder.index(perm_east[intersection])
+            gluings[(2 * idx_intersection, 0)] = (2 * idx_intersection_east + 1, 0)
+            # glue top edge of R_e to bottom edge of R_{north[e]}
+            idx_intersection_north = intersections_cylinder.index(perm_north[intersection])
+            gluings[(2 * idx_intersection + 1, 2)] = (2 * idx_intersection_north, 2)
+        gluings.update({(v, k) for k, v in gluings.items()})
+        return Triangulation(triangles, gluings)
+
     @staticmethod
-    def _triangulate_rectangle(base, height):
-        triangle_lower = Triangle(sage.all.vector([0, height]),
+    def triangulate_rectangle(base, height):
+        """ return a triangulated rectangle. Diagonal runs from lower left to upper right"""
+        triangle_lower = Triangle(sage.all.vector([QQ(0), height]),
                                   sage.all.vector([-base, -height]),
-                                  sage.all.vector([base, 0]))
-        triangle_upper = Triangle(sage.all.vector([0, -height]),
+                                  sage.all.vector([base, QQ(0)]))
+        triangle_upper = Triangle(sage.all.vector([QQ(0), -height]),
                                   sage.all.vector([base, height]),
-                                  sage.all.vector([-base, 0]))
-        return [triangle_lower, triangle_upper]
+                                  sage.all.vector([-base, QQ(0)]))
+        return Triangulation([triangle_lower, triangle_upper], {(0, 1): (1, 1), (1, 1): (0, 1)})
 
     @classmethod
     def mcmullen_l(cls, a, b):
@@ -188,11 +226,11 @@ class Triangulation:
             raise ValueError("Need to have a, b > 1")
         elif a.parent() != b.parent():
             raise ValueError("a, b need to come from same field")
-        triangles = [*Triangulation._triangulate_rectangle(2, 2),
-                     *Triangulation._triangulate_rectangle(b - 1, 2),
-                     *Triangulation._triangulate_rectangle(2, a - 1),
-                     *Triangulation._triangulate_rectangle(b - 1, 2),
-                     *Triangulation._triangulate_rectangle(2, a - 1)]
+        triangles = [*Triangulation.triangulate_rectangle(2, 2).triangles,
+                     *Triangulation.triangulate_rectangle(b - 1, 2).triangles,
+                     *Triangulation.triangulate_rectangle(2, a - 1).triangles,
+                     *Triangulation.triangulate_rectangle(b - 1, 2).triangles,
+                     *Triangulation.triangulate_rectangle(2, a - 1).triangles]
 
         gluings = {(0, 0): (3, 0), (0, 1): (1, 1), (0, 2): (9, 2),
                    (1, 0): (6, 0), (1, 2): (4, 2), (2, 0): (7, 0),
@@ -206,7 +244,7 @@ class Triangulation:
     @classmethod
     def mcmullen_s(cls, a):
         triangles = [tri for dimensions in [(QQ(1), QQ(1)), (QQ(1) + a, QQ(1)), (QQ(1) + a, a), (a, a)]
-                     for tri in Triangulation._triangulate_rectangle(*dimensions)]
+                     for tri in Triangulation.triangulate_rectangle(*dimensions).triangles]
         gluings = {(0, 0): (3, 0), (0, 1): (1, 1), (0, 2): (1, 2),
                    (1, 0): (2, 0), (3, 2): (4, 2), (2, 1): (3, 1),
                    (2, 2): (5, 2), (4, 0): (7, 0), (4, 1): (5, 1),
@@ -230,8 +268,9 @@ class Triangulation:
 
         side_square = (c + rootd) / 2
 
-        dimensions = [(side_square, k_rootd(1)), (length_rectangle - side_square, k_rootd(1)), (side_square, side_square)]
-        triangles = [tri for dims in dimensions for tri in Triangulation._triangulate_rectangle(*dims)]
+        dimensions = [(side_square, k_rootd(1)), (length_rectangle - side_square, k_rootd(1)),
+                      (side_square, side_square)]
+        triangles = [tri for dims in dimensions for tri in Triangulation.triangulate_rectangle(*dims).triangles]
 
         gluings_boundary = {(0, 2): (5, 2), (2, 2): (3, 2), (2, 0): (1, 0), (4, 0): (5, 0)}
         gluings_interior = {(0, 1): (1, 1), (2, 1): (3, 1), (4, 1): (5, 1),
@@ -249,7 +288,7 @@ class Triangulation:
     def apply_gt_flow(self, t):
         """Apply g_t flow to the triangulation for a time t.
         (Positive values of t coorespondes to contraction in the x-direction)"""
-        g_t = matrix([[ZZ(2)**(-t), 0], [0, ZZ(2)**t]])
+        g_t = matrix([[ZZ(2) ** (-t), 0], [0, ZZ(2) ** t]])
         return self.apply_matrix(g_t)
 
     @property
@@ -291,9 +330,9 @@ class Triangulation:
         for i in tris:
             horiz = False
             for j in range(0, 3):
-                if(abs(v.dot_product(i[j])) == i[j].norm() * v.norm()):
+                if (abs(v.dot_product(i[j])) == i[j].norm() * v.norm()):
                     horiz = True
-            if(horiz):
+            if (horiz):
                 continue
             else:
                 return False
@@ -307,7 +346,7 @@ class Triangulation:
         v = vector([1, 0])
         cylinders = []
         while True:
-            if(not tris):
+            if (not tris):
                 return cylinders
             # make cylinder
             cylinder = []
@@ -317,15 +356,15 @@ class Triangulation:
                 cylinder.append(curr_tri_indx)
                 check = False
                 for i in range(0, 3):
-                    if(abs(v.dot_product(curr_tri[i])) != curr_tri[i].norm()):
+                    if (abs(v.dot_product(curr_tri[i])) != curr_tri[i].norm()):
                         glued_tri = self.triangles[gluings[(curr_tri_indx, i)][0]]
                         glued_tri_indx = self.triangles.index(glued_tri)
-                        if((glued_tri_indx not in cylinder) and (glued_tri in tris)):
+                        if ((glued_tri_indx not in cylinder) and (glued_tri in tris)):
                             tris.remove(glued_tri)
                             check = True
                             curr_tri = glued_tri
                             break
-                if(not check):
+                if (not check):
                     break
             cylinders.append(cylinder)
         return cylinders
@@ -348,26 +387,26 @@ class Triangulation:
         counter = 0
 
         while True:
-            if(new_triangulation.is_delaunay):
+            if (new_triangulation.is_delaunay):
                 # check triangulation for horizontal edges
-                if(new_triangulation.check_horiz()):
+                if (new_triangulation.check_horiz()):
                     # found good triangulation
                     print("Completed triangulation.")
                     break
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
-                if(new_triangulation.is_delaunay):
+                if (new_triangulation.is_delaunay):
                     counter += 1
                     new_triangulation = new_triangulation.apply_gt_flow(2)
                 else:
                     new_triangulation = new_triangulation.make_delaunay()
                     break
-            if(counter >= 25):
+            if (counter >= 25):
                 print("Exited loop after applying g_t flow for 25 iterations")
                 break
         # get cylinders, then g_t flow in inverse direction and rotate back
         cylinders = new_triangulation.get_horiz_cyls()
-        new_triangulation = new_triangulation.apply_gt_flow(-(counter*2))
+        new_triangulation = new_triangulation.apply_gt_flow(-(counter * 2))
         new_triangulation = new_triangulation.apply_matrix(matinv)
         return new_triangulation, cylinders
 
@@ -377,28 +416,28 @@ class Triangulation:
         tri = self.triangles[id_tri]
         for k, edge in enumerate(tri):
             x, y = edge
-            if(y == 0):
+            if (y == 0):
                 vec_horiz = edge
                 idx_horiz = k
-            elif(x == 0):
+            elif (x == 0):
                 vec_vert = edge
                 idx_vert = k
             else:
                 vec_hyp = edge
                 idx_hyp = k
-        
+
         # check orientation (with right angle at the origin, type := quadrant containing the hypotenuse)
-        if(vec_vert[1] < 0 and vec_horiz[0] > 0):
+        if (vec_vert[1] < 0 and vec_horiz[0] > 0):
             # type 1
             coords_horiz = vector([QQ(0), QQ(0)])
             coords_vert = -vec_vert
             coords_hyp = vec_horiz
-        elif(vec_vert[1] > 0 and vec_horiz[0] > 0):
+        elif (vec_vert[1] > 0 and vec_horiz[0] > 0):
             # type 2
             coords_horiz = vector([QQ(0), QQ(0)])
             coords_vert = vec_horiz
             coords_hyp = vec_horiz + vec_vert
-        elif(vec_vert[1] > 0 and vec_horiz[0] < 0):
+        elif (vec_vert[1] > 0 and vec_horiz[0] < 0):
             # type 3
             coords_horiz = -vec_horiz + vec_vert
             coords_vert = -vec_horiz
@@ -418,21 +457,21 @@ class Triangulation:
         r = p1[1] - p2[1]
         ru = p1[0] - p2[0]
         m = 0
-        if(ru == 0):
+        if (ru == 0):
             return (oo, p1[0])
         else:
-            m = r/ru # need QQ?
-        b = p1[1] - (m*p1[0])
+            m = r / ru  # need QQ?
+        b = p1[1] - (m * p1[0])
         return (m, b)
 
     def _get_intersection_pt(self, line1, line2):
         """Takes two line parameters and returns intersection pt in
         cartesian coordinates.  line1/2 = (m, b) for slope m, intercept b."""
-        if(line1[0] == oo):
-            return (line1[1], (line1[1]*line2[0])+line2[1])
-        if(line2[0] == oo):
-            return (line2[1], (line2[1]*line1[0])+line1[1])
-        if(line1[0] == line2[0]):
+        if (line1[0] == oo):
+            return (line1[1], (line1[1] * line2[0]) + line2[1])
+        if (line2[0] == oo):
+            return (line2[1], (line2[1] * line1[0]) + line1[1])
+        if (line1[0] == line2[0]):
             raise ValueError("Lines are parallel.")
         x = -(line1[1] - line2[1]) / (line1[0] - line2[0])
         y = line1[0] * x + line1[1]
@@ -450,11 +489,11 @@ class Triangulation:
                             each constraint passes through the triangle edges.
         """
         # unpack coordinates of triangle with appropriate origin location.
-        r = self._return_triangle_coords(triangle_id)   
+        r = self._return_triangle_coords(triangle_id)
         # get triangle lines
         tri_lines = []
         for i in range(3):
-            j =  (i+1) % 3
+            j = (i + 1) % 3
             p1, p2 = r[i], r[j]
             line = self._return_line_params(p1, p2)
             tri_lines.append(line)
@@ -463,8 +502,8 @@ class Triangulation:
         line_intersections = []
         for i in range(len(constraints_list)):
             # make sure not dividing by 0
-            #cons_line = (0, 0)
-            if(constraints_list[i][1] == 0):
+            # cons_line = (0, 0)
+            if (constraints_list[i][1] == 0):
                 cons_line = (oo, -constraints_list[i][2] / constraints_list[i][0])
             else:
                 line_slope = -constraints_list[i][0] / constraints_list[i][1]
@@ -473,7 +512,7 @@ class Triangulation:
             intersections = []
             for j in range(3):
                 tri_line = tri_lines[j]
-                if(tri_line[0] == cons_line[0]): #parallel
+                if (tri_line[0] == cons_line[0]):  # parallel
                     continue
                 intersection_pt = self._get_intersection_pt(cons_line, tri_line)
                 intersections.append(intersection_pt)
@@ -488,7 +527,7 @@ class Triangulation:
             good_coords = []
             for j in range(len(line_intersections[i])):
                 pt = line_intersections[i][j]
-                if(pt[0] < x_min or pt[0] > x_max or pt[1] < y_min or pt[1] > y_max):
+                if (pt[0] < x_min or pt[0] > x_max or pt[1] < y_min or pt[1] > y_max):
                     continue
                 else:
                     pt = vector(pt)
@@ -507,7 +546,7 @@ class Triangulation:
         (x0, y0), (x1, y1), (x2, y2) = r
         x, y = cart_pt
 
-        T = matrix([[x0 - x2, x1 - x2, x2], 
+        T = matrix([[x0 - x2, x1 - x2, x2],
                     [y0 - y2, y1 - y2, y2],
                     [0, 0, 1]])
 
@@ -519,11 +558,11 @@ class Triangulation:
         This function then plots these constraints on the triangulation."""
         tris = self.triangles
         num_tris = len(tris)
-        new_triangulation = Triangulation(self.triangles, self.gluings) #keeps order of triangles?
+        new_triangulation = Triangulation(self.triangles, self.gluings)  # keeps order of triangles?
         for i in range(num_tris):
-            coords = self.return_intersections(i, dict[i]) #list of pairs of barycentric coords
+            coords = self.return_intersections(i, dict[i])  # list of pairs of barycentric coords
             for j in range(len(coords)):
-                if(len(coords) == 0 or len(coords[j]) < 2):
+                if (len(coords) == 0 or len(coords[j]) < 2):
                     continue
                 else:
                     new_triangulation = new_triangulation.mark_line(i, coords[j][0], coords[j][1], (1, 0, 0))
@@ -545,7 +584,7 @@ class Triangulation:
         # now find the marked point and return the coordinate and triangle
         tris = new_triangulation.triangles
         for i, tri in enumerate(tris):
-            pts_marked = tri.points_marked # list containing pairs ((a, b, c), (r, g, b)) for bary and rgb color
+            pts_marked = tri.points_marked  # list containing pairs ((a, b, c), (r, g, b)) for bary and rgb color
             if pts_marked:
                 return new_triangulation, i, pts_marked[0][0]
         return new_triangulation, triangle_id, coord
@@ -558,8 +597,8 @@ class Triangulation:
                 into mark_flow to plot a line, starting at bary_coord, in tri_indx, in direction
                 of vector.
         """
-        tris = self.triangles # use self.triangles as this was order pts_info given in
-        new_triangulation = self 
+        tris = self.triangles  # use self.triangles as this was order pts_info given in
+        new_triangulation = self
         for tri_dat in pts_info:
             for base_pt, indx, vec in tri_dat:
                 new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (0, 0.9, 0.1))
@@ -589,12 +628,13 @@ class Triangulation:
             lines_subdivided = [segment for line_marked in tri.lines_marked
                                 for segment in subdivide_line_marked(line_marked)]
             for base_coord, dir_coord, color in lines_subdivided:
-                    if base_coord != dir_coord:
-                        vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
-                        vector_transformed = veech_elem * vector_orig
-                        transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
-                        real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
-                        mp_info.append((new_coord, real_tri_indx, vector_transformed))
+                if base_coord != dir_coord:
+                    vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
+                    vector_transformed = veech_elem * vector_orig
+                    transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i,
+                                                                                                 veech_elem)
+                    real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
+                    mp_info.append((new_coord, real_tri_indx, vector_transformed))
             new_pts_info.append(mp_info)
         return self.plot_transformed_constraints(new_pts_info)
 
@@ -604,10 +644,10 @@ class Triangulation:
         a1, b1, c1 = coord1
         a2, b2, c2 = coord2
         v0, v1, v2 = triangle[0], triangle[1], triangle[2]
-        vec1 = (b1*v0) - (c1*v2)
-        vec2 = (b2*v0) - (c2*v2)
+        vec1 = (b1 * v0) - (c1 * v2)
+        vec2 = (b2 * v0) - (c2 * v2)
         return vec2 - vec1
-        
+
     def mark_point(self, triangle_id, coords, rgbcolor):
         """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
@@ -633,9 +673,12 @@ class Triangulation:
             tris_new = __replace__(tris_new, triangle_id, tris_new[triangle_id].mark_point(coords, rgbcolor))
             edge_id = (coords.index(0) + 1) % 3
             opp_triangle_id, opp_edge_id = self.gluings[(triangle_id, edge_id)]
-            opp_coords_indexed = sorted([(opp_edge_id, coords[(edge_id + 1) % 3]), ((opp_edge_id + 1) % 3, coords[edge_id]), ((opp_edge_id + 2) % 3, coords[(edge_id + 2) % 3])])
+            opp_coords_indexed = sorted(
+                [(opp_edge_id, coords[(edge_id + 1) % 3]), ((opp_edge_id + 1) % 3, coords[edge_id]),
+                 ((opp_edge_id + 2) % 3, coords[(edge_id + 2) % 3])])
             opp_coords = tuple(opp_coord for _, opp_coord in opp_coords_indexed)
-            tris_new = __replace__(tris_new, opp_triangle_id, tris_new[opp_triangle_id].mark_point(opp_coords, rgbcolor))
+            tris_new = __replace__(tris_new, opp_triangle_id,
+                                   tris_new[opp_triangle_id].mark_point(opp_coords, rgbcolor))
 
         return Triangulation(tris_new, self.gluings)
 
@@ -671,7 +714,7 @@ class Triangulation:
 
         for i in range(3):
             if start_coords[i] == 1:
-                assert(start_tri.is_interior(i, direction)) # Error means pointing away from triangle.
+                assert (start_tri.is_interior(i, direction))  # Error means pointing away from triangle.
 
         # Step 1: Identify the outgoing edge.
         p = (start_pos, start_pos - start_tri[0], start_pos + start_tri[2])
@@ -680,7 +723,7 @@ class Triangulation:
         for i in range(3):
             change_of_basis = sage.all.column_matrix((-p[i], -p[(i + 1) % 3]))
             if not change_of_basis.is_singular():
-                sector_coords = change_of_basis**(-1) * direction
+                sector_coords = change_of_basis ** (-1) * direction
                 if sector_coords[0].sign() > 0 and sector_coords[1].sign() > 0:
                     out_edge = i
                     out_edge_is_assigned = True
@@ -691,16 +734,16 @@ class Triangulation:
                 if change_of_basis.is_singular():
                     return start_coords[i], i, 0
 
-        assert(out_edge_is_assigned)
+        assert (out_edge_is_assigned)
 
         # Step 2: Determine the vector coordinates of the next point.
         linear_system = sage.all.column_matrix((start_tri[out_edge], direction))
-        #print("martrix: ", linear_system)
+        # print("martrix: ", linear_system)
         line = start_pos
         for i in range(out_edge):
             line = line - start_tri[i]
-        s = (linear_system**(-1) * line)[0]
-        t = -(linear_system**(-1) * line)[1]
+        s = (linear_system ** (-1) * line)[0]
+        t = -(linear_system ** (-1) * line)[1]
         return s, out_edge, t
 
     def step_flow(self, start_tri_id, start_coords, direction):
@@ -740,20 +783,21 @@ class Triangulation:
             points_seen.append((start_tri_id, start_coords))
 
             # Extend the straight line from the previous point.
-            assert(not self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction))
+            assert (not self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction))
             s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, direction)
             end_coords_indexed = sorted([((out_edge + 1) % 3, s),
                                          (out_edge, 1 - s),
                                          ((out_edge + 2) % 3, 0)])
             end_coords = tuple(coord for _, coord in end_coords_indexed)
 
-            tris_new = tris_new[0:start_tri_id] + (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+            tris_new = tris_new[0:start_tri_id] + (
+            tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
             # Prepare for the next depth of recursion.
             start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
             start_coords_indexed = sorted([(in_edge, s),
-                                         ((in_edge + 1) % 3, 1 - s),
-                                         ((in_edge + 2) % 3, 0)])
+                                           ((in_edge + 1) % 3, 1 - s),
+                                           ((in_edge + 2) % 3, 0)])
             start_coords = tuple(coord for _, coord in start_coords_indexed)
 
         return Triangulation(tris_new, self.gluings)
@@ -791,13 +835,14 @@ class Triangulation:
 
             # Figure out whether we have run the length of our trajectory.
             if time_traveled + t < time:
-                tris_new = tris_new[0:start_tri_id] + (start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+                tris_new = tris_new[0:start_tri_id] + (
+                start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
                 # Prepare for the next depth of recursion.
                 start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
                 start_coords_indexed = sorted([(in_edge, s),
-                                             ((in_edge + 1) % 3, 1 - s),
-                                             ((in_edge + 2) % 3, 0)])
+                                               ((in_edge + 1) % 3, 1 - s),
+                                               ((in_edge + 2) % 3, 0)])
                 start_coords = tuple(coord for _, coord in start_coords_indexed)
                 time_traveled = time_traveled + t
             else:
@@ -807,13 +852,14 @@ class Triangulation:
                     [start_tri[0][1], -start_tri[2][1]]
                 ])
                 end_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2] + remainder * velocity
-                end_coords_partial = change_of_basis**(-1) * end_pos
-                end_coords = (1 - end_coords_partial[0] - end_coords_partial[1], end_coords_partial[0], end_coords_partial[1])
-                tris_new = tris_new[0:start_tri_id] + (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+                end_coords_partial = change_of_basis ** (-1) * end_pos
+                end_coords = (
+                1 - end_coords_partial[0] - end_coords_partial[1], end_coords_partial[0], end_coords_partial[1])
+                tris_new = tris_new[0:start_tri_id] + (
+                tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
                 break
 
         return Triangulation(tris_new, self.gluings)
-
 
     def is_on_same_geodesic(self, start_tri_id, start_coords, end_tri_id, end_coords, direction):
         for i in range(100):
@@ -945,7 +991,6 @@ class Triangulation:
     def idr(self):
         halfplane_to_ids_hinge = self._halfplanes_to_hinges_degenerate
         halfplanes = list(halfplane_to_ids_hinge.keys())
-
         p = halfplane.HalfPlane.intersect_halfplanes(halfplanes)
         labels_segment = {idx: halfplane_to_ids_hinge[segment.halfplane]
                           for idx, segment in enumerate(p.edges)}
@@ -1018,8 +1063,8 @@ class Triangulation:
 
         for idr in self.generators_veech.idrs:
             for vertex in idr.polygon.vertices:
-                if vertex == oo and (1,0) not in [dir for dir, _ in dir_list]:
-                    dir_list.append(((1,0), idr.triangulation))
+                if vertex == oo and (1, 0) not in [dir for dir, _ in dir_list]:
+                    dir_list.append(((1, 0), idr.triangulation))
                 elif vertex != oo and vertex.v2 == 0 and (vertex.u, 1) not in [dir for dir, _ in dir_list]:
                     dir_list.append(((vertex.u, 1), idr.triangulation))
 
@@ -1129,8 +1174,3 @@ class Triangulation:
     @property
     def area(self):
         return sum(t.area for t in self.triangles)
-
-
-if __name__ == "__main__":
-    X = Triangulation.regular_octagon()
-    r = X.idr

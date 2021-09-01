@@ -10,6 +10,7 @@ class IDR:
         self.polygon = polygon
         self.labels_segment = labels_segment
         self.triangulation = triangulation
+        self.folded = folded
 
     def __repr__(self):
         return f"IDR with {len(self.polygon.edges)} sides"

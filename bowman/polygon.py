@@ -11,7 +11,7 @@ class Point(namedtuple("Point", ["u", "v2"])):
     def __new__(cls, u, v2):
         if not isinstance(u, radical.Radical):
             self = super(Point, cls).__new__(
-                cls, radical.Radical(u, 0, 0), v2)
+                cls, radical.Radical(u, QQ(0), QQ(0)), v2)
         else:
             self = super(Point, cls).__new__(cls, u, v2)
 

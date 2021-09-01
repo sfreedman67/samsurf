@@ -39,7 +39,7 @@ class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
         elif p0.v2 != 0 and p1.v2 != 0:
             if p0.u.C != 0 or p1.u.C != 0:
                 raise ValueError("Can (so far) only build halfplane between two interior points")
-            if p0.u == p1.u:
+            elif p0.u == p1.u:
                 return Line.from_two_points_interior(p0, p1)
             else:
                 return Circle.from_two_points_interior(p0, p1)
@@ -205,14 +205,14 @@ class Line(HalfPlane):
     @property
     def start(self):
         if self.is_oriented:
-            return polygon.Point(-self.c / self.b, 0)
+            return polygon.Point(-self.c / self.b, QQ(0))
         return oo
 
     @property
     def end(self):
         if self.is_oriented:
             return oo
-        return polygon.Point(-self.c / self.b, 0)
+        return polygon.Point(-self.c / self.b, QQ(0))
 
     @property
     def endpoint_real(self):
@@ -262,7 +262,7 @@ class Circle(HalfPlane):
 
     @property
     def center(self):
-        return polygon.Point(-self.b / (2 * self.a), 0)
+        return polygon.Point(-self.b / (2 * self.a), QQ(0))
 
     @property
     def radius2(self):
@@ -282,29 +282,29 @@ class Circle(HalfPlane):
         coord_center = self.center.u.A
         if self.is_oriented:
             return polygon.Point(
-                radical.Radical(coord_center, 1, self.radius2), 0)
+                radical.Radical(coord_center, QQ(1), self.radius2), QQ(0))
         else:
             return polygon.Point(
-                radical.Radical(coord_center, -1, self.radius2), 0)
+                radical.Radical(coord_center, QQ(-1), self.radius2), QQ(0))
 
     @property
     def end(self):
         coord_center = self.center.u.A
-        plus_or_minus = -1 if self.is_oriented else 1
-        return polygon.Point(radical.Radical(coord_center, plus_or_minus, self.radius2), 0)
+        plus_or_minus = QQ(-1) if self.is_oriented else QQ(1)
+        return polygon.Point(radical.Radical(coord_center, plus_or_minus, self.radius2), QQ(0))
 
     @property
     def _point_inside(self):
         if self.is_oriented:
             return self.center
         A, B, C = self.end.u
-        return polygon.Point(radical.Radical(A + 1, B, C), 0)
+        return polygon.Point(radical.Radical(A + 1, B, C), QQ(0))
 
     @property
     def _point_outside(self):
         if self.is_oriented:
             A, B, C = self.start.u
-            return polygon.Point(radical.Radical(A + 1, B, C), 0)
+            return polygon.Point(radical.Radical(A + 1, B, C), QQ(0))
         return self.center
 
     def _intersect_circle(self, other):
@@ -332,7 +332,7 @@ class Circle(HalfPlane):
     def from_two_points_interior(cls, p0, p1):
         u_0, v2_0 = p0.u.A, p0.v2
         u_1, v2_1 = p1.u.A, p1.v2
-        A = sage.all.matrix([[u_0, 1], [u_1, 1]])
+        A = sage.all.matrix([[u_0, QQ(1)], [u_1, QQ(1)]])
         Y = sage.all.vector([-u_0**2 - v2_0, -u_1**2 - v2_1])
         b, c = A.solve_right(Y)
         if p0 < p1:

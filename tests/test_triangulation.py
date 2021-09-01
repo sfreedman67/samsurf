@@ -190,11 +190,13 @@ class TestGeneratorsVeech(TestCase):
         self.assertEqual(fund_dom.cusps, 9)
         self.assertEqual(fund_dom.points_orbifold, [2, 2, 2])
 
-    def test_generators_veech_origamis(self):
-        G = PermutationGroup(['(2, 3)', '(1, 2)'])
-        right, up = G.gens()
-        X = triangulation.Triangulation._from_flatsurf(fs.translation_surfaces.origami(right, up))
-        self.fail("add a test")
+    def test_generators_veech_square_torus(self):
+        X = triangulation.Triangulation.square_torus()
+        fund_dom = X.generators_veech
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-1/6))
+        self.assertEqual(fund_dom.genus, 0)
+        self.assertEqual(fund_dom.cusps, 1)
+        self.assertEqual(fund_dom.points_orbifold, [2, 3])
 
     def test_generators_veech_prym_9_2_0_1(self):
         X = triangulation.Triangulation.prym_eigenform_type_aplus(9, 2, 0, 1)  # D = 1 + 8 * 9 * 2 = 145
@@ -242,9 +244,9 @@ class TestGeneratorsVeech(TestCase):
                            if h > 0
                            if t < gcd(w, h)
                            if gcd(gcd(gcd(w, h), t), e) == 1
-                           if e + sqrt(e**2 + 8 * w * h) > 0
-                           if w > e + sqrt(e**2 + 8 * w * h)]:
-            D = e**2 + 8 * w * h
+                           if e + sqrt(e ** 2 + 8 * w * h) > 0
+                           if w > e + sqrt(e ** 2 + 8 * w * h)]:
+            D = e ** 2 + 8 * w * h
             if D in data:
                 chi, cusps, genus, e2, e3 = data[D]
                 X = triangulation.Triangulation.prym_eigenform_type_aplus(w, h, t, e)
@@ -255,4 +257,9 @@ class TestGeneratorsVeech(TestCase):
                 self.assertEqual(fund_dom.points_orbifold.count(2), e2)
                 self.assertEqual(fund_dom.points_orbifold.count(3), e3)
 
+
+class TestGridGraphs(TestCase):
+    def test_grid_graph_prym_disc8(self):
+        X = triangulation.Triangulation.prym_eigenform_type_b_disc_8()
+        self.assertEqual(len(X.triangles), 14)
 

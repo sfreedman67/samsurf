@@ -39,7 +39,8 @@ def generators_veech(trin):
     r0 = trin.idr
     if r0.is_trivial:
         raise ValueError("The starting IDR is degenerate")
-
+    if r0.has_self_equivalences:
+        raise ValueError("Initial IDR has self-equivalences")
     edges_paired = {}
     edges_fund_dom = {x for x in r0.polygon}
     idrs_to_visit = deque([r0])
