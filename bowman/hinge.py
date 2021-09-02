@@ -14,7 +14,8 @@ class Hinge:
     :param id_edge: an edge vector, the shared edge identified by tri
     :param tri_opp: a Triangle, the triangle opposite tri
     :param id_edge_op: an edge vector, the shared edge identified by tri_opp
-    -
+    id_edge and id_edge_op are tuples of (triangle id, edge id), not vectors
+
     - See document for examples of labeling tri, tri_opp and edges.
     """
     def __init__(self, tri, id_edge, tri_opp, id_edge_opp):
@@ -68,6 +69,54 @@ class Hinge:
 
         return all_positive or all_negative
 
+    @property
+    def marked_cartesian_coords(self):
+        v0, v1, v2 = self.vectors
+        cartesian_coords_list = []
+
+        change_of_basis_tri = column_matrix([v1, v0])
+        id_edge_tri = self.id_edge[1]
+        for bary_coord, color in self.tri.points_marked:
+            partial_coord = (bary_coord[id_edge_tri], bary_coord[(id_edge_tri + 2) % 3])
+            cartesian_coord = change_of_basis_tri * vector(partial_coord)
+            cartesian_coords_list.append((cartesian_coord, color))
+
+        change_of_basis_opp = column_matrix([v2,v1])
+        id_edge_opp = self.id_edge_opp[1]
+        for bary_coord, color in self.tri_opp.points_marked:
+            partial_coord = (bary_coord[(id_edge_opp + 2) % 3], bary_coord[(id_edge_opp + 1) % 3])
+            cartesian_coord = change_of_basis_opp * vector(partial_coord)
+            cartesian_coords_list.append((cartesian_coord, color))
+
+        return cartesian_coords_list
+
+    def mark_cartesian_coord(self, cartesian_coord, color):
+        tri = self.tri
+        opp = self.tri_opp
+        v0, v1, v2 = self.vectors
+
+        change_of_basis_tri = column_matrix([v1, v0])
+        id_edge_tri = self.id_edge[1]
+        partial_coord = change_of_basis_tri**(-1) * vector(cartesian_coord)
+        bary_coord_indexed = sorted([(id_edge_tri, partial_coord[0]),
+                                     ((id_edge_tri + 1) % 3, 1 - partial_coord[0] - partial_coord[1]),
+                                     ((id_edge_tri + 2) % 3, partial_coord[1])])
+        bary_coord = tuple(coord for index, coord in bary_coord_indexed)
+        if is_valid_barycentric_coordinate(*bary_coord):
+            tri = tri.mark_point(bary_coord, color)
+
+        change_of_basis_opp = column_matrix([v2, v1])
+        id_edge_opp = self.id_edge_opp[1]
+        partial_coord = change_of_basis_opp**(-1) * vector(cartesian_coord)
+        bary_coord_indexed = sorted([(id_edge_opp, 1 - partial_coord[0] - partial_coord[1]),
+                                     ((id_edge_opp + 1) % 3, partial_coord[1]),
+                                     ((id_edge_opp + 2) % 3, partial_coord[0])])
+        bary_coord = tuple(coord for index, coord in bary_coord_indexed)
+        if is_valid_barycentric_coordinate(*bary_coord):
+            opp = opp.mark_point(bary_coord, color)
+
+        return Hinge(tri, self.id_edge, opp, self.id_edge_opp)
+
     def flip(self):
         """Performs hinge flip and maintains the locations of marked points.
         -See document for how labeling is done."""
@@ -79,61 +128,20 @@ class Hinge:
                                 ((self.id_edge[1] + 2) % 3, v2 - v1)])
 
         # produce new triangle tri from sides_ordered
-        tri = Triangle(*(vector for _, vector in sides_ordered), list())
+        tri = Triangle(*(vector for _, vector in sides_ordered), [])
 
         sides_ordered = sorted([(self.id_edge_opp[1], v2 - v0),
                                 ((self.id_edge_opp[1] + 1) % 3, -v2),
                                 ((self.id_edge_opp[1] + 2) % 3, v0)])
 
-        tri_opp = Triangle(*(vector for _, vector in sides_ordered), list())
+        tri_opp = Triangle(*(vector for _, vector in sides_ordered), [])
 
-        #produce marked points from original tri
-        for point_marked, point_marked_color in self.tri.points_marked:
-            cartesian_coords = sage.all.matrix([[v1[0],v0[0]],[v1[1],v0[1]]]) * sage.all.vector((point_marked[self.id_edge[1]],
-                                                                                                 point_marked[(self.id_edge[1] + 2) % 3]))
+        flipped_hinge = Hinge(tri, self.id_edge, tri_opp, self.id_edge_opp)
 
-            # Attempt to mark point on TRI.
-            change_of_basis = sage.all.matrix([[(v1-v0)[0],(v2-v0)[0]],[(v1-v0)[1],(v2-v0)[1]]])**(-1)
-            new_coords = change_of_basis * (cartesian_coords - v0)
-            new_coords_ordered = sorted([(self.id_edge[1], new_coords[1]),
-                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] + new_coords[1]),
-                                         ((self.id_edge[1] + 2) % 3, new_coords[0])])
-            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
-                tri = tri.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)
+        for cartesian_coord, color in self.marked_cartesian_coords:
+            flipped_hinge = flipped_hinge.mark_cartesian_coord(cartesian_coord - v0, color)
 
-            # Attempt to mark point on TRI_OPP.
-            change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
-            new_coords = change_of_basis * cartesian_coords
-            new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
-                                         ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
-                                         ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
-            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
-                tri_opp = tri_opp.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)
-
-        #produce marked points from original tri_opp
-        for point_marked, point_marked_color in self.tri_opp.points_marked:
-            cartesian_coords = sage.all.matrix([[v1[0],v2[0]],[v1[1],v2[1]]]) * sage.all.vector((point_marked[(self.id_edge_opp[1] + 1) % 3],
-                                                                                                 point_marked[(self.id_edge_opp[1] + 2) % 3]))
-
-            # Attempt to mark point on TRI.
-            change_of_basis = sage.all.matrix([[(v2-v0)[0],(v1-v0)[0]],[(v2-v0)[1],(v1-v0)[1]]])**(-1)
-            new_coords = change_of_basis * (cartesian_coords - v0)
-            new_coords_ordered = sorted([(self.id_edge[1], new_coords[0]),
-                                         ((self.id_edge[1] + 1) % 3, 1 - new_coords[0] - new_coords[1]),
-                                         ((self.id_edge[1] + 2) % 3, new_coords[1])])
-            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
-                tri = tri.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)
-
-            # Attempt to mark point on TRI_OPP.
-            change_of_basis = sage.all.matrix([[v2[0],v0[0]],[v2[1],v0[1]]])**(-1)
-            new_coords = change_of_basis * cartesian_coords
-            new_coords_ordered = sorted([(self.id_edge_opp[1], new_coords[1]),
-                                         ((self.id_edge_opp[1] + 1) % 3, new_coords[0]),
-                                         ((self.id_edge_opp[1] + 2) % 3, 1 - new_coords[0] - new_coords[1])])
-            if is_valid_barycentric_coordinate(*(coord for _, coord in new_coords_ordered)):
-                tri_opp = tri_opp.mark_point(tuple(coord for _, coord in new_coords_ordered), point_marked_color)
-
-        return Hinge(tri, self.id_edge, tri_opp, self.id_edge_opp)
+        return flipped_hinge
 
     @property
     def incircle_det(self):

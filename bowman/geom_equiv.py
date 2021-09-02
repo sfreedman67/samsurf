@@ -43,12 +43,6 @@ def gen_geom_equiv(trin1, trin2):
     return None if not equivs else equivs[0]
 
 
-def is_cut_paste_equiv(trin1, trin2):
-    # returns whether the identity is in the geom equivalences
-    return any([m == sage.all.identity_matrix(2) for
-                m, _ in gen_geom_equivs(trin1, trin2)])
-
-
 def get_normalization_matrix(t, tri, edge):
     v1 = t.triangles[tri][edge]
     v2 = -t.triangles[tri][(edge + 2) % 3]

@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import overload
 
 from sage.all import *
+from random import randrange
 # import flatsurf
 
 from bowman import halfplane
@@ -11,11 +12,13 @@ from bowman import idr
 from bowman import comb_equiv
 from bowman import geom_equiv
 from bowman import algo
-from bowman.triangle import Triangle, is_valid_barycentric_coordinate
+from bowman.triangle import Triangle, is_valid_barycentric_coordinate, intersect_lines, is_point_on_line
 from bowman.hinge import Hinge
 from bowman.radical import Radical
-from bowman.geom_equiv import gen_geom_equivs
+from bowman.geom_equiv import gen_geom_equivs, is_cut_paste_equiv
 
+from bowman.rational_ht_application import bicuspid_segments, segments_for_plotting
+from bowman.geom_equiv import gen_geom_equivs
 
 def return_shear_mat(dir):
     """Generate a shear that projects vector dir onto the real line, or rotates
@@ -51,6 +54,10 @@ class Triangulation:
 
     def __repr__(self):
         return f"Triangulation with {len(self.triangles)} triangles"
+
+    def copy(self):
+        # create a copy which doesn't mutate the original
+        return Triangulation(self.triangles, self.gluings.copy())
 
     @classmethod
     def _from_flatsurf(cls, trin):
@@ -357,6 +364,27 @@ class Triangulation:
                          f" in [0, 1, 2] for edge relabelling, not {edge_idx}")
             raise ValueError(error_msg)
 
+    def geom_equiv_relabel_point(self, equiv_trin, tri_idx, pt_coords):
+        """
+        Given a cut-and-paste equivalent triangulation to self, finds the new
+        location of a given point (triangle id + bary coordinates inside that
+        triangle)
+        OUTPUT:
+        tuple (new_tri_idx, new_pt_coords)
+        """
+        new_tri_idx = self.geom_equiv_relabelling(equiv_trin, tri_idx)
+        edge_relabelling = {
+            edge: self.geom_equiv_relabelling(equiv_trin, tri_idx, edge)[1]
+            for edge in [0, 1, 2]}  # how edges of the triangle are permuted
+        new_pt_coords = [None] * 3  # initialize coordinates
+        for edge_id, relabelling in edge_relabelling.items():
+            new_pt_coords[relabelling - 1 % 3] = pt_coords[edge_id - 1 % 3]
+            # barycentric coordinates (x:y:z) correspond to heights from edges
+            # (1, 2, 0), so we offset by 1 mod 3
+            # e.g. if relabelling of 2 is 0, then midpoint of 2 gets sent to
+            # midpoint of 0
+        return (new_tri_idx, tuple(new_pt_coords))
+
     def check_horiz(self):
         """Check if every triangle has a horizontal edge.  Returns True if so."""
         tris = self.triangles
@@ -421,11 +449,9 @@ class Triangulation:
         counter = 0
 
         while True:
-            if (new_triangulation.is_delaunay):
-                # check triangulation for horizontal edges
-                if (new_triangulation.check_horiz()):
-                    # found good triangulation
-                    print("Completed triangulation.")
+            if(new_triangulation.is_delaunay):
+                if(new_triangulation.check_horiz()):
+                    # print("Completed triangulation.")
                     break
             # else apply g_t flow until no-longer delaunay, and retriangulate
             while True:
@@ -443,6 +469,78 @@ class Triangulation:
         new_triangulation = new_triangulation.apply_gt_flow(-(counter * 2))
         new_triangulation = new_triangulation.apply_matrix(matinv)
         return new_triangulation, cylinders
+
+    def compute_constraints_transformed(self, veech_elem):
+        """Returns a list of line segments (pairs of barycentric coordinates)
+        that are defined by the constraints given by the Rational Height Lemma.
+        VEECH_ELEM transforms these line segments before their return."""
+        constraints_dict = segments_for_plotting(bicuspid_segments(self))
+        marked_tris = self.plot_constraints(constraints_dict).main_constraint_plotter(veech_elem).triangles
+        # only add the transformed constraints, not including the originals (distinguished by color)
+        constraints_transformed_list = [[(line[0],line[1]) for line in marked_tris[i].lines_marked if line[2] == (0,0.9,0.1)] for i in range(len(self.triangles))]
+        return constraints_transformed_list
+
+    def compute_candidate_periodic_points(self, tri_id, veech_elem):
+        # Input := tri_id for triangle in self, and veech_elem to apply to the constraints
+        #       in the triangle, and then compute the intersections.  Returns intersection points.
+
+        # 1. Identify those generators for which the transformed constraints
+        #    can be computed.
+        # good_gens = veech_gens_list
+        # good_gens = good_gens + [gen**(-1) for gen in good_gens]
+        #num_good_gens = len(good_gens)
+        #print(f"Identified {num_good_gens} good generators.")
+
+        # Obtain initial constraints
+        gen = matrix([[1,0],[0,1]])
+        initial_constraints = self.compute_constraints_transformed(gen)[tri_id]
+        lines = {geo_elem for geo_elem in initial_constraints if geo_elem[0] != geo_elem[1]}
+        points = {geo_elem[0] for geo_elem in initial_constraints if geo_elem[0] == geo_elem[1]}
+
+        while lines:
+            #print(f"Number of lines to eliminate: {len(lines)}.")
+            # print("Lines:")
+            # for line in lines:
+            #     print(line)
+
+            # OLD CODE that randomly applied elements from generators
+            # gen = gen * good_gens[randrange(num_good_gens)]
+            gen = gen * veech_elem
+
+            #print(f"Applying {gen}...")
+            new_constraints = self.compute_constraints_transformed(gen)[tri_id]
+            new_lines = {geo_elem for geo_elem in new_constraints if geo_elem[0] != geo_elem[1]}
+            new_points = {geo_elem[0] for geo_elem in new_constraints if geo_elem[0] == geo_elem[1]}
+
+            # a. Intersect the current points with...
+            # ...the new points.
+            next_points = list(points & new_points)
+            # ...the new lines.
+            for line in new_lines:
+                for point in points:
+                    if is_point_on_line(point, line):
+                        next_points.append(point)
+
+            # b. Intersect the current lines with the new points.
+            for line in lines:
+                for point in new_points:
+                    if is_point_on_line(point, line):
+                        next_points.append(point)
+
+            # c. Intersect the current lines with the new lines.
+            next_lines = []
+            for line in lines:
+                for new_line in new_lines:
+                    is_intersect, local_obj = intersect_lines(*line, *new_line)
+                    if is_intersect:
+                        if len(local_obj) == 2:
+                            next_lines.append(local_obj)
+                        else:
+                            next_points.append(local_obj)
+
+            points = set(next_points)
+            lines = set(next_lines)
+        return points
 
     def _return_triangle_coords(self, id_tri):
         """Helper funciton returning triangle orientation type for rectilinear triangle
@@ -592,7 +690,7 @@ class Triangulation:
         This function then plots these constraints on the triangulation."""
         tris = self.triangles
         num_tris = len(tris)
-        new_triangulation = Triangulation(self.triangles, self.gluings)  # keeps order of triangles?
+        new_triangulation = Triangulation(self.triangles, self.gluings)
         for i in range(num_tris):
             coords = self.return_intersections(i, dict[i])  # list of pairs of barycentric coords
             for j in range(len(coords)):
@@ -611,17 +709,19 @@ class Triangulation:
         and applies the veech element.  It then returns the triangle id and new barycentric
         coordinate of the marked point, of form (tri_id, coord).
         """
+        new_triangulation = Triangulation(self.triangles, self.gluings)
         new_triangulation = self.mark_point(triangle_id, coord, (1, 0, 0))
         new_triangulation = new_triangulation.apply_matrix(veech_elem)
-        new_triangulation = new_triangulation.make_delaunay()
+        new_triangulation = new_triangulation.make_delaunay(self)
 
         # now find the marked point and return the coordinate and triangle
         tris = new_triangulation.triangles
         for i, tri in enumerate(tris):
             pts_marked = tri.points_marked  # list containing pairs ((a, b, c), (r, g, b)) for bary and rgb color
             if pts_marked:
-                return new_triangulation, i, pts_marked[0][0]
-        return new_triangulation, triangle_id, coord
+                real_tri_indx, real_pt = self.geom_equiv_relabel_point(new_triangulation, i, pts_marked[0][0])
+                return real_tri_indx, real_pt
+        return triangle_id, coord
 
     def plot_transformed_constraints(self, pts_info):
         """
@@ -631,8 +731,9 @@ class Triangulation:
                 into mark_flow to plot a line, starting at bary_coord, in tri_indx, in direction
                 of vector.
         """
-        tris = self.triangles  # use self.triangles as this was order pts_info given in
-        new_triangulation = self
+        tris = self.triangles # use self.triangles as this was order pts_info given in
+        #new_triangulation = self
+        new_triangulation = Triangulation(self.triangles, self.gluings)
         for tri_dat in pts_info:
             for base_pt, indx, vec in tri_dat:
                 new_triangulation = new_triangulation.mark_flow(indx, base_pt, vec, 1, (0, 0.9, 0.1))
@@ -643,7 +744,7 @@ class Triangulation:
         self   := a triangulation (with marked segments)
         veech_elem              := global veech element for triangulation
         This function returns a new triangulation with transformed segments
-        under the veech element.
+        under the veech element, ALONG WITH the original segments.
         """
 
         def midpoint_barys(p0, p1):
@@ -662,14 +763,14 @@ class Triangulation:
             lines_subdivided = [segment for line_marked in tri.lines_marked
                                 for segment in subdivide_line_marked(line_marked)]
             for base_coord, dir_coord, color in lines_subdivided:
-                if base_coord != dir_coord:
-                    vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
-                    vector_transformed = veech_elem * vector_orig
-                    transformed_triangulation, new_tri_indx, new_coord = self.track_marked_point(base_coord, i,
-                                                                                                 veech_elem)
-                    real_tri_indx = self.geom_equiv_relabelling(transformed_triangulation, new_tri_indx)
-                    mp_info.append((new_coord, real_tri_indx, vector_transformed))
+                    if base_coord != dir_coord:
+                        vector_orig = Triangulation.bary_coords_vec(base_coord, dir_coord, tri)
+                        vector_transformed = veech_elem * vector_orig
+                        real_tri_indx, new_coord = self.track_marked_point(base_coord, i, veech_elem)
+                        mp_info.append((new_coord, real_tri_indx, vector_transformed))
+
             new_pts_info.append(mp_info)
+        # return triangulation with BOTH original line segments AND transformed line segements
         return self.plot_transformed_constraints(new_pts_info)
 
     @staticmethod
@@ -683,7 +784,7 @@ class Triangulation:
         return vec2 - vec1
 
     def mark_point(self, triangle_id, coords, rgbcolor):
-        """Mark in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
+        """ in color RGBCOLOR the point determined by barycentric coordinates COORDS on the triangle TRIANGLE_ID.
 
         triangle_id := the ID, i.e., index in self.triangles, of the triangle to be marked.
         coords      := a tuple of three nonnegative real numbers that sum to 1 representing the barycentric
@@ -858,6 +959,7 @@ class Triangulation:
                 t = time - time_traveled
             elif vertex_id > -1 and not start_tri.is_interior(vertex_id, velocity):
                 # TODO: Handle bad input.
+                print("here")
                 break
             else:
                 # Otherwise, we are safe to call __step_flow_helper__.
@@ -895,6 +997,7 @@ class Triangulation:
 
         return Triangulation(tris_new, self.gluings)
 
+
     def is_on_same_geodesic(self, start_tri_id, start_coords, end_tri_id, end_coords, direction):
         for i in range(100):
             if start_tri_id == end_tri_id:
@@ -929,14 +1032,36 @@ class Triangulation:
     def is_delaunay_strict(self):
         return all(hinge.incircle_det > 0 for hinge in self.hinges)
 
-    def make_delaunay(self):
-        """Makes a new Delaunay triangulation"""
+    def make_delaunay(self, equiv_trin=None):
+        """
+        Makes a new Delaunay triangulation from self.
+        Randomly flips hinges until it is delaunay.
+        Input:
+        * equiv_trin: Triangulation
+            Tries to return a delaunay triangulation which is
+            cut&paste equivalent to the triangulation equiv_trin
+        """
+
+        # first, find a candidate delaunay triangulation from self
         while not self.is_delaunay:
-            idx = randint(0, len(self.hinges) - 1)
+            idx = randint(0, len(self.hinges) - 1)   ###### WHERE PROBLEM IS #####
             h = self.hinges[idx]
             if h.is_convex and h.incircle_det < 0:
-                return self.flip_hinge(h.id_edge).make_delaunay()
-        return self
+                self = self.flip_hinge(h.id_edge)
+
+        candidate = self
+        # now find the presentation of candidate which is cut&paste equivalent
+        if equiv_trin is None:
+            return candidate
+        else:
+            concyclic_hinges = [h.id_edge for h in candidate.hinges if
+                                h.is_convex and h.incircle_det == 0]
+            for possible_trin in candidate.flips_generator(concyclic_hinges):
+                # checks all possible hinge flips for concyclic hinges
+                if is_cut_paste_equiv(equiv_trin, possible_trin):
+                    return possible_trin
+            # if for loop exited, no possible_trin matches
+            raise ValueError("equiv_trin has no Delaunay equivalent to self")
 
     def make_nontrivial(self):
         shear = sage.all.matrix([[QQ(1), QQ(0.1)], [QQ(0), QQ(1)]])
@@ -1008,6 +1133,21 @@ class Triangulation:
         for id_edge in ids_edges:
             triangulation = triangulation.flip_hinge(id_edge)
         return triangulation
+
+    def flips_generator(self, ids_list):
+        """
+        Given a list of hinge ids, provides a generator
+        Outputs of the generator are triangulations, with a subset of
+        the hinge flips in ids_list applied to it
+        """
+        if len(ids_list) == 0:
+            yield self
+            return
+        else:
+            yield from self.flips_generator(ids_list[:-1])
+            yield from [trin.flip_hinge(ids_list[-1]) for trin
+                        in self.flips_generator(ids_list[:-1])]
+
 
     def plot_halfplanes(self, count=None):
         figure = sum(itertools.islice((x.plot()
@@ -1208,3 +1348,18 @@ class Triangulation:
     @property
     def area(self):
         return sum(t.area for t in self.triangles)
+
+    @property
+    def points_marked(self):
+        return {idx: self.triangles[idx].points_marked
+                for idx in range(len(self.triangles))}
+
+    @property
+    def lines_marked(self):
+        return {idx: self.triangles[idx].lines_marked
+                for idx in range(len(self.triangles))}
+
+
+if __name__ == "__main__":
+    X = Triangulation.regular_octagon()
+    r = X.idr

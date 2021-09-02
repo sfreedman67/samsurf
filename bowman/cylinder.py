@@ -1,6 +1,4 @@
 from sage.all import *
-from bowman.triangulation import Triangulation
-
 
 def perp_vector_2D(vec):
     """
