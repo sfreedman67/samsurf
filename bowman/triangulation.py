@@ -177,7 +177,7 @@ class Triangulation:
         return Triangulation(triangles, gluings)
 
     @classmethod
-    def prym_eigenform_type_b_disc_8(cls):
+    def prym_eigenform_type_b_disc_8_fake(cls):
         intersections_cylinder = Graph({0: [3, 4], 1: [3, 4, 5], 2: [4, 5]})
         perm_north = {(0, 3): (1, 3), (0, 4): (2, 4), (1, 3): (0, 3), (1, 4): (0, 4),
                       (1, 5): (2, 5), (2, 4): (1, 4), (2, 5): (1, 5)}
@@ -190,6 +190,40 @@ class Triangulation:
         heights = [l / 2, k(1), l / 2, 1 - (l / 2), l - 1, 1 - (l / 2)]
 
         return Triangulation.grid_graph(intersections_cylinder, perm_north, perm_east, heights)
+
+    @classmethod
+    def prym_eigenform_type_b_disc_8_real(cls):
+        k = QuadraticField(8)
+        a = k.gen()
+        l = a / 2
+        heights = [l / 2, k(1), l / 2, 1 - (l / 2), l - 1, 1 - (l / 2)]
+
+        t0 = Triangle(sage.all.vector(k, [-heights[3], 0]),
+                      sage.all.vector(k, [0, -heights[0]]),
+                      sage.all.vector(k, [heights[3], heights[0]]))
+        t1 = Triangle(sage.all.vector(k, [-heights[3], -heights[0]]),
+                      sage.all.vector(k, [heights[3] + heights[4], 0]),
+                      sage.all.vector(k, [-heights[4], heights[0]]))
+        t2 = Triangle(sage.all.vector(k, [-heights[4], 0]),
+                      sage.all.vector(k, [heights[4], -heights[0]]),
+                      sage.all.vector(k, [0, heights[0]]))
+        t3 = Triangle(sage.all.vector(k, [0, -heights[1]]),
+                      sage.all.vector(k, [heights[3], 0]),
+                      sage.all.vector(k, [-heights[3], heights[1]]))
+        t4 = Triangle(sage.all.vector(k, [-heights[3] - heights[4], 0]),
+                      sage.all.vector(k, [heights[3], -heights[1]]),
+                      sage.all.vector(k, [heights[4], heights[1]]))
+        tris = [t0, t1, t2, t3, t4]
+        tris.extend([t.apply_matrix(-sage.all.identity_matrix(k, 2)) for t in tris])
+
+        gluings = {(0, 0): (3, 1), (0, 1): (2, 2), (0, 2): (1, 0),
+                   (1, 1): (4, 0), (1, 2): (2, 1), (2, 0): (7, 0),
+                   (3, 0): (8, 0), (3, 2): (4, 1), (4, 2): (9, 2),
+                   (5, 0): (8, 1), (5, 1): (7, 2), (5, 2): (6, 0),
+                   (6, 1): (9, 0), (6, 2): (7, 1), (8, 2): (9, 1)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(tris, gluings)
 
     @classmethod
     def grid_graph(cls, graph_intersections_cylinder, perm_north, perm_east, heights):
@@ -791,7 +825,7 @@ class Triangulation:
             end_coords = tuple(coord for _, coord in end_coords_indexed)
 
             tris_new = tris_new[0:start_tri_id] + (
-            tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+                tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
             # Prepare for the next depth of recursion.
             start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
@@ -836,7 +870,7 @@ class Triangulation:
             # Figure out whether we have run the length of our trajectory.
             if time_traveled + t < time:
                 tris_new = tris_new[0:start_tri_id] + (
-                start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+                    start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
 
                 # Prepare for the next depth of recursion.
                 start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
@@ -854,9 +888,9 @@ class Triangulation:
                 end_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2] + remainder * velocity
                 end_coords_partial = change_of_basis ** (-1) * end_pos
                 end_coords = (
-                1 - end_coords_partial[0] - end_coords_partial[1], end_coords_partial[0], end_coords_partial[1])
+                    1 - end_coords_partial[0] - end_coords_partial[1], end_coords_partial[0], end_coords_partial[1])
                 tris_new = tris_new[0:start_tri_id] + (
-                tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+                    tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
                 break
 
         return Triangulation(tris_new, self.gluings)

@@ -193,7 +193,7 @@ class TestGeneratorsVeech(TestCase):
     def test_generators_veech_square_torus(self):
         X = triangulation.Triangulation.square_torus()
         fund_dom = X.generators_veech
-        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-1/6))
+        self.assertEqual(RR(fund_dom.chi_orb).nearby_rational(max_error=0.001), QQ(-1 / 6))
         self.assertEqual(fund_dom.genus, 0)
         self.assertEqual(fund_dom.cusps, 1)
         self.assertEqual(fund_dom.points_orbifold, [2, 3])
@@ -256,10 +256,3 @@ class TestGeneratorsVeech(TestCase):
                 self.assertEqual(fund_dom.genus, genus)
                 self.assertEqual(fund_dom.points_orbifold.count(2), e2)
                 self.assertEqual(fund_dom.points_orbifold.count(3), e3)
-
-
-class TestGridGraphs(TestCase):
-    def test_grid_graph_prym_disc8(self):
-        X = triangulation.Triangulation.prym_eigenform_type_b_disc_8()
-        self.assertEqual(len(X.triangles), 14)
-
