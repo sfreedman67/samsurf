@@ -777,6 +777,24 @@ class Triangulation:
 
         return Triangulation(tris_new, self.gluings)
 
+    def step_counterclockwise(self, tri_id, vertex_id):
+        neighbor_id, edge_id = self.gluings[(tri_id, (vertex_id + 2) % 3)]
+        return neighbor_id, edge_id
+
+    def angle_around_conepoint(self, tri_id, vertex_id):
+        total_angle = self.triangles[tri_id].angle_around_vertex(vertex_id)
+        curr_tri_id, curr_vertex_id = self.step_counterclockwise(tri_id, vertex_id)
+        while curr_tri_id != tri_id or curr_vertex_id != vertex_id:
+            total_angle = total_angle + self.triangles[curr_tri_id].angle_around_vertex(curr_vertex_id)
+            curr_tri_id, curr_vertex_id = self.step_counterclockwise(curr_tri_id, curr_vertex_id)
+        return total_angle
+
+    def order(self, tri_id, vertex_id):
+        """Computes the order of the cone point represented by Vertex VERTEX_ID
+           of Triangle TRI_ID."""
+        angle = self.angle_around_conepoint(tri_id, vertex_id)
+        return int(round(angle / (2 * pi)) - 1)
+
     def mark_flow(self, start_tri_id, start_coords, velocity, time, rgbcolor):
         """Marks the trajectory of a given point under the straight line flow
            in a given direction.

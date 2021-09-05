@@ -22,6 +22,9 @@ def is_valid_barycentric_coordinate(a0, a1, a2):
         return False
     return True
 
+def angle_between(v1, v2):
+    cosine = v1.dot_product(v2) / (norm(v1) * norm(v2))
+    return arccos(cosine)
 
 class Triangle():
     """ A triangle with a list of marked points
@@ -123,6 +126,9 @@ class Triangle():
             if test_matrix.is_singular():
                 return True
         return False
+
+    def angle_around_vertex(self, vertex_id):
+        return angle_between(self[vertex_id], -self[(vertex_id + 2) % 3])
 
     def reflect(self, idx):
         def reflect_vector(v, w):
