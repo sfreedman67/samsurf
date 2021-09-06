@@ -762,6 +762,18 @@ class Triangulation:
         angle = self.angle_around_conepoint(tri_id, vertex_id)
         return int(round(angle / (2 * pi)) - 1)
 
+    def can_step_flow_through_conepoint(self, start_tri_id, start_coords, velocity):
+        start_tri = self.triangles[start_tri_id]
+        v0, v1, v2 = start_tri
+        assert(self.triangles[start_tri_id].is_toward_conepoint(start_coords, velocity))
+
+        # Step 1: Identify the outgoing vertex.
+        for vertex_id in range(3):
+            if start_tri.is_interior(vertex_id, -velocity):
+                break
+
+        return self.order(start_tri_id, vertex_id) == 0
+
     def __step_flow_through_conepoint__(self, start_tri_id, start_coords, velocity):
         start_tri = self.triangles[start_tri_id]
         v0, v1, v2 = start_tri
@@ -776,7 +788,7 @@ class Triangulation:
 
         # Step 2: Compute the amount of time required to reach the outgoing vertex.
         end_coords_indexed = sorted([(vertex_id, 1), ((vertex_id + 1) % 3, 0), ((vertex_id + 2) % 3, 0)])
-        end_coords = tuple(coord for _, cooord in end_coords_indexed)
+        end_coords = tuple(coord for _, coord in end_coords_indexed)
 
         cart_start_coords = start_coords[0] * v0 - start_coords[2] * v1
         cart_end_coords = end_coords[0] * v0 - start_coords[2] * v1
@@ -785,11 +797,11 @@ class Triangulation:
         t = displacement.dot_product(velocity) / velocity.dot_product(velocity)
 
         # Step 3: Compute the new start coordinates.
-        while not self.triangles[start_tri_id].is_interior(-velocity):
-            start_tri_id, vertex_id = step_counterclockwise(start_tri_id, vertex_id)
+        while not self.triangles[start_tri_id].is_interior(vertex_id, velocity):
+            start_tri_id, vertex_id = self.step_counterclockwise(start_tri_id, vertex_id)
 
         start_coords_indexed = sorted([(vertex_id, 1), ((vertex_id + 1) % 3, 0), ((vertex_id + 2) % 3, 0)])
-        start_coords = tuple(coord for _, cooord in end_coords_indexed)
+        start_coords = tuple(coord for _, coord in end_coords_indexed)
 
         return start_tri_id, start_coords, end_coords, t
 
@@ -825,21 +837,22 @@ class Triangulation:
             points_seen.append((start_tri_id, start_coords))
             vertex_id = sum(tuple(m + 1 for m in range(3) if start_coords[m] == 1) + (-1,))
 
-            if tris_new[start_tri_id].is_toward_conepoint(start_coords, velocity):
-                t = time - time_traveled
-                # start_tri_id, start_coords, end_coords, t = self.__step_flow_through_conepoint__(start_tri_id, start_coords, velocity)
+            if start_tri.is_toward_conepoint(start_coords, velocity) and self.can_step_flow_through_conepoint(start_tri_id, start_coords, velocity):
+                next_tri_id, next_coords, end_coords, t = self.__step_flow_through_conepoint__(start_tri_id, start_coords, velocity)
             elif vertex_id > -1 and not start_tri.is_interior(vertex_id, velocity):
                 # We are at a vertex and pointing away from the triangle. How do we continue?
                 # TODO: Handle bad input.
                 break
             else:
                 # Otherwise, we are safe to call __step_flow_helper__.
-                start_tri_id, start_coords, end_coords, t = self.__step_flow_through_edge__(start_tri_id, start_coords, velocity)
+                next_tri_id, next_coords, end_coords, t = self.__step_flow_through_edge__(start_tri_id, start_coords, velocity)
 
             # Figure out whether we have run the length of our trajectory.
             if time_traveled + t < time:
                 tris_new = tris_new[0:start_tri_id] + (start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
                 time_traveled = time_traveled + t
+                start_tri_id = next_tri_id
+                start_coords = next_coords
             else:
                 remainder = time - time_traveled
                 change_of_basis = sage.all.matrix([
