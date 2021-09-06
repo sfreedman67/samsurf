@@ -722,28 +722,6 @@ class Triangulation:
         t = -(linear_system**(-1) * line)[1]
         return s, out_edge, t
 
-    def step_flow(self, start_tri_id, start_coords, direction):
-        """Flows a given point in a given direction.
-
-        start_tri_id := the triangle to which the point belongs, provided as an integer.
-        start_coords := the vector from the zeroth vertex to the point.
-        direction    := the direction of the flow."""
-
-        if self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction):
-            return start_tri_id, start_coords, direction
-
-        s, out_edge, _ = self.__step_flow_helper__(start_tri_id, start_coords, direction)
-
-        # Step 3: Translate these coordinates to those of the next triangle over.
-        end_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
-        end_tri = self.triangles[end_tri_id]
-        end_coords_indexed = sorted([(in_edge, s),
-                                     ((in_edge + 1) % 3, 1 - s),
-                                     ((in_edge + 2) % 3, 0)])
-        end_coords = tuple(coord for _, coord in end_coords_indexed)
-
-        return end_tri_id, end_coords, direction
-
     def mark_orbit(self, start_tri_id, start_coords, direction, rgbcolor):
         """Marks the trajectory of a given point under the straight line flow
            in a given direction.
@@ -760,20 +738,9 @@ class Triangulation:
 
             # Extend the straight line from the previous point.
             assert(not self.triangles[start_tri_id].is_toward_conepoint(start_coords, direction))
-            s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, direction)
-            end_coords_indexed = sorted([((out_edge + 1) % 3, s),
-                                         (out_edge, 1 - s),
-                                         ((out_edge + 2) % 3, 0)])
-            end_coords = tuple(coord for _, coord in end_coords_indexed)
+            start_tri_id, start_coords, end_coords, t = self.__step_flow_through_edge__(start_tri_id, start_coords, direction)
 
             tris_new = tris_new[0:start_tri_id] + (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
-
-            # Prepare for the next depth of recursion.
-            start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
-            start_coords_indexed = sorted([(in_edge, s),
-                                         ((in_edge + 1) % 3, 1 - s),
-                                         ((in_edge + 2) % 3, 0)])
-            start_coords = tuple(coord for _, coord in start_coords_indexed)
 
         return Triangulation(tris_new, self.gluings)
 
@@ -795,6 +762,51 @@ class Triangulation:
         angle = self.angle_around_conepoint(tri_id, vertex_id)
         return int(round(angle / (2 * pi)) - 1)
 
+    def __step_flow_through_conepoint__(self, start_tri_id, start_coords, velocity):
+        start_tri = self.triangles[start_tri_id]
+        v0, v1, v2 = start_tri
+        assert(self.triangles[start_tri_id].is_toward_conepoint(start_coords, velocity))
+
+        # Step 1: Identify the outgoing vertex.
+        for vertex_id in range(3):
+            if start_tri.is_interior(vertex_id, -velocity):
+                break
+
+        assert(self.order(start_tri_id, vertex_id) == 0)
+
+        # Step 2: Compute the amount of time required to reach the outgoing vertex.
+        end_coords_indexed = sorted([(vertex_id, 1), ((vertex_id + 1) % 3, 0), ((vertex_id + 2) % 3, 0)])
+        end_coords = tuple(coord for _, cooord in end_coords_indexed)
+
+        cart_start_coords = start_coords[0] * v0 - start_coords[2] * v1
+        cart_end_coords = end_coords[0] * v0 - start_coords[2] * v1
+
+        displacement = cart_end_coords - cart_start_coords
+        t = displacement.dot_product(velocity) / velocity.dot_product(velocity)
+
+        # Step 3: Compute the new start coordinates.
+        while not self.triangles[start_tri_id].is_interior(-velocity):
+            start_tri_id, vertex_id = step_counterclockwise(start_tri_id, vertex_id)
+
+        start_coords_indexed = sorted([(vertex_id, 1), ((vertex_id + 1) % 3, 0), ((vertex_id + 2) % 3, 0)])
+        start_coords = tuple(coord for _, cooord in end_coords_indexed)
+
+        return start_tri_id, start_coords, end_coords, t
+
+    def __step_flow_through_edge__(self, start_tri_id, start_coords, velocity):
+        s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
+        end_coords_indexed = sorted([((out_edge + 1) % 3, s),
+                                     (out_edge, 1 - s),
+                                     ((out_edge + 2) % 3, 0)])
+        end_coords = tuple(coord for _, coord in end_coords_indexed)
+
+        start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
+        start_coords_indexed = sorted([(in_edge, s),
+                                     ((in_edge + 1) % 3, 1 - s),
+                                     ((in_edge + 2) % 3, 0)])
+        start_coords = tuple(coord for _, coord in start_coords_indexed)
+        return start_tri_id, start_coords, end_coords, t
+
     def mark_flow(self, start_tri_id, start_coords, velocity, time, rgbcolor):
         """Marks the trajectory of a given point under the straight line flow
            in a given direction.
@@ -815,27 +827,18 @@ class Triangulation:
 
             if tris_new[start_tri_id].is_toward_conepoint(start_coords, velocity):
                 t = time - time_traveled
+                # start_tri_id, start_coords, end_coords, t = self.__step_flow_through_conepoint__(start_tri_id, start_coords, velocity)
             elif vertex_id > -1 and not start_tri.is_interior(vertex_id, velocity):
+                # We are at a vertex and pointing away from the triangle. How do we continue?
                 # TODO: Handle bad input.
                 break
             else:
                 # Otherwise, we are safe to call __step_flow_helper__.
-                s, out_edge, t = self.__step_flow_helper__(start_tri_id, start_coords, velocity)
-                end_coords_indexed = sorted([((out_edge + 1) % 3, s),
-                                             (out_edge, 1 - s),
-                                             ((out_edge + 2) % 3, 0)])
-                end_coords = tuple(coord for _, coord in end_coords_indexed)
+                start_tri_id, start_coords, end_coords, t = self.__step_flow_through_edge__(start_tri_id, start_coords, velocity)
 
             # Figure out whether we have run the length of our trajectory.
             if time_traveled + t < time:
                 tris_new = tris_new[0:start_tri_id] + (start_tri.mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
-
-                # Prepare for the next depth of recursion.
-                start_tri_id, in_edge = self.gluings[(start_tri_id, out_edge)]
-                start_coords_indexed = sorted([(in_edge, s),
-                                             ((in_edge + 1) % 3, 1 - s),
-                                             ((in_edge + 2) % 3, 0)])
-                start_coords = tuple(coord for _, coord in start_coords_indexed)
                 time_traveled = time_traveled + t
             else:
                 remainder = time - time_traveled
@@ -846,11 +849,12 @@ class Triangulation:
                 end_pos = start_coords[1] * start_tri[0] - start_coords[2] * start_tri[2] + remainder * velocity
                 end_coords_partial = change_of_basis**(-1) * end_pos
                 end_coords = (1 - end_coords_partial[0] - end_coords_partial[1], end_coords_partial[0], end_coords_partial[1])
-                tris_new = tris_new[0:start_tri_id] + (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + tris_new[start_tri_id + 1:]
+                tris_new = tris_new[0:start_tri_id] + \
+                        (tris_new[start_tri_id].mark_line(start_coords, end_coords, rgbcolor),) + \
+                        tris_new[start_tri_id + 1:]
                 break
 
         return Triangulation(tris_new, self.gluings)
-
 
     def is_on_same_geodesic(self, start_tri_id, start_coords, end_tri_id, end_coords, direction):
         for i in range(100):
@@ -866,7 +870,7 @@ class Triangulation:
                 if displacement == ratio * direction:
                     return True
 
-            start_tri_id, start_coords, direction = self.step_flow(start_tri_id, start_coords, direction)
+            start_tri_id, start_coords, _, _ = self.step_flow_through_edge__(start_tri_id, start_coords, direction)
         return False
 
     @property
