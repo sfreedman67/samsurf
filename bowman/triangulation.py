@@ -108,7 +108,7 @@ class Triangulation:
         Lanneau-Nguyen."""
 
         # Verify that the input satisfies the necessary conditions.
-        assert w > 0 and h > 0 and t >= 0 and e >= 0
+        assert w > 0 and h > 0 and t >= 0
         assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
         D = e**2 + 8 * w * h
         k = QuadraticField(D)
@@ -147,7 +147,7 @@ class Triangulation:
         Lanneau-Nguyen."""
 
         # Verify that the input satisfies the necessary conditions.
-        assert w > 0 and h > 0 and t >= 0 and e >= 0
+        assert w > 0 and h > 0 and t >= 0
         assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
         D = e**2 + 8 * w * h
         k = QuadraticField(D)
@@ -188,6 +188,17 @@ class Triangulation:
                                   sage.all.vector([base, height]),
                                   sage.all.vector([-base, 0]))
         return [triangle_lower, triangle_upper]
+
+    @staticmethod
+    def triangulate_rectangle(base, height):
+        """ return a triangulated rectangle. Diagonal runs from lower left to upper right"""
+        triangle_lower = Triangle(sage.all.vector([QQ(0), height]),
+                                  sage.all.vector([-base, -height]),
+                                  sage.all.vector([base, QQ(0)]))
+        triangle_upper = Triangle(sage.all.vector([QQ(0), -height]),
+                                  sage.all.vector([base, height]),
+                                  sage.all.vector([-base, QQ(0)]))
+        return Triangulation([triangle_lower, triangle_upper], {(0, 1): (1, 1), (1, 1): (0, 1)})
 
     @classmethod
     def mcmullen_l(cls, a, b):
@@ -247,6 +258,74 @@ class Triangulation:
         gluings = {**gluings_interior, **gluings_boundary}
         gluings.update({val: key for key, val in gluings.items()})
 
+        return Triangulation(triangles, gluings)
+
+
+    @classmethod
+    def prym_eigenform_type_b_disc_8_fake(cls):
+        intersections_cylinder = Graph({0: [3, 4], 1: [3, 4, 5], 2: [4, 5]})
+        perm_north = {(0, 3): (1, 3), (0, 4): (2, 4), (1, 3): (0, 3), (1, 4): (0, 4),
+                      (1, 5): (2, 5), (2, 4): (1, 4), (2, 5): (1, 5)}
+        perm_east = {(0, 3): (0, 4), (0, 4): (0, 3), (1, 3): (1, 4), (1, 4): (1, 5),
+                     (1, 5): (1, 3), (2, 4): (2, 5), (2, 5): (2, 4)}
+        # Corresponds to type B (1, 1, 0, 0)
+        k = QuadraticField(8)
+        a = k.gen()
+        l = a / 2
+        heights = [l / 2, k(1), l / 2, 1 - (l / 2), l - 1, 1 - (l / 2)]
+
+        return Triangulation.grid_graph(intersections_cylinder, perm_north, perm_east, heights)
+
+    @classmethod
+    def prym_eigenform_type_b_disc_8_real(cls):
+        k = QuadraticField(8)
+        a = k.gen()
+        l = a / 2
+        heights = [l / 2, k(1), l / 2, 1 - (l / 2), l - 1, 1 - (l / 2)]
+
+        t0 = Triangle(sage.all.vector(k, [-heights[3], 0]),
+                      sage.all.vector(k, [0, -heights[0]]),
+                      sage.all.vector(k, [heights[3], heights[0]]))
+        t1 = Triangle(sage.all.vector(k, [-heights[3], -heights[0]]),
+                      sage.all.vector(k, [heights[3] + heights[4], 0]),
+                      sage.all.vector(k, [-heights[4], heights[0]]))
+        t2 = Triangle(sage.all.vector(k, [-heights[4], 0]),
+                      sage.all.vector(k, [heights[4], -heights[0]]),
+                      sage.all.vector(k, [0, heights[0]]))
+        t3 = Triangle(sage.all.vector(k, [0, -heights[1]]),
+                      sage.all.vector(k, [heights[3], 0]),
+                      sage.all.vector(k, [-heights[3], heights[1]]))
+        t4 = Triangle(sage.all.vector(k, [-heights[3] - heights[4], 0]),
+                      sage.all.vector(k, [heights[3], -heights[1]]),
+                      sage.all.vector(k, [heights[4], heights[1]]))
+        tris = [t0, t1, t2, t3, t4]
+        tris.extend([t.apply_matrix(-sage.all.identity_matrix(k, 2)) for t in tris])
+
+        gluings = {(0, 0): (3, 1), (0, 1): (2, 2), (0, 2): (1, 0),
+                   (1, 1): (4, 0), (1, 2): (2, 1), (2, 0): (7, 0),
+                   (3, 0): (8, 0), (3, 2): (4, 1), (4, 2): (9, 2),
+                   (5, 0): (8, 1), (5, 1): (7, 2), (5, 2): (6, 0),
+                   (6, 1): (9, 0), (6, 2): (7, 1), (8, 2): (9, 1)}
+        gluings.update({v: k for k, v in gluings.items()})
+
+        return Triangulation(tris, gluings)
+
+    @classmethod
+    def grid_graph(cls, graph_intersections_cylinder, perm_north, perm_east, heights):
+        intersections_cylinder = list(graph_intersections_cylinder.edge_iterator(labels=False))
+        rectangles = [Triangulation.triangulate_rectangle(heights[idx_v], heights[idx_h])
+                      for idx_h, idx_v in intersections_cylinder]
+        triangles = [tri for rectangle in rectangles for tri in rectangle.triangles]
+        # glue diagonal of each rectangle
+        gluings = {(k, 1): (k + 1, 1) for k in range(0, len(triangles), 2)}
+        for idx_intersection, intersection in enumerate(intersections_cylinder):
+            # glue right edge of R_e to left edge of R_{east[e]}
+            idx_intersection_east = intersections_cylinder.index(perm_east[intersection])
+            gluings[(2 * idx_intersection, 0)] = (2 * idx_intersection_east + 1, 0)
+            # glue top edge of R_e to bottom edge of R_{north[e]}
+            idx_intersection_north = intersections_cylinder.index(perm_north[intersection])
+            gluings[(2 * idx_intersection + 1, 2)] = (2 * idx_intersection_north, 2)
+        gluings.update({(v, k) for k, v in gluings.items()})
         return Triangulation(triangles, gluings)
 
     def apply_matrix(self, m):
