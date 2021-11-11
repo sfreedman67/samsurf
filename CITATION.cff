@@ -1,0 +1,27 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: Computing Periodic Points on Veech Surfaces
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Zawad
+    family-names: Chowdhury
+    email: zawadx@mit.edu
+    affiliation: Massachusetts Institute of Technology
+  - given-names: Samuel
+    family-names: Everett
+    email: saev1252@colorado.edu
+    affiliation: University of Colorado Boulder
+  - given-names: Sam
+    family-names: Freedman
+    email: samuel_freedman@brown.edu
+    affiliation: Brown University
+    orcid: 'https://orcid.org/0000-0002-1204-134X'
+  - given-names: Destine
+    family-names: Lee
+    email: dll2141@columbia.edu
+    affiliation: Columbia University
