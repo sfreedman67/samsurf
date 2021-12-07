@@ -1296,7 +1296,7 @@ class Triangulation:
                                 for (a, b, c) in tris_seen.values()
                                 for idx, (v1, v2) in [(0, (a, b)), (1, (b, c)), (2, (c, a))])
 
-        return plots_tris + plots_labels_tri + plots_labels_edge
+        return plots_tris #+ plots_labels_tri + plots_labels_edge
 
     @staticmethod
     def union(tn1, tn2):
