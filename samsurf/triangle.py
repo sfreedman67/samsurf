@@ -2,7 +2,7 @@ from collections import namedtuple
 import functools
 
 from sage.all import *
-from bowman.linear_xy_poly import LinearXYPoly
+from samsurf.linear_xy_poly import LinearXYPoly
 
 
 def perp_vector_2D(vec):

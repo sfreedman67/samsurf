@@ -1,5 +1,5 @@
 from sage.all import *
-from bowman.triangulation import Triangulation
+from samsurf.triangulation import Triangulation
 
 
 def veech_action_on_points(trin, veech_elem, points_set, rgbcolor=(0, 0, 0)):

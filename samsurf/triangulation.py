@@ -7,18 +7,18 @@ from sage.all import *
 from random import randrange
 # import flatsurf
 
-from bowman import halfplane
-from bowman import idr
-from bowman import comb_equiv
-from bowman import geom_equiv
-from bowman import algo
-from bowman.triangle import Triangle, is_valid_barycentric_coordinate, intersect_lines, is_point_on_line
-from bowman.hinge import Hinge
-from bowman.radical import Radical
-from bowman.geom_equiv import gen_geom_equivs, is_cut_paste_equiv
+from samsurf import halfplane
+from samsurf import idr
+from samsurf import comb_equiv
+from samsurf import geom_equiv
+from samsurf import algo
+from samsurf.triangle import Triangle, is_valid_barycentric_coordinate, intersect_lines, is_point_on_line
+from samsurf.hinge import Hinge
+from samsurf.radical import Radical
+from samsurf.geom_equiv import gen_geom_equivs, is_cut_paste_equiv
 
-from bowman.rational_ht_application import bicuspid_segments, segments_for_plotting
-from bowman.geom_equiv import gen_geom_equivs
+from samsurf.rational_ht_application import bicuspid_segments, segments_for_plotting
+from samsurf.geom_equiv import gen_geom_equivs
 
 def return_shear_mat(dir):
     """Generate a shear that projects vector dir onto the real line, or rotates

@@ -3,7 +3,7 @@ import collections
 import sage.all
 from sage.all import *
 
-from bowman import triangulation
+from samsurf import triangulation
 
 K = QuadraticField(2)
 A = K.gen()

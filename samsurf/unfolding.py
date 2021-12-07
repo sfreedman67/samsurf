@@ -2,8 +2,8 @@ import itertools
 
 from sage.all import *
 
-from bowman.triangle import Triangle
-from bowman.triangulation import Triangulation
+from samsurf.triangle import Triangle
+from samsurf.triangulation import Triangulation
 
 
 def get_triangle_from_angles(alphas):
@@ -220,7 +220,7 @@ def get_chis(max_height):
 
 
 def get_proportions(max_height):
-    from bowman.algo import BoundaryIsNotZippedPairwiseError
+    from samsurf.algo import BoundaryIsNotZippedPairwiseError
     for rat in [QQ(-1 / t) for t in range(1, max_height)]:
         print(rat)
         X = triangulate_gothic1128(rat)

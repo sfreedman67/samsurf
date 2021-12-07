@@ -3,8 +3,8 @@ from functools import lru_cache
 
 from sage.all import *
 
-from bowman.triangle import Triangle, is_valid_barycentric_coordinate
-from bowman.halfplane import HalfPlane
+from samsurf.triangle import Triangle, is_valid_barycentric_coordinate
+from samsurf.halfplane import HalfPlane
 
 
 class Hinge:

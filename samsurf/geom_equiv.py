@@ -1,7 +1,7 @@
 import sage.all
 from sage.all import *
 
-import bowman.comb_equiv as ce
+import samsurf.comb_equiv as ce
 
 
 def gen_geom_equivs(trin1, trin2):

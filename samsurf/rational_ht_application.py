@@ -2,8 +2,8 @@
 
 import itertools
 from sage.all import *
-from bowman.linear_xy_poly import LinearXYPoly
-from bowman.cylinder import Cylinder
+from samsurf.linear_xy_poly import LinearXYPoly
+from samsurf.cylinder import Cylinder
 from sage.rings.number_field.number_field import is_QuadraticField
 
 

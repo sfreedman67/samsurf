@@ -2,7 +2,7 @@ from sage.all import *
 
 import collections
 
-from bowman.geom_equiv import gen_geom_equivs
+from samsurf.geom_equiv import gen_geom_equivs
 
 
 class IDR:
