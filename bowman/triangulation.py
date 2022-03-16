@@ -112,7 +112,7 @@ class Triangulation:
         Lanneau-Nguyen."""
 
         # Verify that the input satisfies the necessary conditions.
-        assert w > 0 and h > 0 and t >= 0 and e >= 0
+        assert w > 0 and h > 0 and t >= 0
         assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
         D = e ** 2 + 8 * w * h
         k = QuadraticField(D)
@@ -120,10 +120,10 @@ class Triangulation:
         l = (e + sqrtD) / 2
         assert sign(l) > 0 and sign(w - l) > 0
 
-        east_long = sage.all.vector([w, 0])
-        east_short = sage.all.vector([l, 0])
-        north_short = sage.all.vector([0, l])
-        north_east = sage.all.vector([t, h])
+        east_long = sage.all.vector(k, [w, 0])
+        east_short = sage.all.vector(k, [l, 0])
+        north_short = sage.all.vector(k, [0, l])
+        north_east = sage.all.vector(k, [t, h])
 
         triangles = [Triangle(east_short, -east_short + north_short, -north_short),
                      Triangle(-east_short, east_short - north_short, north_short),
@@ -151,7 +151,7 @@ class Triangulation:
         Lanneau-Nguyen."""
 
         # Verify that the input satisfies the necessary conditions.
-        assert w > 0 and h > 0 and t >= 0 and e >= 0
+        assert w > 0 and h > 0 and t >= 0
         assert t < gcd(w, h) and gcd(gcd(gcd(w, h), t), e) == 1
         D = e ** 2 + 8 * w * h
         k = QuadraticField(D)
@@ -159,10 +159,10 @@ class Triangulation:
         l = (e + sqrtD) / 2
         assert sign(l) > 0 and sign(w - l) > 0
 
-        east_long = sage.all.vector([w - l, 0])
-        east_short = sage.all.vector([l / 2, 0])
-        north_short = sage.all.vector([0, l / 2])
-        north_east = sage.all.vector([t, h])
+        east_long = sage.all.vector(k, [w - l, 0])
+        east_short = sage.all.vector(k, [l / 2, 0])
+        north_short = sage.all.vector(k, [0, l / 2])
+        north_east = sage.all.vector(k, [t, h])
 
         triangles = [Triangle(east_short, north_east - east_short, -north_east),
                      Triangle(-east_short, -north_east + east_short, north_east),
@@ -201,36 +201,35 @@ class Triangulation:
     @classmethod
     def prym_eigenform_type_b_disc_8_real(cls):
         k = QuadraticField(8)
-        a = k.gen()
-        l = a / 2
-        heights = [l / 2, k(1), l / 2, 1 - (l / 2), l - 1, 1 - (l / 2)]
+        rt8 = k.gen()
+        lmbd = rt8 / 2
 
-        t0 = Triangle(sage.all.vector(k, [-heights[3], 0]),
-                      sage.all.vector(k, [0, -heights[0]]),
-                      sage.all.vector(k, [heights[3], heights[0]]))
-        t1 = Triangle(sage.all.vector(k, [-heights[3], -heights[0]]),
-                      sage.all.vector(k, [heights[3] + heights[4], 0]),
-                      sage.all.vector(k, [-heights[4], heights[0]]))
-        t2 = Triangle(sage.all.vector(k, [-heights[4], 0]),
-                      sage.all.vector(k, [heights[4], -heights[0]]),
-                      sage.all.vector(k, [0, heights[0]]))
-        t3 = Triangle(sage.all.vector(k, [0, -heights[1]]),
-                      sage.all.vector(k, [heights[3], 0]),
-                      sage.all.vector(k, [-heights[3], heights[1]]))
-        t4 = Triangle(sage.all.vector(k, [-heights[3] - heights[4], 0]),
-                      sage.all.vector(k, [heights[3], -heights[1]]),
-                      sage.all.vector(k, [heights[4], heights[1]]))
-        tris = [t0, t1, t2, t3, t4]
-        tris.extend([t.apply_matrix(-sage.all.identity_matrix(k, 2)) for t in tris])
+        east_short = sage.all.vector(k, [1 - (lmbd / 2), 0])
+        east_long = sage.all.vector(k, [lmbd - 1, 0])
+        north_short = sage.all.vector(k, [0, lmbd / 2])
+        north_long = sage.all.vector(k, [0, 1])
 
-        gluings = {(0, 0): (3, 1), (0, 1): (2, 2), (0, 2): (1, 0),
-                   (1, 1): (4, 0), (1, 2): (2, 1), (2, 0): (7, 0),
-                   (3, 0): (8, 0), (3, 2): (4, 1), (4, 2): (9, 2),
-                   (5, 0): (8, 1), (5, 1): (7, 2), (5, 2): (6, 0),
-                   (6, 1): (9, 0), (6, 2): (7, 1), (8, 2): (9, 1)}
+        t0 = Triangle(east_short, north_short, -east_short - north_short)
+        t1 = Triangle(east_short + north_short, -east_short - east_long , -north_short + east_long)
+        t2 = Triangle(north_short - east_long, -north_short, east_long)
+        t3 = Triangle(-east_long, east_long - north_short, north_short)
+        t4 = Triangle(-north_short, north_short + east_short, -east_short)
+        t5 = Triangle(east_short, -east_short + north_long, -north_long)
+        t6 = Triangle(north_long, -east_short, east_short - north_long)
+        t7 = Triangle(north_long - east_short, -east_long - north_long, east_short + east_long)
+        t8 = Triangle(east_long + north_long, -east_long - east_short, -north_long + east_short)
+        t9 = Triangle(east_short + east_long, -east_long + north_short, -east_short - north_short)
+
+        triangles = [t0, t1, t2, t3, t4, t5, t6, t7, t8, t9]
+
+        gluings = {(0, 0): (6, 1), (0, 1): (2, 1), (0, 2): (1, 0),
+                   (1, 1): (7, 2), (1, 2): (2, 0), (2, 2): (3, 0),
+                   (3, 1): (9, 1), (3, 2): (4, 0), (4, 1): (9, 2),
+                   (4, 2): (5, 0), (5, 1): (8, 2), (5, 2): (6, 0),
+                   (6, 2): (7, 0), (7, 1): (8, 0), (8, 1): (9, 0)}
         gluings.update({v: k for k, v in gluings.items()})
 
-        return Triangulation(tris, gluings)
+        return Triangulation(triangles, gluings)
 
     @classmethod
     def grid_graph(cls, graph_intersections_cylinder, perm_north, perm_east, heights):
@@ -710,7 +709,7 @@ class Triangulation:
         coordinate of the marked point, of form (tri_id, coord).
         """
         new_triangulation = Triangulation(self.triangles, self.gluings)
-        new_triangulation = self.mark_point(triangle_id, coord, (1, 0, 0))
+        new_triangulation = new_triangulation.mark_point(triangle_id, coord, (1, 0, 0))
         new_triangulation = new_triangulation.apply_matrix(veech_elem)
         new_triangulation = new_triangulation.make_delaunay(self)
 

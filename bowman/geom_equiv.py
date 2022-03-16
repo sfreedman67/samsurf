@@ -49,6 +49,12 @@ def get_normalization_matrix(t, tri, edge):
     return sage.all.matrix([v1, v2]).transpose().inverse()
 
 
+def is_cut_paste_equiv(trin1, trin2):
+    # returns whether the identity is in the geom equivalences
+    return any([ge[0] == matrix([[1, 0], [0, 1]]) for
+                ge in gen_geom_equivs(trin1, trin2)])
+
+
 def generate_code_marked(t, tri, edge):
     relabel = ce.canonical_relabel(t, tri, edge)
     relabel_inv = {v: k for k, v in relabel.items()}
