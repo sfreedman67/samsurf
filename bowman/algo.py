@@ -24,8 +24,10 @@ def fixed_point_elliptic(mat):
 def _is_boundary_paired(idrs, pairings):
     edges_total = {x for idr in idrs for x in idr.polygon}
     boundary = {x for x in edges_total if x.reverse() not in edges_total}
-    boundary_is_paired = all(x in pairings or x.reverse() in pairings for x in boundary)
-    pairings_contains_boundary = all(x in boundary or x.reverse() in boundary for x in boundary)
+    boundary_is_paired = all(x in pairings or x.reverse()
+                             in pairings for x in boundary)
+    pairings_contains_boundary = all(
+        x in boundary or x.reverse() in boundary for x in boundary)
     return boundary_is_paired and pairings_contains_boundary
 
 
@@ -34,6 +36,17 @@ class BoundaryIsNotZippedPairwiseError(Exception):
 
 
 def generators_veech(trin):
+    r"""
+    Return a FundDom for trin.
+
+    EXAMPLES::
+
+        sage: from triangulation import Triangulation
+        sage: X = Triangulation.regular_octagon()
+        sage: fd = X.generators_veech
+        sage: fd
+        FundDom with 2 idrs and 2 gens
+    """
     if not trin.is_delaunay:
         raise ValueError("Need to start with Delaunay Triangulation")
     r0 = trin.idr
@@ -56,7 +69,8 @@ def generators_veech(trin):
                 idr_neighbor = trin_neighbor.idr
 
                 if code_neighbor in code_to_idr:
-                    ve, _ = geom_equiv.gen_geom_equiv(trin_neighbor, code_to_idr[code_neighbor].triangulation)
+                    ve, _ = geom_equiv.gen_geom_equiv(
+                        trin_neighbor, code_to_idr[code_neighbor].triangulation)
                     # first element of an equivalence is the matrix
                     m = sigma(ve)
                     edge_opp = edge_curr.apply_mobius(m).reverse()
@@ -64,7 +78,8 @@ def generators_veech(trin):
                     edges_paired[edge_opp] = edge_curr
                     generators.append(m)
                 elif idr_neighbor.has_self_equivalences:
-                    idr_neighbor_chopped, m_rot = chop_idr(idr_neighbor, edge_curr.reverse())
+                    idr_neighbor_chopped, m_rot = chop_idr(
+                        idr_neighbor, edge_curr.reverse())
                     edge_in = idr_neighbor_chopped.polygon.edges[-2]
                     edge_out = idr_neighbor_chopped.polygon.edges[-1]
 
@@ -89,7 +104,8 @@ def generators_veech(trin):
 
 
 def chop_idr(idr, edge):
-    gen_rot = find_gen_ccw([m for m, _ in idr.triangulation.self_geom_equivs if m.trace().abs() < 2])
+    gen_rot = find_gen_ccw(
+        [m for m, _ in idr.triangulation.self_geom_equivs if m.trace().abs() < 2])
     center = fixed_point_elliptic(sigma(gen_rot))
     edge_translate = edge.apply_mobius(sigma(gen_rot))
     idx_edge = idr.polygon.edges.index(edge)
@@ -98,7 +114,8 @@ def chop_idr(idr, edge):
     if idx_edge < idx_edge_translate:
         edges = idr.polygon.edges[idx_edge: idx_edge_translate]
     else:
-        edges = idr.polygon.edges[idx_edge:] + idr.polygon.edges[: idx_edge_translate]
+        edges = idr.polygon.edges[idx_edge:] + \
+            idr.polygon.edges[: idx_edge_translate]
 
     edge_end_center = Edge.from_two_points(edge_translate.start, center)
     edge_center_start = Edge.from_two_points(center, edge.start)
