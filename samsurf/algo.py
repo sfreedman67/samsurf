@@ -2,10 +2,10 @@ from collections import deque
 
 from sage.all import *
 
-from bowman import geom_equiv
-from bowman.fund_dom import FundDom
-from bowman.polygon import Point, Edge, Polygon
-from bowman.idr import IDR
+from samsurf import geom_equiv
+from samsurf.fund_dom import FundDom
+from samsurf.polygon import Point, Edge, Polygon
+from samsurf.idr import IDR
 
 
 def sigma(mat):

@@ -3,8 +3,8 @@ from sage.all import *
 
 from collections import namedtuple
 
-from bowman import radical
-from bowman import halfplane
+from samsurf import radical
+from samsurf import halfplane
 
 class Point(namedtuple("Point", ["u", "v2"])):
 

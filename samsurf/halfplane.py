@@ -5,8 +5,8 @@ from functools import lru_cache
 import sage.all
 from sage.all import *
 
-from bowman import radical
-from bowman import polygon
+from samsurf import radical
+from samsurf import polygon
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
