@@ -10,6 +10,8 @@ from bowman import polygon
 
 
 class HalfPlane(namedtuple('HalfPlane', ['a', 'b', 'c'])):
+    r""" all points u + iv such that a(u^2 + v^2) + bu + c >= 0.
+    """
     __slots__ = ()
 
     # TODO: Why am I making these monic? Is that assumption used?

@@ -112,7 +112,7 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
                     mobius.apply_mobius(m, self.end))
 
     def plot(self):
-        return HyperbolicPlane().UHP().get_geodesic(*self.coordinates).plot(axes=True)
+        return HyperbolicPlane().UHP().get_geodesic(*self.coordinates).plot(boundary=False, axes=True)
 
     @property
     def coordinates(self):
