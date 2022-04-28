@@ -3,8 +3,8 @@ from sage.all import *
 
 import unittest
 
-from bowman.halfplane import HalfPlane
-from bowman.triangulation import Triangulation
+from samsurf.halfplane import HalfPlane
+from samsurf.triangulation import Triangulation
 
 
 class TestContainsPoint(unittest.TestCase):

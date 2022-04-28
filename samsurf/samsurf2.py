@@ -71,7 +71,7 @@ class TV():
                   right, top, instrs)
 
     def _to_samsurf(self):
-        from context import bowman
+        from context import samsurf
         from triangle import Triangle
         from triangulation import Triangulation
         tris = []

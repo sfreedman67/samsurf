@@ -6,7 +6,7 @@ from sage.all import *
 from scipy.spatial import Delaunay
 import numpy as np
 
-from bowman import triangulation
+from samsurf import triangulation
 
 
 def from_permutation(vectors: typing.Sequence, permutation: typing.Mapping[int, int]) -> triangulation.Triangulation:

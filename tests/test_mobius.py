@@ -2,9 +2,9 @@ from unittest import TestCase
 
 from sage.all import *
 
-from bowman.mobius import apply_mobius
-from bowman.polygon import Point
-from bowman.radical import Radical
+from samsurf.mobius import apply_mobius
+from samsurf.polygon import Point
+from samsurf.radical import Radical
 
 
 class Test(TestCase):

@@ -37,7 +37,7 @@ class Point(namedtuple("Point", ["u", "v2"])):
         return p1.u < p2.u
 
     def apply_mobius(self, m):
-        from bowman import mobius
+        from samsurf import mobius
         return mobius.apply_mobius(m, self)
 
 
@@ -106,7 +106,7 @@ class Edge(namedtuple("Edge", ['halfplane', 'start', 'end'])):
             return sage.all.vector([a, dv_du])
 
     def apply_mobius(self, m):
-        from bowman import mobius
+        from samsurf import mobius
         return Edge(self.halfplane.apply_mobius(m),
                     mobius.apply_mobius(m, self.start),
                     mobius.apply_mobius(m, self.end))

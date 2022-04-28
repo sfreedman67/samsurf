@@ -2,8 +2,8 @@ from unittest import TestCase
 
 from sage.all import *
 
-from bowman.halfplane import HalfPlane
-from bowman.polygon import Edge, Point
+from samsurf.halfplane import HalfPlane
+from samsurf.polygon import Edge, Point
 
 
 class TestEdge(TestCase):

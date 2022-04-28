@@ -5,8 +5,8 @@ from unittest import TestCase
 from sage.all import *
 import flatsurf as fs
 
-from bowman import triangulation
-from bowman import geom_equiv
+from samsurf import triangulation
+from samsurf import geom_equiv
 
 
 class TestApplyMatrixToTriangle(unittest.TestCase):

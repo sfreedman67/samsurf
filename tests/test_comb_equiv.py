@@ -4,9 +4,9 @@ from unittest import TestCase
 from collections import defaultdict
 from itertools import combinations
 
-from bowman import comb_equiv
-from bowman import triangulation
-from bowman import unfolding
+from samsurf import comb_equiv
+from samsurf import triangulation
+from samsurf import unfolding
 
 
 class TestCombEquiv(TestCase):

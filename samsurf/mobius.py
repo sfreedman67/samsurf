@@ -1,7 +1,7 @@
 from sage.all import *
 
-from bowman.polygon import Point
-from bowman.radical import Radical
+from samsurf.polygon import Point
+from samsurf.radical import Radical
 
 
 def _apply_mobius_infinity(m):

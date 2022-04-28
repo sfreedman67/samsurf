@@ -5,15 +5,15 @@ import pstats
 import sage.all
 from sage.all import *
 
-from context import bowman
-import bowman.polygon
-from bowman import polygon
-import bowman.radical
-from bowman import radical
-import bowman.halfplane
-from bowman import halfplane
-import bowman.triangulation
-from bowman import triangulation
+from context import samsurf
+import samsurf.polygon
+from samsurf import polygon
+import samsurf.radical
+from samsurf import radical
+import samsurf.halfplane
+from samsurf import halfplane
+import samsurf.triangulation
+from samsurf import triangulation
 
 
 class TestIntersectHalfPlanes(unittest.TestCase):
